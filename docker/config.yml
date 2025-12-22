@@ -2718,7 +2718,7 @@
       #
       #===== Gravitino ========
       #
-      GRAVITINO_enable: true
+      GRAVITINO_enable: false
       GRAVITINO_volume_map_data: false
       # only 'relational' is supported
       GRAVITINO_entity_store: relational

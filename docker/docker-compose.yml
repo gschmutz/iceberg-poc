@@ -65,10 +65,6 @@ services:
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
       SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
       SPARK_DEFAULTS_CONF_spark_jars_repositories:
       SPARK_DEFAULTS_CONF_spark_jars_packages: ''
@@ -152,10 +148,6 @@ services:
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
       SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
       SPARK_DEFAULTS_CONF_spark_jars_repositories:
       SPARK_DEFAULTS_CONF_spark_jars_packages: ''
@@ -234,10 +226,6 @@ services:
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
       SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
       SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
       SPARK_DEFAULTS_CONF_spark_jars_repositories:
       SPARK_DEFAULTS_CONF_spark_jars_packages: ''
@@ -409,7 +397,7 @@ services:
       retries: 5
   #  ================================== Trino ========================================== #
   trino-1:
-    image: trinodb/trino:478
+    image: trinodb/trino:479
     hostname: trino-1
     container_name: trino-1
     labels:
@@ -444,8 +432,6 @@ services:
       ICEBERG_POLARIS_CATALOG_WAREHOUSE: polaris_catalog
       CLIENT_ID: admin
       CLIENT_SECRET: ${PLATYS_POLARIS_CLIENT_SECRET:-abc123!}
-      ICEBERG_GRAVITINO_CATALOG_URI: http://gravitino:9001/iceberg
-      ICEBERG_GRAVITINO_CATALOG_WAREHOUSE: gravitino_catalog
       HIVE_METASTORE_DB_USER: hive
       HIVE_METASTORE_DB_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
       POSTGRESQL_DATABASE: postgres
@@ -460,7 +446,6 @@ services:
       - ./conf/trino/catalog/minio.properties:/catalog/minio.properties
       - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties
       - ./conf/trino/catalog/iceberg-polaris.properties:/catalog/iceberg_polaris.properties
-      - ./conf/trino/catalog/iceberg-gravitino.properties:/catalog/iceberg_gravitino.properties
       - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties
       - ./conf/trino/catalog/postgresql.properties:/catalog/postgresql.properties
       - ./custom-conf/trino/security:/etc/trino/security
@@ -619,39 +604,6 @@ services:
         echo Done.; 
     init: true
     restart: no
-  #  ================================== Gravitino ========================================== #
-  gravitino:
-    image: apache/gravitino:1.0.1
-    container_name: gravitino
-    hostname: gravitino
-    labels:
-      com.platys.name: gravitino
-      com.platys.description: powerful open data catalog
-      com.platys.webui.title: Gravitino Web UI
-      com.platys.webui.url: http://dataplatform:28286
-      com.platys.password.envvars: PLATYS_POLARIS_DB_PASSWORD,PLATYS_POLARIS_CLIENT_SECRET
-    ports:
-      - 28286:8090
-    environment:
-      GRAVITINO_ENTITY_STORE: relational
-      GRAVITINO_ENTITY_STORE_RELATIONAL: JDBCBackend
-      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_URL: jdbc:h2
-      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_DRIVER: org.h2.Driver
-      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_USER: postgres
-      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_PASSWORD: abc123!
-      GRAVITINO_AUTHORIZATION_ENABLE: false
-      #GRAVITINO_ICEBERG_REST_WAREHOUSE
-      GRAVITINO_AUDIT_LOG: false
-    volumes:
-      - ./data-transfer:/data-transfer
-    #entrypoint: /bin/bash /tmp/gravitino/init.sh
-    restart: unless-stopped
-    healthcheck:
-      test: [CMD, "curl -X GET -H 'Content-Type: application/json' http://127.0.0.1:8090/api/version || exit 1"]
-      interval: 5s
-      timeout: 60s
-      retries: 5
-      start_period: 20s
   # https://gravitino.apache.org/docs/1.0.1/iceberg-rest-service
   gravitino-iceberg-rest:
     image: apache/gravitino-iceberg-rest:1.0.1

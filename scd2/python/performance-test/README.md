@@ -6,7 +6,7 @@ In the 3.x version an `MSCK REPAIR` is called on the Hive Metastore services whe
 
 ## Run the comparision
 
-Set environment variables
+Set environment variables for local environment
 
 ```bash
 export TRINO_USER=trino
@@ -21,6 +21,22 @@ export S3_ENDPOINT_URL=http://localhost:9000
 export S3_ADMIN_BUCKET=admin-bucket
 export S3_LOCATION_LIST_OBJECT_NAME={zone}_s3_locations_{database}.csv
 ```
+
+Set environment variables for lightsail environment
+
+```bash
+export TRINO_USER=trino
+export TRINO_PASSWORD=
+export TRINO_HOST=dataplatform
+export TRINO_PORT=28082
+export TRINO_CATALOG=iceberg_hive
+
+export AWS_ACCESS_KEY_ID=admin
+export AWS_SECRET_ACCESS_KEY=abc123abc123
+export S3_ENDPOINT_URL=http://dataplatform:9000
+export S3_ADMIN_BUCKET=admin-bucket
+```
+
 
 ```json
     "HMS_DB_HOST": "localhost",

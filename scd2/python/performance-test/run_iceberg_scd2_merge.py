@@ -281,3 +281,7 @@ def run_dim_update(load_date: str):
         connection.execute(text(merge_stmt))
 
 run_dim_update(load_date="2024-01-12")
+
+def run_merge_all():
+
+    run_dim_update(load_date="2024-01-12")
