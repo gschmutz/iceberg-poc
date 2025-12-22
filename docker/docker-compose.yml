@@ -1,0 +1,782 @@
+# =======================================================================
+# Platform Name            platys-platform
+# Platform Stack:          trivadis/platys-modern-data-platform
+# Platform Stack Version:  develop
+# =======================================================================
+networks:
+  default:
+    name: platys-platform
+services:
+  #  ================================== Apache Spark ========================================== #
+  spark-master:
+    image: bitnamilegacy/spark:3.5.3
+    container_name: spark-master
+    hostname: spark-master
+    labels:
+      com.platys.name: spark
+      com.platys.description: Spark Master Node
+      com.platys.webui.title: Spark UI
+      com.platys.webui.url: http://dataplatform:28304
+    ports:
+      - 28304:28304
+      - 6066:6066
+      - 7077:7077
+      - 4040-4044:4040-4044
+    environment:
+      # bitnami env vars
+      SPARK_MODE: master
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
+      SPARK_SSL_ENABLED: no
+      # spark standard env vars
+      SPARK_MASTER_WEBUI_PORT: 28304
+      SPARK_PUBLIC_DNS: ${PUBLIC_IP}
+      # env vars for config files
+#     INIT_DAEMON_STEP: setup_spark
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://minio-1:9000
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_path_style_access: 'true'
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_defaultFS: s3a://admin-bucket
+      SPARK_DEFAULTS_CONF_spark_sql_warehouse_dir: s3a://admin-bucket/hive/warehouse
+      SPARK_DEFAULTS_CONF_spark_driver_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_executor_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_jars: builtin
+      # SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_version: 3.1.2    
+      SPARK_DEFAULTS_CONF_spark_sql_catalogImplementation: hive
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog_type: hive
+      SPARK_DEFAULTS_CONF_spark_hadoop_hive_metastore_uris: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_uri: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_warehouse: s3a://admin-bucket/iceberg/warehouse
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_uri: http://polaris:8181/api/catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_token___refresh___enabled: true
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_credential: admin:abc123!
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
+      SPARK_DEFAULTS_CONF_spark_jars_repositories:
+      SPARK_DEFAULTS_CONF_spark_jars_packages: ''
+      SPARK_DEFAULTS_CONF_spark_jars_excludes:
+      # specifies the JARs to be downloaded to the jars folder by maven-download-sh script
+      SPARK_INSTALL_JARS_PACKAGES: ',io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0,org.apache.iceberg:iceberg-aws-bundle:1.10.0,org.apache.polaris:polaris-spark-3.5_2.13:1.2.0-incubating,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
+      SPARK_DEFAULTS_CONF_spark_jars: /opt/bitnami/spark/jars/iceberg-spark-runtime-3.5_2.12-1.10.0.jar
+      SPARK_DEFAULTS_CONF_spark_jars_ivySettings:
+    volumes:
+      - ./data-transfer:/data-transfer
+      # the 3 conf files are mapped to conf.default folder, they are copied with env variable interpolation into conf upon start of container
+      - ./conf/spark/hive-site.xml:/opt/bitnami/spark/conf.default/hive-site.xml
+      - ./conf/spark/spark-defaults.conf:/opt/bitnami/spark/conf.default/spark-defaults.conf
+      - ./init/spark:/docker-entrypoint-initdb.d
+      - ./scripts/docker/maven-download.sh:/maven-download.sh
+      - ./scripts/spark/pyspark:/opt/bitnami/spark/bin/pyspark
+      - ./container-volume/spark/logs/:/var/log/spark/logs
+#      - ./scripts/docker/maven-download.sh:/usr/src/app/maven-download.sh
+      - spark-3-5-3-vol:/opt/bitnami/spark
+      - spark-3-5-3-java-vol:/opt/bitnami/java
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "python3 -c 'import socket; socket.create_connection((\"localhost\", 28304), timeout=5)'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+  spark-worker-1:
+    image: bitnamilegacy/spark:3.5.3
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    labels:
+      com.platys.name: spark
+      com.platys.description: Spark Worker Node
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    ports:
+      - 28111:28111
+    environment:
+      # bitnami env vars
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
+      SPARK_SSL_ENABLED: no
+      # spark standard env vars
+      SPARK_WORKER_WEBUI_PORT: '28111'
+      SPARK_WORKER_OPTS: -Dspark.worker.cleanup.enabled=true
+      SPARK_PUBLIC_DNS: ${PUBLIC_IP}
+      # env vars for config files
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://minio-1:9000
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_path_style_access: 'true'
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_defaultFS: s3a://admin-bucket
+      SPARK_DEFAULTS_CONF_spark_sql_warehouse_dir: s3a://admin-bucket/hive/warehouse
+      SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_jars: builtin
+      # SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_version: 3.1.2    
+      SPARK_DEFAULTS_CONF_spark_sql_catalogImplementation: hive
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog_type: hive
+      SPARK_DEFAULTS_CONF_spark_hadoop_hive_metastore_uris: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_driver_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_executor_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_type: hive
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_uri: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_warehouse: s3a://admin-bucket/iceberg/warehouse
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_uri: http://polaris:8181/api/catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_token___refresh___enabled: true
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_credential: admin:abc123!
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
+      SPARK_DEFAULTS_CONF_spark_jars_repositories:
+      SPARK_DEFAULTS_CONF_spark_jars_packages: ''
+      SPARK_DEFAULTS_CONF_spark_jars_excludes:
+      # specifies the JARs to be downloaded to the jars folder by maven-download-sh script
+      SPARK_INSTALL_JARS_PACKAGES: ',io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0,org.apache.iceberg:iceberg-aws-bundle:1.10.0,org.apache.polaris:polaris-spark-3.5_2.13:1.2.0-incubating,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
+      SPARK_DEFAULTS_CONF_spark_jars: /opt/bitnami/spark/jars/iceberg-spark-runtime-3.5_2.12-1.10.0.jar
+      SPARK_DEFAULTS_CONF_spark_jars_ivySettings:
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./conf/spark/hive-site.xml:/opt/bitnami/spark/conf.default/hive-site.xml
+      - ./conf/spark/spark-defaults.conf:/opt/bitnami/spark/conf.default/spark-defaults.conf
+      - ./init/spark:/docker-entrypoint-initdb.d
+      - ./scripts/docker/maven-download.sh:/maven-download.sh
+      - ./container-volume/spark/logs/:/var/log/spark/logs
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "python3 -c 'import socket; socket.create_connection((\"localhost\", 28111), timeout=5)'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+  spark-worker-2:
+    image: bitnamilegacy/spark:3.5.3
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    labels:
+      com.platys.name: spark
+      com.platys.description: Spark Worker Node
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    ports:
+      - 28112:28112
+    environment:
+      # bitnami env vars
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
+      SPARK_SSL_ENABLED: no
+      # spark standard env vars
+      SPARK_WORKER_WEBUI_PORT: '28112'
+      SPARK_WORKER_OPTS: -Dspark.worker.cleanup.enabled=true
+      SPARK_PUBLIC_DNS: ${PUBLIC_IP}
+      # env vars for config files
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://minio-1:9000
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_path_style_access: 'true'
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_defaultFS: s3a://admin-bucket
+      SPARK_DEFAULTS_CONF_spark_sql_warehouse_dir: s3a://admin-bucket/hive/warehouse
+      SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_jars: builtin
+      # SPARK_DEFAULTS_CONF_spark_sql_hive_metastore_version: 3.1.2    
+      SPARK_DEFAULTS_CONF_spark_sql_catalogImplementation: hive
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog_type: hive
+      SPARK_DEFAULTS_CONF_spark_hadoop_hive_metastore_uris: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_driver_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_executor_extraJavaOptions:
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_type: hive
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_uri: thrift://hive-metastore:9083
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive_warehouse: s3a://admin-bucket/iceberg/warehouse
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_uri: http://polaris:8181/api/catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_token___refresh___enabled: true
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_credential: admin:abc123!
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_warehouse: polaris_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_scope: PRINCIPAL_ROLE:ALL
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_polaris_header_X___Iceberg___Access___Delegation: vended-credentials
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_type: rest
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino: org.apache.iceberg.spark.SparkCatalog
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_uri: http://gravitino:9001/iceberg
+      SPARK_DEFAULTS_CONF_spark_sql_catalog_gravitino_warehouse: gravitino_catalog
+      SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
+      SPARK_DEFAULTS_CONF_spark_jars_repositories:
+      SPARK_DEFAULTS_CONF_spark_jars_packages: ''
+      SPARK_DEFAULTS_CONF_spark_jars_excludes:
+      # specifies the JARs to be downloaded to the jars folder by maven-download-sh script
+      SPARK_INSTALL_JARS_PACKAGES: ',io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0,org.apache.iceberg:iceberg-aws-bundle:1.10.0,org.apache.polaris:polaris-spark-3.5_2.13:1.2.0-incubating,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
+      SPARK_DEFAULTS_CONF_spark_jars: /opt/bitnami/spark/jars/iceberg-spark-runtime-3.5_2.12-1.10.0.jar
+      SPARK_DEFAULTS_CONF_spark_jars_ivySettings:
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./conf/spark/hive-site.xml:/opt/bitnami/spark/conf.default/hive-site.xml
+      - ./conf/spark/spark-defaults.conf:/opt/bitnami/spark/conf.default/spark-defaults.conf
+      - ./init/spark:/docker-entrypoint-initdb.d
+      - ./scripts/docker/maven-download.sh:/maven-download.sh
+      - ./container-volume/spark/logs/:/var/log/spark/logs
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "python3 -c 'import socket; socket.create_connection((\"localhost\", 28112), timeout=5)'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+  #  ================================== Apache Hive Metastore ========================================== #
+  hive-metastore:
+    image: trivadis/apache-hive:3.1.2-postgresql-metastore-s3
+    container_name: hive-metastore
+    hostname: hive-metastore
+    labels:
+      com.platys.name: hive-metastore
+      com.platys.description: Hive Metastore
+    depends_on:
+      hive-metastore-db:
+        condition: service_healthy
+    ports:
+      - 9083:9083
+    environment:
+      HIVE_VER: 3.1.2
+      CORE_CONF_fs_defaultFS: file:///tmp
+      HIVE_SITE_CONF_fs_defaultFS: file:///tmp
+      HIVE_SITE_CONF_fs_s3a_endpoint: http://minio-1:9000
+      HIVE_SITE_CONF_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      HIVE_SITE_CONF_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      HIVE_SITE_CONF_fs_s3a_path_style_access: 'true'
+      HIVE_SITE_CONF_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+      HIVE_SITE_CONF_hive_metastore_uris: thrift://hive-metastore:9083
+      HIVE_SITE_CONF_javax_jdo_option_ConnectionURL: jdbc:postgresql://hive-metastore-db/metastore_db
+      HIVE_SITE_CONF_javax_jdo_option_ConnectionDriverName: org.postgresql.Driver
+      HIVE_SITE_CONF_javax_jdo_option_ConnectionUserName: hive
+      HIVE_SITE_CONF_javax_jdo_option_ConnectionPassword: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
+      HIVE_SITE_CONF_datanucleus_autoCreateSchema: false
+      HIVE_SITE_CONF_hive_metastore_event_db_notification_api_auth: false
+      # necessary for Trino to be able to read from Avro
+      HIVE_SITE_CONF_metastore_storage_schema_reader_impl: org.apache.hadoop.hive.metastore.SerDeStorageSchemaReader
+      SERVICE_PRECONDITION: hive-metastore-db:5432
+      DB_DRIVER: postgres
+      SERVICE_NAME: metastore
+      SERVICE_OPTS: -Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://hive-metastore-db/metastore_db -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, nc, -z, hive-metastore, '9083']
+      interval: 30s
+      timeout: 10s
+      retries: 10
+  hive-metastore-db:
+    image: postgres
+    container_name: hive-metastore-db
+    hostname: hive-metastore-db
+    labels:
+      com.platys.name: hive-metastore
+      com.platys.description: Hive Metastore DB
+      com.platys.password.envvars: PLATYS_HMS_POSTGRESQL_PASSWORD
+    ports:
+      - 5442:5432
+    environment:
+      POSTGRES_DB: metastore_db
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, psql, -U, hive, metastore_db]
+  #  ================================== Jupyter ========================================== #
+  jupyter:
+    image: quay.io/jupyter/all-spark-notebook:spark-3.5.3
+    container_name: jupyter
+    hostname: jupyter
+    labels:
+      com.platys.name: jupyter
+      com.platys.description: Web-based interactive development environment for notebooks, code, and data
+      com.platys.webui.title: Jupyter UI
+      com.platys.webui.url: http://dataplatform:28888
+      com.platys.password.envvars: PLATYS_JUPYTER_TOKEN,PLATYS_AWS_SECRET_ACCESS_KEY
+    ports:
+      - 28888:8888
+      - 28376-28380:4040-4044
+    user: root
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      JUPYTER_ENABLE_LAB: "'yes'"
+      GRANT_SUDO: "'yes'"
+      JUPYTER_TOKEN: ${PLATYS_JUPYTER_TOKEN:-abc123!}
+      DOCKER_STACKS_JUPYTER_CMD: lab
+      MAVEN_DOWNLOAD_JARS: com.amazonaws:aws-java-sdk-bundle:1.12.262,org.apache.hadoop:hadoop-aws:3.3.4,com.google.guava:guava:27.1-jre
+      # remove some JARS if they are conflicting with the ones installed above
+      REMOVE_JARS: guava-14.0.1.jar
+      # for awscli & s3cmd
+      AWS_ACCESS_KEY_ID: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      AWS_ENDPOINT: http://minio-1:9000
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      #PYSPARK_PYTHON: /opt/bitnami/python/bin/python3.12
+      PYSPARK_DRIVER_PYTHON: /usr/bin/python3.12
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./init/jupyter/on-startup-jupyter/:/usr/local/bin/start-notebook.d/
+      - ./init/jupyter/on-startup-jupyter-finished/:/usr/local/bin/before-notebook.d/
+      - ./init/jupyter/on-startup-notebook-kernel:/home/jovyan/.ipython/profile_default/startup/
+      - ./scripts/docker/maven-download.sh:/maven-download.sh
+      - spark-3-5-3-vol:/opt/bitnami/spark:RO
+    #  - "./conf/jupyter/spark-defaults.conf:/usr/local/spark-3.1.1-bin-hadoop3.2/conf/spark-defaults.conf"
+    command:
+      # In the command section, $ are replaced with $$ to avoid the error 'Invalid interpolation format for "command" option'
+      - bash
+      - -c
+      - |
+        conda create -y --name py312 python=3.12.8
+        source /opt/conda/etc/profile.d/conda.sh
+        conda activate py312
+        pip install ipykernel    
+        python -m ipykernel install --user --name py312 --display-name "Python 3.12.8 (ipykernel)"
+        pip install pyspark==3.5.3 boto3 lakefs_client lakefs jupyter_contrib_nbextensions tabulate papermill jupysql arrow pyarrow pandas grpcio-status
+        start-notebook.sh
+    restart: unless-stopped
+  #  ================================== PostgreSQL ========================================== #
+  postgresql:
+    image: postgres:18
+    container_name: postgresql
+    hostname: postgresql
+    labels:
+      com.platys.name: postgresql
+      com.platys.description: Open-Source object-relational database system
+      com.platys.password.envvars: PLATYS_POSTGRESQL_PASSWORD,PLATYS_POSTGRESQL_MULTIPLE_PASSWORD
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=${PLATYS_POSTGRESQL_PASSWORD:-abc123!}
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+#      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --data-checksums      
+      - POSTGRES_MULTIPLE_DATABASES=demodb
+      - POSTGRES_MULTIPLE_USERS=demo
+      - POSTGRES_MULTIPLE_PASSWORDS=${PLATYS_POSTGRESQL_MULTIPLE_PASSWORD:-abc123!}
+      - POSTGRES_MULTIPLE_ADDL_ROLES=
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - DB_SCHEMA=demo
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./init/postgresql:/docker-entrypoint-initdb.d/
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  #  ================================== Trino ========================================== #
+  trino-1:
+    image: trinodb/trino:478
+    hostname: trino-1
+    container_name: trino-1
+    labels:
+      com.platys.name: trino
+      com.platys.description: SQL Virtualization Engine
+      com.platys.webui.title: Trino UI
+      com.platys.webui.url: http://dataplatform:28082/ui/preview
+      com.platys.password.envvars: PLATYS_GSHEET_CREDENTIALS_KEY
+    ports:
+      - 28082:8080
+      - 28087:8443
+    environment:
+      COORDINATOR_HOST: trino-1
+      CATALOG_MANAGEMENT: static
+      CATALOG_CONFIG_DIR: /catalog
+      #CATALOG_STORE: file
+      S3_ENDPOINT: http://minio-1:9000
+      S3_REGION: us-east-1
+      S3_AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      S3_AWS_SECRET_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      S3_PATH_STYLE_ACCESS: 'true'
+      HIVE_METASTORE_URI: thrift://hive-metastore:9083
+      HIVE_STORAGE_FORMAT: ORC
+      HIVE_COMPRESSION_CODEC: GZIP
+      HIVE_VIEWS_ENABLED: 'false'
+      HIVE_RUN_AS_INVOKER: 'false'
+      HIVE_LEGACY_TRANSLATION: 'false'
+      NESSIE_CATALOG_WAREHOUSE_DIR: s3a://admin-bucket/nessie/warehouse
+      ICEBERG_REST_CATALOG_URI: http://iceberg-rest-catalog:8181
+      ICEBERG_REST_CATALOG_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
+      ICEBERG_POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_POLARIS_CATALOG_WAREHOUSE: polaris_catalog
+      CLIENT_ID: admin
+      CLIENT_SECRET: ${PLATYS_POLARIS_CLIENT_SECRET:-abc123!}
+      ICEBERG_GRAVITINO_CATALOG_URI: http://gravitino:9001/iceberg
+      ICEBERG_GRAVITINO_CATALOG_WAREHOUSE: gravitino_catalog
+      HIVE_METASTORE_DB_USER: hive
+      HIVE_METASTORE_DB_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
+      POSTGRESQL_DATABASE: postgres
+      POSTGRESQL_USER: postgres
+      POSTGRESQL_PASSWORD: abc123!
+      EVENT_LISTENER_CONFIG_FILES: ''
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./conf/trino/single/config.properties:/etc/trino/config.properties
+      - ./conf/trino/single/node.properties:/etc/trino/node.properties
+      - ./conf/trino/single/log-debug.properties:/etc/trino/log.properties
+      - ./conf/trino/catalog/minio.properties:/catalog/minio.properties
+      - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties
+      - ./conf/trino/catalog/iceberg-polaris.properties:/catalog/iceberg_polaris.properties
+      - ./conf/trino/catalog/iceberg-gravitino.properties:/catalog/iceberg_gravitino.properties
+      - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties
+      - ./conf/trino/catalog/postgresql.properties:/catalog/postgresql.properties
+      - ./custom-conf/trino/security:/etc/trino/security
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, trino --version]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  trino-cli:
+    image: trivadis/trino-cli:latest
+    hostname: trino-cli
+    container_name: trino-cli
+    labels:
+      com.platys.name: trino
+      com.platys.description: Trino CLI
+    volumes:
+      - ./data-transfer:/data-transfer
+    tty: true
+    restart: unless-stopped
+  #  ================================== Minio ========================================== #
+  minio-1:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio-1
+    hostname: minio-1
+    labels:
+      com.platys.name: minio
+      com.platys.description: Software-defined Object Storage
+      com.platys.webui.title: MinIO UI
+      com.platys.webui.url: http://dataplatform:9010
+      com.platys.password.envvars: PLATYS_AWS_SECRET_ACCESS_KEY
+    ports:
+      # S3 API Port
+      - 9000:9000
+      # UI Port
+      - 9010:9010
+    environment:
+      MINIO_ROOT_USER: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      # remove region due to problems with RisingWave
+      #MINIO_REGION_NAME: us-east-1
+      #MINIO_REGION: us-east-1
+      MINIO_DOMAIN: minio
+      MINIO_SERVER_URL: http://${PUBLIC_IP}:9000
+      MINIO_COMPRESSION_ENABLE: off
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+      MINIO_PROMETHEUS_URL: http://prometheus-1:9090
+    volumes:
+      - ./data-transfer:/data-transfer
+    command: server /data --console-address ":9010"
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, curl, -f, http://minio-1:9000/minio/health/live]
+      interval: 15s
+      timeout: 20s
+      retries: 3
+  #  ================================== Minio MC ========================================== #
+  minio-mc:
+    image: minio/mc:latest
+    container_name: minio-mc
+    hostname: minio-mc
+    labels:
+      com.platys.name: minio
+      com.platys.description: MinIO Console
+    environment:
+      # these two env variables are also needed for the s3-credentials.properties file gen to work! 
+      AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      MC_HOST_minio-1: http://${PLATYS_AWS_ACCESS_KEY:-admin}:${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}@minio-1:9000
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./scripts/docker/wait-for-it.sh:/usr/src/app/wait-for-it.sh
+      - ./security/aws/credentials:/tmp/credentials.templ
+      - aws-credentials-vol:/tmp/.aws:RO
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        /usr/src/app/wait-for-it.sh -t 180 minio-1:9000
+        mkdir -p /tmp/.aws
+        eval "echo \"$$(cat /tmp/credentials.templ)\"" >> /tmp/.aws/credentials
+        mc mb --ignore-existing minio-1/admin-bucket
+              for bucket in $$(tr ',' '\n' <<< "warehouse-bucket,data-bucket")
+        do
+          mc mb --ignore-existing minio-1/$$bucket
+        done
+        #
+        while [ 1 -eq 1 ];do sleep 60;done
+    restart: unless-stopped
+  #  ================================== Polaris ========================================== #
+  polaris:
+    image: apache/polaris:latest
+    container_name: polaris
+    hostname: polaris
+    labels:
+      com.platys.name: polaris
+      com.platys.description: Secure, fast and easy to use Iceberg REST Catalog
+      com.platys.restapi.title: Polaris Web UI
+      com.platys.restapi.url: http://dataplatform:28284/api/management/v1/catalogs
+      com.platys.password.envvars: PLATYS_POLARIS_DB_PASSWORD,PLATYS_POLARIS_CLIENT_SECRET
+    ports:
+      - 28284:8181
+      - 28285:8182
+    environment:
+      AWS_ACCESS_KEY_ID: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL_S3: http://minio-1:9000
+      AWS_ENDPOINT_URL_STS: http://minio-1:9000
+      POLARIS_PERSISTENCE_TYPE: in-memory
+      POLARIS_BOOTSTRAP_CREDENTIALS: POLARIS,admin,${PLATYS_POLARIS_CLIENT_SECRET:-abc123!}
+      POLARIS_REALM_CONTEXT_REALMS: POLARIS
+      QUARKUS_OTEL_SDK_DISABLED: true
+      polaris.features."ALLOW_INSECURE_STORAGE_TYPES": 'true'
+      polaris.features."SUPPORTED_CATALOG_STORAGE_TYPES": '["FILE","S3","GCS","AZURE"]'
+      polaris.readiness.ignore-severe-issues: 'true'
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:8182/q/health]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  polaris-catalog-setup:
+    image: alpine/curl
+    container_name: polaris-catalog-setup
+    hostname: polaris-catalog-setup
+    depends_on:
+      polaris:
+        condition: service_healthy
+    environment:
+      - CLIENT_ID=admin
+      - CLIENT_SECRET=${PLATYS_POLARIS_CLIENT_SECRET:-abc123!}
+    volumes:
+      - ./init/polaris/:/polaris
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - >-
+        chmod +x /polaris/create-catalog.sh;
+        chmod +x /polaris/obtain-token.sh;
+        source /polaris/obtain-token.sh;
+        echo Creating catalog...;
+        export STORAGE_CONFIG_INFO='{"storageType":"S3",
+          "endpoint":"http://minio-1:9000",
+          "endpointInternal":"http://minio-1:9000",
+          "pathStyleAccess":true}';
+        export STORAGE_LOCATION='s3a://admin-bucket';
+        /polaris/create-catalog.sh POLARIS $$TOKEN polaris_catalog;
+        echo Extra grants...;
+        curl -H "Authorization: Bearer $$TOKEN" -H 'Content-Type: application/json' \
+          -X PUT \
+          http://polaris:8181/api/management/v1/catalogs/polaris_catalog/catalog-roles/catalog_admin/grants \
+          -d '{"type":"catalog", "privilege":"CATALOG_MANAGE_CONTENT"}';
+        echo Done.; 
+    init: true
+    restart: no
+  #  ================================== Gravitino ========================================== #
+  gravitino:
+    image: apache/gravitino:1.0.1
+    container_name: gravitino
+    hostname: gravitino
+    labels:
+      com.platys.name: gravitino
+      com.platys.description: powerful open data catalog
+      com.platys.webui.title: Gravitino Web UI
+      com.platys.webui.url: http://dataplatform:28286
+      com.platys.password.envvars: PLATYS_POLARIS_DB_PASSWORD,PLATYS_POLARIS_CLIENT_SECRET
+    ports:
+      - 28286:8090
+    environment:
+      GRAVITINO_ENTITY_STORE: relational
+      GRAVITINO_ENTITY_STORE_RELATIONAL: JDBCBackend
+      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_URL: jdbc:h2
+      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_DRIVER: org.h2.Driver
+      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_USER: postgres
+      GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_PASSWORD: abc123!
+      GRAVITINO_AUTHORIZATION_ENABLE: false
+      #GRAVITINO_ICEBERG_REST_WAREHOUSE
+      GRAVITINO_AUDIT_LOG: false
+    volumes:
+      - ./data-transfer:/data-transfer
+    #entrypoint: /bin/bash /tmp/gravitino/init.sh
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, "curl -X GET -H 'Content-Type: application/json' http://127.0.0.1:8090/api/version || exit 1"]
+      interval: 5s
+      timeout: 60s
+      retries: 5
+      start_period: 20s
+  # https://gravitino.apache.org/docs/1.0.1/iceberg-rest-service
+  gravitino-iceberg-rest:
+    image: apache/gravitino-iceberg-rest:1.0.1
+    container_name: gravitino-iceberg-rest
+    hostname: gravitino-iceberg-rest
+    labels:
+      com.platys.name: gravitino
+      com.platys.description: powerful open data catalog
+      com.platys.restapi.title: Gravitino Iceberg REST Server
+      com.platys.restapi.url: http://dataplatform:28287
+    ports:
+      - 28287:9001
+    environment:
+      # could be memory, hive or jdbc
+      GRAVITINO_CATALOG_BACKEND: hive
+      GRAVITINO_URI: thrift://hive-metastore:9083
+      GRAVITINO_IO_IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      GRAVITINO_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
+      GRAVITINO_CREDENTIAL_PROVIDERS: s3-secret-key
+      GRAVITINO_S3_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
+      GRAVITINO_S3_SECRET_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      GRAVITINO_S3_ENDPOINT: http://minio-1:9000
+      GRAVITINO_S3_REGION: us-east-1
+      GRAVITINO_S3_PATH_STYLE_ACCESS: true
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+  #  ================================== Nimtabe ========================================== #
+  nimtable-web:
+    image: ghcr.io/nimtable/nimtable-web:nightly
+    container_name: nimtable-web
+    hostname: nimtable-web
+    labels:
+      com.platys.name: nimtable
+      com.platys.description: Control Plane for Iceberg
+      com.platys.webui.title: Nimtable Web UI
+      com.platys.webui.url: http://dataplatform:28280
+    depends_on:
+      - nimtable
+    ports:
+      - 28280:3000
+    environment:
+      - JAVA_API_URL=http://nimtable:8182
+      - DATABASE_URL=postgresql://postgres:abc123!@postgresql:5432/postgres
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+  nimtable:
+    image: ghcr.io/nimtable/nimtable:nightly
+    container_name: nimtable
+    hostname: nimtable
+    labels:
+      com.platys.name: nimtable
+      com.platys.description: Control Plane for Iceberg
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    ports:
+      - 28281:8182
+    environment:
+      - JAVA_OPTS=-Xmx32g -Xms512m
+      - AWS_ACCESS_KEY_ID=${PLATYS_AWS_ACCESS_KEY:-admin}
+      - AWS_SECRET_ACCESS_KEY=${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      - AWS_REGION=us-east-1
+      - AWS_ENDPOINT_URL_S3=http://minio-1:9000
+      - AWS_ENDPOINT_URL_STS=http://minio-1:9000
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./conf/nimtable/config.yaml:/nimtable/config.yaml
+    restart: unless-stopped
+  #  ================================== markdown-viewer ========================================== #
+  markdown-viewer:
+    image: dannyben/madness:latest
+    container_name: markdown-viewer
+    hostname: markdown-viewer
+    labels:
+      com.platys.name: markdown-viewer
+      com.platys.description: Platys Platform homepage viewer
+      com.platys.webui.title: Markdown Viewer UI
+      com.platys.webui.url: http://dataplatform:80
+    ports:
+      - 80:3000
+    volumes:
+      - ./artefacts:/docs
+      - ./conf/markdown-viewer/markdown-madness.yml:/docs/.madness.yml
+      - ./data-transfer:/data-transfer
+    command: server
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, curl -f http://markdown-viewer:3000 || exit 1]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 1m
+  markdown-renderer:
+    image: trivadis/jinja2-renderer:0.8.1
+    container_name: markdown-renderer
+    hostname: markdown-renderer
+    labels:
+      com.platys.name: markdown-renderer
+      com.platys.description: Platys Platform homepage rendering
+    environment:
+      USE_PUBLIC_IP: 'True'
+      PUBLIC_IP: ${PUBLIC_IP}
+      DOCKER_HOST_IP: ${DOCKER_HOST_IP}
+      DATAPLATFORM_HOME: ${DATAPLATFORM_HOME}
+      PLATYS_PLATFORM_NAME: platys-platform
+      PLATYS_PLATFORM_STACK: trivadis/platys-modern-data-platform
+      PLATYS_PLATFORM_STACK_VERSION: develop
+      PLATYS_COPY_COOKBOOK_DATA: 'True'
+      PLATYS_DATACENTER:
+      SERVICE_LIST_VERSION: 2
+    volumes:
+      - ./artefacts/templates:/templates
+      - ./artefacts/templates:/scripts
+      - .:/variables
+      - ./artefacts:/output
+      - ./data-transfer:/data-transfer
+    init: true
+volumes:
+  data-transfer-vol:
+    name: data_transfer_vol
+  aws-credentials-vol:
+  spark-3-5-3-vol:
+  spark-3-5-3-java-vol:

@@ -1,0 +1,11 @@
+sqlalchemy
+sqlalchemy-trino
+pandas
+boto3
+trino
+faker
+pyiceberg[s3fs,hive,pyiceberg-core]
+pyarrow
+thrift
+s3fs
+numpy
