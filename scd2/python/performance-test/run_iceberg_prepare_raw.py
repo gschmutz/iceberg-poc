@@ -267,9 +267,8 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
 
     return full_export, next_person_id + inserts_count
 
-def run_raw_create_table(tshirt: str):
+def run_raw_create_table(table_name: str):
 
-    table_name = f"raw_person_{tshirt}"
     drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
     print(drop_table_stmt)
     execute_with_metrics(conn.cursor(), drop_table_stmt)
@@ -278,7 +277,7 @@ def run_raw_create_table(tshirt: str):
     print(create_table_stmt)
 
     execute_with_metrics(conn.cursor(), create_table_stmt)
-    logger.info(f"Raw table for thsirt {tshirt} created successfully.")
+    logger.info(f"Raw table {table_name} created successfully.")
 
 def create_raw_data(tshirt: str, initial_rows: int):
     fake = Faker()
