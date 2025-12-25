@@ -1,5 +1,4 @@
-sqlalchemy
-sqlalchemy-trino
+trino
 pandas
 boto3
 trino

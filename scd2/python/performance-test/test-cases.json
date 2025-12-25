@@ -1,0 +1,34 @@
+ {
+    "test_cases": [
+        {
+            "case_id": 1,
+            "description": "Partition by day(valid_from) and is_current_version, no sorting",
+            "partition_cols": ["day(valid_from)", "is_current_version"],
+            "sort_cols": []
+        },
+        {
+            "case_id": 2,
+            "description": "Partition by is_current_version only, sort by person_id",
+            "partition_cols": ["is_current_version"],
+            "sort_cols": ["person_id"]
+        },
+        {
+            "case_id": 3,
+            "description": "Partition by month(valid_from) and is_current_version, sort by person_id",
+            "partition_cols": ["month(valid_from)", "is_current_version"],
+            "sort_cols": ["person_id"]
+        },
+        {
+            "case_id": 4,
+            "description": "Partition by day(valid_from), is_current_version, and is_active, sort by person_id",
+            "partition_cols": ["day(valid_from)", "is_current_version", "is_active"],
+            "sort_cols": ["person_id"]
+        },
+        {
+            "case_id": 5,
+            "description": "Partition by bucket(16, person_id), sort by valid_from",
+            "partition_cols": ["bucket(person_id, 16)"],
+            "sort_cols": ["valid_from"]
+        }
+    ]
+}

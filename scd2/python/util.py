@@ -1,6 +1,10 @@
 import logging
 import os
 import re
+import time
+
+from sqlalchemy import create_engine, text
+from datetime import date, timedelta, datetime
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -127,3 +131,51 @@ def replace_vars_in_string(s, variables):
     print(f"Replacing variables in string: {s} with {variables}")
     # Replace {var} with value from variables dict
     return re.sub(r"\{(\w+)\}", lambda m: str(variables.get(m.group(1), m.group(0))), s)        
+
+def insert_benchmark_sa(engine, record: dict):
+    insert_sql = text("""
+        INSERT INTO iceberg_trino.default.benchmarks VALUES (
+            :benchmark_run_id,
+            :strategy,
+            :statement_name,
+            :query_id,
+            :elapsed_ms,
+            :cpu_ms,
+            :processed_rows,
+            :processed_bytes,
+            :success,
+            :error_message,
+            :executed_at
+        )
+    """)
+
+    with engine.connect() as conn:
+        conn.execute(insert_sql, record)
+        conn.commit()
+
+def execute_with_metrics(cursor, sql: str) -> dict:
+    start = time.perf_counter()
+    success = True
+    error = None
+
+    try:
+        cursor.execute(sql)
+        cursor.fetchall()
+    except Exception as e:
+        success = False
+        error = str(e)
+
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+    stats = cursor.stats or {}
+
+    return {
+        "query_id": stats.get("queryId"),
+        "elapsed_ms": elapsed_ms,
+        "cpu_ms": stats.get("cpuTimeMillis"),
+        "queued_ms": stats.get("queuedTimeMillis"),
+        "processed_rows": stats.get("processedRows"),
+        "processed_bytes": stats.get("processedBytes"),
+        "success": success,
+        "error": error,
+        "executed_at": datetime.utcnow(),
+    }        

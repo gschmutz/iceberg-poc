@@ -1,4 +1,4 @@
-drop table if exists iceberg_hive."default".raw_person
+drop table if exists iceberg_hive."default".raw_person;
 
 CREATE TABLE IF NOT EXISTS iceberg_hive."default".raw_person (
     surrogate_key VARCHAR,

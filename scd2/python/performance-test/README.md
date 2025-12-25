@@ -9,6 +9,9 @@ In the 3.x version an `MSCK REPAIR` is called on the Hive Metastore services whe
 Set environment variables for local environment
 
 ```bash
+export HMS_HOST=localhost
+export HMS_PORT=9083
+
 export TRINO_USER=trino
 export TRINO_PASSWORD=
 export TRINO_HOST=localhost
@@ -25,6 +28,9 @@ export S3_LOCATION_LIST_OBJECT_NAME={zone}_s3_locations_{database}.csv
 Set environment variables for lightsail environment
 
 ```bash
+export HMS_HOST=dataplatform
+export HMS_PORT=9083
+
 export TRINO_USER=trino
 export TRINO_PASSWORD=
 export TRINO_HOST=dataplatform

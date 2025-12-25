@@ -3,6 +3,7 @@ import os
 import logging
 import uuid
 import boto3
+import trino
 import random
 from datetime import date, timedelta
 from faker import Faker
@@ -24,12 +25,21 @@ from pyiceberg.types import (
 import s3fs
 from sqlalchemy import create_engine, text
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import get_param, get_credential, get_zone_name, replace_vars_in_string
+from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
  
+TRINO_USER = get_credential('TRINO_USER', 'trino')
+TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
+TRINO_HOST = get_param('TRINO_HOST', 'localhost')
+TRINO_PORT = get_param('TRINO_PORT', '28082')
+TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
+TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
+
+HMS_HOST = get_param('HMS_HOST', 'localhost')
+HMS_PORT = get_param('HMS_PORT', '9083')
 
 # Connect to MinIO or AWS S3
 ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
@@ -37,10 +47,19 @@ ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
 S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
 S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": "", "env": "" } )
 
-INITIAL_PERSONS = 1_000_000   # scale here
 UPDATE_RATE = 0.10
 INSERT_RATE = 0.05
 DELETE_RATE = 0.005
+
+# Construct connection URLs
+conn = trino.dbapi.connect(
+    host=f"{TRINO_HOST}",
+    port=int(TRINO_PORT),
+    user=f"{TRINO_USER}",
+    catalog=f"{TRINO_CATALOG}",
+    schema="default",
+    http_scheme="http",
+)
 
 # Create a session and S3 client
 s3 = boto3.client('s3')
@@ -102,6 +121,65 @@ arrow_schema = pa.schema([
     pa.field("export_date", pa.date32(), nullable=True),
     pa.field("load_ts", pa.timestamp("us"), nullable=True),
 ])
+
+def format_create_raw_table(table_name: str) -> str:
+
+    ddl = f"""
+    CREATE TABLE IF NOT EXISTS iceberg_hive."default".{table_name} (
+        surrogate_key VARCHAR,
+        person_id VARCHAR,
+
+        -- identity
+        salutation VARCHAR,
+        title VARCHAR,
+        first_name VARCHAR,
+        middle_name VARCHAR,
+        last_name VARCHAR,
+        suffix VARCHAR,
+        gender VARCHAR,
+
+        -- contact
+        email VARCHAR,
+        phone_mobile VARCHAR,
+        phone_home VARCHAR,
+
+        -- address
+        street VARCHAR,
+        house_number VARCHAR,
+        postal_code VARCHAR,
+        city VARCHAR,
+        state VARCHAR,
+        country VARCHAR,
+
+        -- personal
+        birth_date DATE,
+        nationality VARCHAR,
+        marital_status VARCHAR,
+        number_of_children INTEGER,
+
+        -- employment
+        employment_status VARCHAR,
+        job_title VARCHAR,
+        employer VARCHAR,
+        annual_income DOUBLE,
+
+        -- identifiers
+        national_id VARCHAR,
+        tax_id VARCHAR,
+
+        -- metadata
+        source_system VARCHAR,
+        status VARCHAR,
+        export_date DATE,
+        load_ts TIMESTAMP
+    )
+    WITH (
+        format = 'PARQUET',
+        partitioning = ARRAY['day(export_date)'],
+        location = 's3a://warehouse-bucket/warehouse/default/{table_name}'   
+    )
+    """
+    return ddl
 
 def generate_person_row(fake: Faker, person_id: int) -> dict:
     return {
@@ -189,15 +267,31 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
 
     return full_export, next_person_id + inserts_count
 
-def create_raw_data():
+def run_raw_create_table(tshirt: str):
+
+    table_name = f"raw_person_{tshirt}"
+    drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
+    print(drop_table_stmt)
+    execute_with_metrics(conn.cursor(), drop_table_stmt)
+
+    create_table_stmt = format_create_raw_table(table_name)
+    print(create_table_stmt)
+
+    execute_with_metrics(conn.cursor(), create_table_stmt)
+    logger.info(f"Raw table for thsirt {tshirt} created successfully.")
+
+def create_raw_data(tshirt: str, initial_rows: int):
     fake = Faker()
     Faker.seed(42)
+
+    table_name = f"raw_person_{tshirt}"
+    run_raw_create_table(table_name)
 
     # Prepare catalog properties with comprehensive S3 configuration
     catalog_props = {
         "name": "iceberg",
         "type": "hive",
-        "uri": "thrift://localhost:9083",
+        "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
         "warehouse": "s3://warehouse-bucket/",
         "s3.endpoint": ENDPOINT_URL,
         "s3.region": "us-east-1",
@@ -213,16 +307,15 @@ def create_raw_data():
     print(f"Catalog properties: {catalog.properties}")
     print(f"Tables: {catalog.list_tables('default')}")
 
-
-    rows = [generate_person_row(fake, i) for i in range(INITIAL_PERSONS)]
+    rows = [generate_person_row(fake, i) for i in range(initial_rows)]
     df = pd.DataFrame(rows)
 
-    next_person_id = INITIAL_PERSONS
+    next_person_id = initial_rows
 
-    table = catalog.load_table("default.raw_person")
+    table = catalog.load_table(f"default.{table_name}")
 
     start_date = date(2024, 1, 1)
-    DAYS = 30
+    DAYS = 60
 
     for d in range(DAYS):
         export_date = start_date + timedelta(days=d)
@@ -242,6 +335,4 @@ def create_raw_data():
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
 
-
-
-create_raw_data()    
+create_raw_data("xxl", 10_000_000)    
