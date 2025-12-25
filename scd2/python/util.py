@@ -132,27 +132,6 @@ def replace_vars_in_string(s, variables):
     # Replace {var} with value from variables dict
     return re.sub(r"\{(\w+)\}", lambda m: str(variables.get(m.group(1), m.group(0))), s)        
 
-def insert_benchmark_sa(engine, record: dict):
-    insert_sql = text("""
-        INSERT INTO iceberg_trino.default.benchmarks VALUES (
-            :benchmark_run_id,
-            :strategy,
-            :statement_name,
-            :query_id,
-            :elapsed_ms,
-            :cpu_ms,
-            :processed_rows,
-            :processed_bytes,
-            :success,
-            :error_message,
-            :executed_at
-        )
-    """)
-
-    with engine.connect() as conn:
-        conn.execute(insert_sql, record)
-        conn.commit()
-
 def execute_with_metrics(cursor, sql: str) -> dict:
     start = time.perf_counter()
     success = True

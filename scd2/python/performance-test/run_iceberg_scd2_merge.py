@@ -36,7 +36,6 @@ ZONE = get_zone_name(upper=True)
 # Environment variables for setting the filter to apply when reading the baseline counts from Kafka. If not set (left to default) then all the tables will consumed and compared against actual counts.
 ENV = get_param('ENV', 'UAT', upper=True)
 
-
 TRINO_USER = get_credential('TRINO_USER', 'trino')
 TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
 TRINO_HOST = get_param('TRINO_HOST', 'localhost')
@@ -336,34 +335,6 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
     """
 
     return stmt
-
-
-def execute_with_metrics(cursor, sql: str) -> dict:
-    start = time.perf_counter()
-    success = True
-    error = None
-
-    try:
-        cursor.execute(sql)
-        cursor.fetchall()
-    except Exception as e:
-        success = False
-        error = str(e)
-
-    elapsed_ms = int((time.perf_counter() - start) * 1000)
-    stats = cursor.stats or {}
-
-    return {
-        "query_id": stats.get("queryId"),
-        "elapsed_ms": elapsed_ms,
-        "cpu_ms": stats.get("cpuTimeMillis"),
-        "queued_ms": stats.get("queuedTimeMillis"),
-        "processed_rows": stats.get("processedRows"),
-        "processed_bytes": stats.get("processedBytes"),
-        "success": success,
-        "error": error,
-        "executed_at": datetime.utcnow(),
-    }
 
 def insert_benchmark_metrics(cursor, benchmark_run_id: str, strategy: str, statement_name: str, result: dict):
     INSERT_SQL = """
