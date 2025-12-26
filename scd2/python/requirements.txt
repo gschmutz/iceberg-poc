@@ -1,5 +1,6 @@
 trino
 pandas
+duckdb
 boto3
 trino
 faker

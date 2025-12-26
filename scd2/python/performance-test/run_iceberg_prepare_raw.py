@@ -42,10 +42,12 @@ HMS_HOST = get_param('HMS_HOST', 'localhost')
 HMS_PORT = get_param('HMS_PORT', '9083')
 
 # Connect to MinIO or AWS S3
-ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
+S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
 
 S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
 S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": "", "env": "" } )
+AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
+AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 
 UPDATE_RATE = 0.10
 INSERT_RATE = 0.05
@@ -66,14 +68,12 @@ s3 = boto3.client('s3')
 
 # Create S3 client configuration
 s3_config = {"service_name": "s3"}
-AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
-AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 
 if AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY:
     s3_config["aws_access_key_id"] = AWS_ACCESS_KEY
     s3_config["aws_secret_access_key"] = AWS_SECRET_ACCESS_KEY
-if ENDPOINT_URL:
-    s3_config["endpoint_url"] = ENDPOINT_URL
+if S3_ENDPOINT_URL:
+    s3_config["endpoint_url"] = S3_ENDPOINT_URL
     s3_config["verify"] = False  # Disable SSL verification for self-signed certificates
 
 s3 = boto3.client(**s3_config)
@@ -292,7 +292,7 @@ def create_raw_data(tshirt: str, initial_rows: int):
         "type": "hive",
         "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
         "warehouse": "s3://warehouse-bucket/",
-        "s3.endpoint": ENDPOINT_URL,
+        "s3.endpoint": S3_ENDPOINT_URL,
         "s3.region": "us-east-1",
         "s3.path-style-access": "true",  # Required for MinIO
     }
