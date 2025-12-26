@@ -3,7 +3,6 @@ import os
 import re
 import time
 
-from sqlalchemy import create_engine, text
 from datetime import date, timedelta, datetime
 
 # Set up logging
