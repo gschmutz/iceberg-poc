@@ -289,33 +289,6 @@ services:
         #
         while [ 1 -eq 1 ];do sleep 60;done
     restart: unless-stopped
-  # https://gravitino.apache.org/docs/1.0.1/iceberg-rest-service
-  gravitino-iceberg-rest:
-    image: apache/gravitino-iceberg-rest:1.0.1
-    container_name: gravitino-iceberg-rest
-    hostname: gravitino-iceberg-rest
-    labels:
-      com.platys.name: gravitino
-      com.platys.description: powerful open data catalog
-      com.platys.restapi.title: Gravitino Iceberg REST Server
-      com.platys.restapi.url: http://dataplatform:28287
-    ports:
-      - 28287:9001
-    environment:
-      # could be memory, hive or jdbc
-      GRAVITINO_CATALOG_BACKEND: hive
-      GRAVITINO_URI: thrift://hive-metastore:9083
-      GRAVITINO_IO_IMPL: org.apache.iceberg.aws.s3.S3FileIO
-      GRAVITINO_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
-      GRAVITINO_CREDENTIAL_PROVIDERS: s3-secret-key
-      GRAVITINO_S3_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
-      GRAVITINO_S3_SECRET_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
-      GRAVITINO_S3_ENDPOINT: http://minio-1:9000
-      GRAVITINO_S3_REGION: us-east-1
-      GRAVITINO_S3_PATH_STYLE_ACCESS: true
-    volumes:
-      - ./data-transfer:/data-transfer
-    restart: unless-stopped
   #  ================================== markdown-viewer ========================================== #
   markdown-viewer:
     image: dannyben/madness:latest
