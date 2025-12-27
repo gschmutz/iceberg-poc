@@ -450,4 +450,4 @@ def run_test_cases(tshirt: str):
         
         run_merge_all(tshirt=tshirt, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
  
-run_test_cases(tshirt="XL")
+run_test_cases(tshirt="xl")
