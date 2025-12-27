@@ -45,7 +45,7 @@ WAREHOUSE = "s3://warehouse-bucket/"
 
 NAMESPACE = "default"
 
-INITIAL_ROWS = 10_000_000
+INITIAL_ROWS = 1_000_000
 DAYS = 30
 
 UPDATE_RATE = 0.10

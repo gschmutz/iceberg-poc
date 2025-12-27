@@ -504,7 +504,7 @@
       #
       # ===== Apache Spark ========
       #
-      SPARK_enable: true
+      SPARK_enable: false
       # either 3.3 or 3.4 or 3.5
       SPARK_base_version: 3.5
       # "hive" or "in-memory"
@@ -2702,7 +2702,7 @@
       #
       #===== Polaris ========
       #
-      POLARIS_enable: true
+      POLARIS_enable: false
       # either 'in-memory' or 'relational-jdbc'
       POLARIS_persistence_type: 'in-memory'
       # currently only 'postgresql' is supported
@@ -2735,7 +2735,7 @@
       #
       #===== Nimtable ========
       #
-      NIMTABLE_enable: true
+      NIMTABLE_enable: false
       #
       # ===== Pure FTPd ========
       #
