@@ -45,7 +45,7 @@ WAREHOUSE = "s3://warehouse-bucket/"
 
 NAMESPACE = "default"
 
-INITIAL_ROWS = 5_000_000
+INITIAL_ROWS = 10_000_000
 DAYS = 30
 
 UPDATE_RATE = 0.10
@@ -423,7 +423,7 @@ def append_to_iceberg(table: Table, export_date: date):
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    tshirt = "xl"
+    tshirt = "xxl"
 
     table_name = f"raw_person_{tshirt}"
 
