@@ -374,11 +374,12 @@ def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None,
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Dimension table for thsirt {tshirt} and test-case {case_id} created successfully.")
 
-def run_benchmark_create_table():
+def run_benchmark_create_table(drop_it_first: bool):
 
-    drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".benchmark"""
-    print(drop_table_stmt)
-    execute_with_metrics(conn.cursor(), drop_table_stmt)
+    if drop_it_first:
+        drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".benchmark"""
+        print(drop_table_stmt)
+        execute_with_metrics(conn.cursor(), drop_table_stmt)
 
     create_table_stmt = format_create_benchmark_table()
 
@@ -439,7 +440,7 @@ def run_merge_all(tshirt: str, case_id: int, case_description: str, partition_co
 
 def run_test_cases(tshirt: str):
     
-    #run_benchmark_create_table()
+    run_benchmark_create_table(false)
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
