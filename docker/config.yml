@@ -1536,7 +1536,7 @@
       #
       # ===== Metabase ========
       #
-      METABASE_enable: false
+      METABASE_enable: true
       METABASE_volume_map_data: false
       METABASE_query_caching_enabled: false
       # either h2 or postgres or mysql

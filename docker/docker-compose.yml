@@ -123,6 +123,25 @@ services:
         pip install pyspark==3.5.3 boto3 lakefs_client lakefs jupyter_contrib_nbextensions tabulate papermill jupysql arrow pyarrow pandas grpcio-status
         start-notebook.sh
     restart: unless-stopped
+  #  ================================== Metabase ========================================== #
+  metabase:
+    image: metabase/metabase:latest
+    hostname: metabase
+    container_name: metabase
+    labels:
+      com.platys.name: metabase
+      com.platys.description: Simple and powerful analytics tool
+      com.platys.webui.title: Metabase UI
+      com.platys.webui.url: http://dataplatform:28257
+    ports:
+      - 28257:3000
+    environment:
+      MB_DB_TYPE: h2
+      MB_ENABLE_QUERY_CACHING: false
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./plugins/metabase/plugin:/plugins
+    restart: unless-stopped
   #  ================================== PostgreSQL ========================================== #
   postgresql:
     image: postgres:18
