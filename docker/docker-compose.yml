@@ -191,6 +191,7 @@ services:
       COORDINATOR_HOST: trino-1
       CATALOG_MANAGEMENT: static
       CATALOG_CONFIG_DIR: /catalog
+      QUERY_MAX_MEMORY_PER_NODE: 8GB
       #CATALOG_STORE: file
       S3_ENDPOINT: http://minio-1:9000
       S3_REGION: us-east-1

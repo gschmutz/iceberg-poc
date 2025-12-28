@@ -101,7 +101,8 @@ def cast_to_varchar(values):
 def format_create_benchmark_table():
     ddl = f"""
         CREATE TABLE IF NOT EXISTS iceberg_hive."default".benchmark (
-            benchmark_run_id VARCHAR,
+            run_id VARCHAR,
+            benchmark_id VARCHAR,
             strategy VARCHAR,
             statement_name VARCHAR,
             query_id VARCHAR,
@@ -336,18 +337,19 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
 
     return stmt
 
-def insert_benchmark_metrics(cursor, benchmark_run_id: str, strategy: str, statement_name: str, result: dict):
+def insert_benchmark_metrics(cursor, run_id: str, benchmark_id: str, strategy: str, statement_name: str, result: dict):
     INSERT_SQL = """
-        INSERT INTO iceberg_hive.default.benchmark (benchmark_run_id, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, executed_at)
+        INSERT INTO iceberg_hive.default.benchmark (run_id, benchmark_id, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, executed_at)
         VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """
 
     cursor.execute(
         INSERT_SQL,
         (
-            benchmark_run_id,
+            run_id, 
+            benchmark_id,
             strategy,
             statement_name,
             result["query_id"],
@@ -388,7 +390,7 @@ def run_benchmark_create_table(drop_it_first: bool):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Benchmark table created successfully.")
 
-def run_dim_update(tshirt: str, case_id: int, case_description: str, day_number: int, load_date: str):
+def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str, day_number: int, load_date: str):
 
     columns = [
         "salutation", "title", "first_name", "middle_name", "last_name", "suffix",
@@ -421,12 +423,12 @@ def run_dim_update(tshirt: str, case_id: int, case_description: str, day_number:
     result = execute_with_metrics(conn.cursor(), merge_stmt)
     print (f"Executed test-case {case_id} for day {day_number} for load date {load_date} in {result["elapsed_ms"]} ms")
 
-    insert_benchmark_metrics(cursor=conn.cursor(), benchmark_run_id=f"test-run-{case_id}-{day_number}", strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result)
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, benchmark_id=f"test-run-{tshirt}-{case_id}-{day_number}", strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result)
 
     logger.info(f"Merge statement for {load_date} {result}")
         
 
-def run_merge_all(tshirt: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
+def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
 
     run_dim_create_table(tshirt=tshirt, case_id=case_id, partition_cols=partition_cols, sort_cols=sort_cols)
 
@@ -435,12 +437,13 @@ def run_merge_all(tshirt: str, case_id: int, case_description: str, partition_co
     for d in range(DAYS):
         load_date = start_date + timedelta(days=d)
         print (load_date)
-        run_dim_update(tshirt=tshirt, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
+        run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
 
 
 def run_test_cases(tshirt: str):
     
-    run_benchmark_create_table(false)
+    run_benchmark_create_table(False)
+    run_id: str = str(uuid.uuid4())
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
@@ -449,6 +452,6 @@ def run_test_cases(tshirt: str):
     for test_case in test_data['test_cases']:
         logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
         
-        run_merge_all(tshirt=tshirt, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
+        run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
  
 run_test_cases(tshirt="xl")
