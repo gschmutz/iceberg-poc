@@ -111,6 +111,7 @@ def format_create_benchmark_table():
             processed_rows BIGINT,
             processed_bytes BIGINT,
             success BOOLEAN,
+            error_message VARCHAR,
             executed_at TIMESTAMP
         )
         WITH (
@@ -339,9 +340,9 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
 
 def insert_benchmark_metrics(cursor, run_id: str, benchmark_id: str, strategy: str, statement_name: str, result: dict):
     INSERT_SQL = """
-        INSERT INTO iceberg_hive.default.benchmark (run_id, benchmark_id, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, executed_at)
+        INSERT INTO iceberg_hive.default.benchmark (run_id, benchmark_id, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at)
         VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """
 
@@ -358,6 +359,7 @@ def insert_benchmark_metrics(cursor, run_id: str, benchmark_id: str, strategy: s
             result["processed_rows"],
             result["processed_bytes"],
             result["success"],
+            result["error"],
             result["executed_at"],
         ),
     )
@@ -442,7 +444,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
 
 def run_test_cases(tshirt: str):
     
-    run_benchmark_create_table(False)
+    run_benchmark_create_table(True)
     run_id: str = str(uuid.uuid4())
 
     # Load and execute all test cases
@@ -454,4 +456,4 @@ def run_test_cases(tshirt: str):
         
         run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
  
-run_test_cases(tshirt="xl")
+run_test_cases(tshirt="s")

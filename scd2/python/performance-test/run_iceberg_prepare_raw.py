@@ -51,7 +51,7 @@ AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 
 UPDATE_RATE = 0.10
 INSERT_RATE = 0.05
-DELETE_RATE = 0.005
+DELETE_RATE = 0.001
 
 # Construct connection URLs
 conn = trino.dbapi.connect(
@@ -254,6 +254,9 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
         1 + (np.random.rand(mask.sum()) - 0.5) / 5
     )
 
+    logical_deleted = deletes.copy()
+    logical_deleted['status'] = 'INACTIVE'
+
     # Remove deleted and updated rows from the remaining dataset
     remaining = df[~df.index.isin(deletes.index) & ~df.index.isin(updates.index)]
 
@@ -262,8 +265,8 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
     new_rows = [generate_person_row(fake, next_person_id + i) for i in range(inserts_count)]
     inserts = pd.DataFrame(new_rows)
 
-    # Concatenate remaining, updated, and new rows
-    full_export = pd.concat([remaining, updated, inserts], ignore_index=True)
+    # Concatenate remaining, updated, logical_deleted, and new rows
+    full_export = pd.concat([remaining, updated, logical_deleted, inserts], ignore_index=True)
 
     return full_export, next_person_id + inserts_count
 
@@ -334,4 +337,4 @@ def create_raw_data(tshirt: str, initial_rows: int):
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
 
-create_raw_data("xxl", 10_000_000)    
+create_raw_data("s", 100_000)    
