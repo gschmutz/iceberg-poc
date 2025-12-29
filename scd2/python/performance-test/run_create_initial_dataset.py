@@ -107,7 +107,8 @@ def generate_person_row(fake: Faker, person_id: int) -> dict:
         "tax_id": fake.bothify("??######"),
 
         "source_system": random.choice(["CRM", "ERP", "HR"]),
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "operation": "INSERT"
     }
 
 def create_initial_data(tshirt: str, initial_rows: int):
@@ -131,4 +132,4 @@ def create_initial_data(tshirt: str, initial_rows: int):
         data_page_size=1024 * 1024,  # 1 MB pages
     )
 
-create_initial_data("xxl", 10_000_000)    
+create_initial_data("l", 2_000_000)    

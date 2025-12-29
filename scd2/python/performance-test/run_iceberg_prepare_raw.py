@@ -13,6 +13,7 @@ from pyiceberg.catalog import load_catalog
 from datetime import date, timedelta, datetime
 
 import pyarrow as pa
+import pyarrow.parquet as pq
 
 from pyiceberg.schema import Schema
 from pyiceberg.types import (
@@ -117,6 +118,7 @@ arrow_schema = pa.schema([
 
     pa.field("source_system", pa.string()),
     pa.field("status", pa.string()),
+    pa.field("operation", pa.string()),
 
     pa.field("export_date", pa.date32(), nullable=True),
     pa.field("load_ts", pa.timestamp("us"), nullable=True),
@@ -170,6 +172,7 @@ def format_create_raw_table(table_name: str) -> str:
         -- metadata
         source_system VARCHAR,
         status VARCHAR,
+        operation VARCHAR,
         export_date DATE,
         load_ts TIMESTAMP
     )
@@ -219,16 +222,19 @@ def generate_person_row(fake: Faker, person_id: int) -> dict:
         "tax_id": fake.bothify("??######"),
 
         "source_system": random.choice(["CRM", "ERP", "HR"]),
-        "status": "ACTIVE"
+        "status": "ACTIVE",
+        "operation": "INSERT"
     }
 
 def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
+    df['operation'] = 'INSERT'
     # Sample rows to update and delete
     updates = df.sample(frac=UPDATE_RATE, random_state=42)
-    deletes = df.sample(frac=DELETE_RATE, random_state=24)
+    deletes = df.drop(updates.index).sample(frac=DELETE_RATE, random_state=24)
 
     # Apply updates
     updated = updates.copy()
+    updated['operation'] = 'UPDATE'
 
     # Email update with 60% chance per row
     updated['email'] = updated['email'].where(
@@ -256,6 +262,7 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
 
     logical_deleted = deletes.copy()
     logical_deleted['status'] = 'INACTIVE'
+    logical_deleted['operation'] = 'DELETE'
 
     # Remove deleted and updated rows from the remaining dataset
     remaining = df[~df.index.isin(deletes.index) & ~df.index.isin(updates.index)]
@@ -282,10 +289,11 @@ def run_raw_create_table(table_name: str):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
-def create_raw_data(tshirt: str, initial_rows: int):
+def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int = 0):
     fake = Faker()
     Faker.seed(42)
 
+    # create raw table
     table_name = f"raw_person_{tshirt}"
     run_raw_create_table(table_name)
 
@@ -309,10 +317,15 @@ def create_raw_data(tshirt: str, initial_rows: int):
     print(f"Catalog properties: {catalog.properties}")
     print(f"Tables: {catalog.list_tables('default')}")
 
-    rows = [generate_person_row(fake, i) for i in range(initial_rows)]
-    df = pd.DataFrame(rows)
-
-    next_person_id = initial_rows
+    if (generate_data):
+        # Generate initial data
+        rows = [generate_person_row(fake, i) for i in range(initial_rows)]
+        df = pd.DataFrame(rows)
+        next_person_id = initial_rows
+    else:
+        arrow_table = pq.read_table(f"data-{tshirt}.parquet")
+        df = arrow_table.to_pandas()
+        next_person_id = df['person_id'].astype(int).max() + 1
 
     table = catalog.load_table(f"default.{table_name}")
 
@@ -337,4 +350,4 @@ def create_raw_data(tshirt: str, initial_rows: int):
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
 
-create_raw_data("s", 100_000)    
+prepare_raw_data("m", generate_data=False, initial_rows=0)    

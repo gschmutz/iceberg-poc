@@ -102,7 +102,9 @@ def format_create_benchmark_table():
     ddl = f"""
         CREATE TABLE IF NOT EXISTS iceberg_hive."default".benchmark (
             run_id VARCHAR,
-            benchmark_id VARCHAR,
+            case_id VARCHAR,
+            day_number INT,
+            tshirt_size VARCHAR,
             strategy VARCHAR,
             statement_name VARCHAR,
             query_id VARCHAR,
@@ -338,11 +340,11 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
 
     return stmt
 
-def insert_benchmark_metrics(cursor, run_id: str, benchmark_id: str, strategy: str, statement_name: str, result: dict):
+def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict):
     INSERT_SQL = """
-        INSERT INTO iceberg_hive.default.benchmark (run_id, benchmark_id, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at)
+        INSERT INTO iceberg_hive.default.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at)
         VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """
 
@@ -350,7 +352,9 @@ def insert_benchmark_metrics(cursor, run_id: str, benchmark_id: str, strategy: s
         INSERT_SQL,
         (
             run_id, 
-            benchmark_id,
+            case_id,
+            day_number,
+            tshirt_size,
             strategy,
             statement_name,
             result["query_id"],
@@ -425,7 +429,7 @@ def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str
     result = execute_with_metrics(conn.cursor(), merge_stmt)
     print (f"Executed test-case {case_id} for day {day_number} for load date {load_date} in {result["elapsed_ms"]} ms")
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, benchmark_id=f"test-run-{tshirt}-{case_id}-{day_number}", strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result)
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day_number, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result)
 
     logger.info(f"Merge statement for {load_date} {result}")
         
@@ -441,19 +445,48 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
         print (load_date)
         run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
 
+def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
+    cursor = conn.cursor()
+    query = f"""
+        SELECT *
+        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        WHERE person_id = '{person_id}'
+    """
+    result = execute_with_metrics(conn.cursor(), query)
 
-def run_test_cases(tshirt: str):
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
+
+def run_select_count_active(tshirt: str, run_id: str, case_id: int):
+    cursor = conn.cursor()
+    query = f"""
+        SELECT COUNT(*) AS active_count
+        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        WHERE is_active = TRUE
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+
+def run_test_cases(tshirt: str, number_of_runs: int):
+
+    person_id = "1027985"  # known person_id to select at the end
     
     run_benchmark_create_table(True)
-    run_id: str = str(uuid.uuid4())
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
         test_data = json.load(f)
 
-    for test_case in test_data['test_cases']:
-        logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
-        
-        run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
- 
-run_test_cases(tshirt="s")
+    for _ in range(number_of_runs):
+        run_id: str = str(uuid.uuid4())
+
+        for test_case in test_data['test_cases']:
+            logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
+            
+            run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
+    
+            # At the end let's perform some selects to benchmark read performance
+            run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id)
+            run_select_count_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
+
+run_test_cases(tshirt="m", number_of_runs=5)
