@@ -33,13 +33,13 @@
         {
             "case_id": 6,
             "description": "Partition by bucket(16, person_id), is_current_version, sort by valid_from",
-            "partition_cols": ["bucket(person_id, 16), is_current_version"],
+            "partition_cols": ["bucket(person_id, 16)", "is_current_version"],
             "sort_cols": ["valid_from"]
         },
         {
             "case_id": 7,
             "description": "Partition by valid_from and valid_to, sort by is_current_version",
-            "partition_cols": ["valid_from, valid_to"],
+            "partition_cols": ["valid_from", "valid_to"],
             "sort_cols": ["is_current_version"]
         }
     ]
