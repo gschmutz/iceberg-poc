@@ -132,4 +132,4 @@ def create_initial_data(tshirt: str, initial_rows: int):
         data_page_size=1024 * 1024,  # 1 MB pages
     )
 
-create_initial_data("l", 2_000_000)    
+create_initial_data("m", 1_000_000)    
