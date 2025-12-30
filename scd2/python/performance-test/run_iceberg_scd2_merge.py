@@ -55,16 +55,6 @@ UPDATE_RATE = 0.05
 INSERT_RATE = 0.01
 DELETE_RATE = 0.005
 
-# Construct connection URLs
-conn = trino.dbapi.connect(
-    host=f"{TRINO_HOST}",
-    port=int(TRINO_PORT),
-    user=f"{TRINO_USER}",
-    catalog=f"{TRINO_CATALOG}",
-    schema="default",
-    http_scheme="http",
-)
-
 # Create a session and S3 client
 s3 = boto3.client('s3')
 
@@ -82,6 +72,18 @@ if S3_ENDPOINT_URL:
 
 s3 = boto3.client(**s3_config)
 
+def get_trino_connection():
+    # Construct connection URLs
+    conn = trino.dbapi.connect(
+        host=f"{TRINO_HOST}",
+        port=int(TRINO_PORT),
+        user=f"{TRINO_USER}",
+        catalog=f"{TRINO_CATALOG}",
+        schema="default",
+        http_scheme="http",
+    )
+
+    return conn;
 
 def add_prefix(values, prefix):
     """add a prefix to each value."""
@@ -340,6 +342,7 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
     return stmt
 
 def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict):
+
     INSERT_SQL = """
         INSERT INTO iceberg_hive.default.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at)
         VALUES (
@@ -368,7 +371,17 @@ def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int,
     )
     cursor.fetchall()
 
+def run_optimize_table(tshirt: str, case_id: int):
+    conn = get_trino_connection()
+
+    table_name = f"dim_person_{case_id}_{tshirt}"
+    optimize_stmt = f"""CALL iceberg_hive.system.optimize_table('default', '{table_name}', true, true)"""
+    print(optimize_stmt)
+    execute_with_metrics(conn.cursor(), optimize_stmt)
+    logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
+
 def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None, sort_cols: list = None):
+    conn = get_trino_connection()
 
     table_name = f"dim_person_{case_id}_{tshirt}"
     drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
@@ -382,6 +395,7 @@ def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None,
     logger.info(f"Dimension table for thsirt {tshirt} and test-case {case_id} created successfully.")
 
 def run_benchmark_create_table(drop_it_first: bool):
+    conn = get_trino_connection()
 
     if drop_it_first:
         drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".benchmark"""
@@ -396,6 +410,7 @@ def run_benchmark_create_table(drop_it_first: bool):
     logger.info(f"Benchmark table created successfully.")
 
 def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str, day_number: int, load_date: str):
+    conn = get_trino_connection()
 
     columns = [
         "salutation", "title", "first_name", "middle_name", "last_name", "suffix",
@@ -445,6 +460,8 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
         run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
 
 def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
+    conn = get_trino_connection()
+    
     query = f"""
         SELECT *
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
@@ -455,6 +472,8 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
 
 def run_select_count_current(tshirt: str, run_id: str, case_id: int):
+    conn = get_trino_connection()
+
     query = f"""
         SELECT COUNT(*) AS current_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
@@ -465,6 +484,8 @@ def run_select_count_current(tshirt: str, run_id: str, case_id: int):
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_CURRENT_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
 
 def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
+    conn = get_trino_connection()
+
     query = f"""
         SELECT gender, COUNT(*) AS gender_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
@@ -477,6 +498,8 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
 
 def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int):
+    conn = get_trino_connection()
+
     query = f"""
         SELECT COUNT(*) AS person_in_ch
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
