@@ -64,6 +64,11 @@ Run `pytest`
 pytest compare-partitions.py --verbose
 ```
 
+```
+nohup python3 run_iceberg_prepare_raw.py > output.log 2>&1 &
+nohup python3 run_iceberg_scd2_merge.py > output.log 2>&1 &
+```
+
 The comparision is driven by the s3 locations in the file.
 
 
