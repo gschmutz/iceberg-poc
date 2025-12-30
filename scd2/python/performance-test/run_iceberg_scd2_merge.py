@@ -375,7 +375,10 @@ def run_optimize_table(tshirt: str, case_id: int):
     conn = get_trino_connection()
 
     table_name = f"dim_person_{case_id}_{tshirt}"
-    optimize_stmt = f"""CALL iceberg_hive.system.optimize_table('default', '{table_name}', true, true)"""
+    optimize_stmt = f"""
+                    ALTER TABLE {table_name}
+                    EXECUTE optimize (file_size_threshold => '128MB');
+                    """
     print(optimize_stmt)
     execute_with_metrics(conn.cursor(), optimize_stmt)
     logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
@@ -459,6 +462,13 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
         print (load_date)
         run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
 
+        # run optimize every 5 days
+        if d > 0 and d % 5 == 0:
+            run_optimize_table(tshirt=tshirt, case_id=case_id)
+
+    # run optimize at the end as well
+    run_optimize_table(tshirt=tshirt, case_id=case_id)
+
 def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
     conn = get_trino_connection()
     
@@ -515,7 +525,7 @@ def run_test_cases(tshirt: str, number_of_runs: int):
 
     person_id = "1027985"  # known person_id to select at the end
     
-    run_benchmark_create_table(False)
+    run_benchmark_create_table(True)
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
@@ -536,4 +546,4 @@ def run_test_cases(tshirt: str, number_of_runs: int):
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
 
-run_test_cases(tshirt="m", number_of_runs=5)
+run_test_cases(tshirt="l", number_of_runs=5)

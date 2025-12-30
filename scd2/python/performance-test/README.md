@@ -65,3 +65,38 @@ pytest compare-partitions.py --verbose
 ```
 
 The comparision is driven by the s3 locations in the file.
+
+
+```sql
+select person_id, count(*) from iceberg_hive."default".raw_person_m where operation in ('DELETE', 'UPDATE') group by person_id order by count(*) desc;
+
+select * from iceberg_hive."default".raw_person_m where person_id = '418875'; 
+
+select b.strategy,b.statement_name, b.case_id, b.tshirt_size, b.day_number
+	, array_join(array_agg( format ('%.2f', round(cast (elapsed_ms as double) / 1000, 2))), ',') as elapsed_ms 
+from iceberg_hive.default.benchmark b
+where success = True
+group by b.strategy,b.statement_name, b.case_id, b.tshirt_size, b.day_number
+order by strategy,b.day_number asc;
+
+select gender, count(*) from iceberg_hive."default".dim_person_5_m 
+where is_current_version = true
+group by gender;
+
+select gender, count(*) from iceberg_hive."default".dim_person_5_m 
+where is_current_version = true
+group by gender;
+
+select count(*) from iceberg_hive."default".dim_person_5_m 
+where cast('2024-01-05' as date) between valid_from and valid_to
+and is_current_version = true and is_active = true
+and country = 'CH'
+
+select array_join(array_agg(format('%.2f', round(cast (elapsed_ms as double) / 1000, 2))), ',')  from iceberg_hive."default".benchmark group by strategy
+
+ALTER TABLE iceberg_hive."default".dim_person_1_m 
+EXECUTE optimize (file_size_threshold => '128MB');
+ALTER TABLE iceberg_hive."default".dim_person_1_m EXECUTE optimize_manifests;
+
+ALTER TABLE iceberg_hive."default".dim_person_1_s EXECUTE expire_snapshots(retention_threshold => '7d');
+```

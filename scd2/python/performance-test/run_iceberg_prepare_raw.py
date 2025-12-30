@@ -346,8 +346,10 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
         table.append(arrow_table)
 
+
+
         # 5️⃣ Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
 
-prepare_raw_data("m", generate_data=False, initial_rows=0)    
+prepare_raw_data("l", generate_data=False, initial_rows=0)    
