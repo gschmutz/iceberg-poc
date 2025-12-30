@@ -24,7 +24,6 @@ from pyiceberg.types import (
     TimestampType,
 )
 import s3fs
-from sqlalchemy import create_engine, text
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 
