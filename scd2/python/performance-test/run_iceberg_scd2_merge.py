@@ -492,7 +492,7 @@ def run_test_cases(tshirt: str, number_of_runs: int):
 
     person_id = "1027985"  # known person_id to select at the end
     
-    run_benchmark_create_table(True)
+    run_benchmark_create_table(False)
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
