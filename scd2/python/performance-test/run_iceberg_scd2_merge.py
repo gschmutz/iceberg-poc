@@ -491,7 +491,7 @@ def run_select_count_current(tshirt: str, run_id: str, case_id: int):
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_CURRENT_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_CURRENT_{case_id}_{tshirt}", statement_name="count all current persons", result=result) 
 
 def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
     conn = get_trino_connection()
@@ -505,7 +505,7 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all current persons", result=result) 
 
 def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int):
     conn = get_trino_connection()
@@ -519,13 +519,13 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where current on 5 jan", result=result) 
 
-def run_test_cases(tshirt: str, number_of_runs: int):
+def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
 
     person_id = "1027985"  # known person_id to select at the end
     
-    run_benchmark_create_table(True)
+    run_benchmark_create_table(drop_benchmark_table_first)
 
     # Load and execute all test cases
     with open('test-cases.json', 'r') as f:
@@ -535,6 +535,10 @@ def run_test_cases(tshirt: str, number_of_runs: int):
         run_id: str = str(uuid.uuid4())
 
         for test_case in test_data['test_cases']:
+            if not test_case.get('active', True):
+                continue
+            if run_for_test_cases and test_case['case_id'] not in run_for_test_cases:
+                continue
             logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
             
             run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
@@ -546,4 +550,4 @@ def run_test_cases(tshirt: str, number_of_runs: int):
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
 
-run_test_cases(tshirt="l", number_of_runs=5)
+run_test_cases(tshirt="l", number_of_runs=1, run_for_test_cases=[8], drop_benchmark_table_first=False)
