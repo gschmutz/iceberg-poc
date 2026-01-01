@@ -21,7 +21,8 @@ export TRINO_CATALOG=iceberg_hive
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
 export S3_ENDPOINT_URL=http://localhost:9000
-export S3_ADMIN_BUCKET=admin-bucket
+export S3_UPLOAD_BUCKET=admin-bucket
+export UPLOAD_TO_S3=false
 ```
 
 Set environment variables for lightsail environment
@@ -39,7 +40,8 @@ export TRINO_CATALOG=iceberg_hive
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
 export S3_ENDPOINT_URL=http://dataplatform:9000
-export S3_ADMIN_BUCKET=admin-bucket
+export S3_UPLOAD_BUCKET=admin-bucket
+export UPLOAD_TO_S3=false
 ```
 
 

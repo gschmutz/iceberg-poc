@@ -15,46 +15,21 @@ from datetime import date, timedelta, datetime
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-import s3fs
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
+from util import get_param, get_credential, replace_vars_in_string
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
- 
-TRINO_USER = get_credential('TRINO_USER', 'trino')
-TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
-TRINO_HOST = get_param('TRINO_HOST', 'localhost')
-TRINO_PORT = get_param('TRINO_PORT', '28082')
-TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
-TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
-
-HMS_HOST = get_param('HMS_HOST', 'localhost')
-HMS_PORT = get_param('HMS_PORT', '9083')
 
 # Connect to MinIO or AWS S3
 S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
 
-S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
-S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": "", "env": "" } )
+S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
+S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
 AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
-
-
-
-# Construct connection URLs
-conn = trino.dbapi.connect(
-    host=f"{TRINO_HOST}",
-    port=int(TRINO_PORT),
-    user=f"{TRINO_USER}",
-    catalog=f"{TRINO_CATALOG}",
-    schema="default",
-    http_scheme="http",
-)
-
-# Create a session and S3 client
-s3 = boto3.client('s3')
+UPLOAD_TO_S3 = get_param('UPLOAD_TO_S3', 'true').lower() == 'true'  
 
 # Create S3 client configuration
 s3_config = {"service_name": "s3"}
@@ -66,6 +41,7 @@ if S3_ENDPOINT_URL:
     s3_config["endpoint_url"] = S3_ENDPOINT_URL
     s3_config["verify"] = False  # Disable SSL verification for self-signed certificates
 
+# Create a session and S3 client
 s3 = boto3.client(**s3_config)
 
 def generate_person_row(fake: Faker, person_id: int) -> dict:
@@ -121,14 +97,21 @@ def create_initial_data(tshirt: str, initial_rows: int):
         df,
         preserve_index=False,   # 🔴 important
     )
+    local_file = f"data-{tshirt}.parquet"
 
     pq.write_table(
         table,
-        f"data-{tshirt}.parquet",
+        local_file,
         compression="zstd",     # 🔥 best compression
         compression_level=9,    # 🔥 compact but fast enough
         use_dictionary=True,    # 🔥 dictionary encoding
         data_page_size=1024 * 1024,  # 1 MB pages
     )
 
-create_initial_data("m", 1_000_000)    
+    if UPLOAD_TO_S3:
+        # Upload the local parquet file to S3
+        s3_key = f"initial-dataset/data-{tshirt}.parquet"
+        s3.upload_file(local_file, S3_UPLOAD_BUCKET, s3_key)
+        logger.info(f"Uploaded {local_file} to s3://{S3_UPLOAD_BUCKET}/{s3_key}")
+
+create_initial_data("xxl", 10_000_000)    
