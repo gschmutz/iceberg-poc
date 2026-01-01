@@ -43,11 +43,15 @@ HMS_PORT = get_param('HMS_PORT', '9083')
 
 # Connect to MinIO or AWS S3
 S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
+S3_PATH_STYLE_ACCESS = get_param('S3_PATH_STYLE_ACCESS', 'true').lower() == 'true'
 
-S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
-S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": "", "env": "" } )
+S3_WAREHOUSE_BUCKET = get_param('S3_WAREHOUSE_BUCKET', 'warehouse-bucket')
+S3_WAREHOUSE_BUCKET = replace_vars_in_string(S3_WAREHOUSE_BUCKET, { "zone": "", "env": "" } )
+S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
+S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
 AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
+DOWNLOAD_INITIAL_DATASET_FROM_S3 = get_param('DOWNLOAD_INITIAL_DATASET_FROM_S3', 'true').lower() == 'true'
 
 UPDATE_RATE = 0.10
 INSERT_RATE = 0.05
@@ -77,7 +81,6 @@ if S3_ENDPOINT_URL:
     s3_config["verify"] = False  # Disable SSL verification for self-signed certificates
 
 s3 = boto3.client(**s3_config)
-
 
 arrow_schema = pa.schema([
     pa.field("surrogate_key", pa.string()),
@@ -301,10 +304,9 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         "name": "iceberg",
         "type": "hive",
         "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
-        "warehouse": "s3://warehouse-bucket/",
+        "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/",
         "s3.endpoint": S3_ENDPOINT_URL,
-        "s3.region": "us-east-1",
-        "s3.path-style-access": "true",  # Required for MinIO
+        "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
     }
     
     # Add AWS credentials if available
@@ -322,7 +324,15 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         df = pd.DataFrame(rows)
         next_person_id = initial_rows
     else:
-        arrow_table = pq.read_table(f"data-{tshirt}.parquet")
+        local_file = f"data-{tshirt}.parquet"
+    
+        if DOWNLOAD_INITIAL_DATASET_FROM_S3:
+            # Download the initial dataset from S3
+            s3_key = f"initial-dataset/data-{tshirt}.parquet"
+            s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
+            logger.info(f"Downloaded s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
+
+        arrow_table = pq.read_table(local_file)
         df = arrow_table.to_pandas()
         next_person_id = df['person_id'].astype(int).max() + 1
 
