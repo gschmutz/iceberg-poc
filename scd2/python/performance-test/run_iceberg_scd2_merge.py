@@ -550,4 +550,4 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
 
-run_test_cases(tshirt="l", number_of_runs=1, run_for_test_cases=[8], drop_benchmark_table_first=False)
+run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[8], drop_benchmark_table_first=False)
