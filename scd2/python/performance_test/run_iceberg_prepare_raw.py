@@ -439,4 +439,4 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
         # 5️⃣ Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
-prepare_raw_data(use_hms=False, tshirt="xs", generate_data=False, initial_rows=0)    
+prepare_raw_data(use_hms=True, tshirt="xl", generate_data=False, initial_rows=0)    

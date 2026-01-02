@@ -73,6 +73,7 @@ if S3_ENDPOINT_URL:
 s3 = boto3.client(**s3_config)
 
 def get_trino_connection():
+
     # Construct connection URLs
     conn = trino.dbapi.connect(
         host=f"{TRINO_HOST}",
@@ -81,9 +82,12 @@ def get_trino_connection():
         catalog=f"{TRINO_CATALOG}",
         schema="default",
         http_scheme="http",
+        session_properties={
+            "use_query_result_cache": "false"
+        }
     )
 
-    return conn;
+    return conn
 
 def add_prefix(values, prefix):
     """add a prefix to each value."""
@@ -488,7 +492,7 @@ def run_select_count_current(tshirt: str, run_id: str, case_id: int, restrict_cu
     conn = get_trino_connection()
 
     query = f"""
-        SELECT COUNT(*) AS current_count
+        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
         WHERE {restrict_current_expression}
     """
@@ -500,7 +504,7 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_
     conn = get_trino_connection()
 
     query = f"""
-        SELECT gender, COUNT(*) AS gender_count
+        SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
         WHERE {restrict_current_expression}
         AND is_active = TRUE
@@ -514,7 +518,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
     conn = get_trino_connection()
 
     query = f"""
-        SELECT COUNT(*) AS person_in_ch
+        SELECT COUNT(*) AS person_in_ch, array_agg(person_id) AS persons
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
         where cast('2024-01-05' as date) between valid_from and valid_to
         AND {restrict_current_expression} 
@@ -548,10 +552,10 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
             run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
     
             # At the end let's perform some selects to benchmark read performance
-            for _ in range(number_of_runs):
+            for _ in range(number_of_runs*2):
                 run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=True)
+run_test_cases(tshirt="xl", number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=False)
