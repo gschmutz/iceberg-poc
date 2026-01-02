@@ -50,6 +50,8 @@ S3_WAREHOUSE_BUCKET = get_param('S3_WAREHOUSE_BUCKET', 'warehouse-bucket')
 S3_WAREHOUSE_BUCKET = replace_vars_in_string(S3_WAREHOUSE_BUCKET, { "zone": "", "env": "" } )
 S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
 S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
+S3_UPLOAD_PREFIX = get_param('S3_UPLOAD_PREFIX', 'iceberg-poc')
+S3_UPLOAD_PREFIX = replace_vars_in_string(S3_UPLOAD_PREFIX, { "zone": "", "env": "" } )
 AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 DOWNLOAD_INITIAL_DATASET_FROM_S3 = get_param('DOWNLOAD_INITIAL_DATASET_FROM_S3', 'true').lower() == 'true'
@@ -390,7 +392,7 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
     
         if DOWNLOAD_INITIAL_DATASET_FROM_S3:
             # Download the initial dataset from S3
-            s3_key = f"initial-dataset/data-{tshirt}.parquet"
+            s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/data-{tshirt}.parquet"
             s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
             logger.info(f"Downloaded s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
 
@@ -417,7 +419,7 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
             table = catalog.load_table(table_identifier)
 
     start_date = date(2024, 1, 1)
-    DAYS = 60
+    DAYS = 30
 
     for d in range(DAYS):
         export_date = start_date + timedelta(days=d)

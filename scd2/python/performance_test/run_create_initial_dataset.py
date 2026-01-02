@@ -27,6 +27,8 @@ S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
 
 S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
 S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
+S3_UPLOAD_PREFIX = get_param('S3_UPLOAD_PREFIX', 'iceberg-poc')
+S3_UPLOAD_PREFIX = replace_vars_in_string(S3_UPLOAD_PREFIX, { "zone": "", "env": "" } )
 AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 UPLOAD_TO_S3 = get_param('UPLOAD_TO_S3', 'true').lower() == 'true'  
@@ -110,7 +112,7 @@ def create_initial_data(tshirt: str, initial_rows: int):
 
     if UPLOAD_TO_S3:
         # Upload the local parquet file to S3
-        s3_key = f"initial-dataset/data-{tshirt}.parquet"
+        s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/data-{tshirt}.parquet"
         s3.upload_file(local_file, S3_UPLOAD_BUCKET, s3_key)
         logger.info(f"Uploaded {local_file} to s3://{S3_UPLOAD_BUCKET}/{s3_key}")
 
