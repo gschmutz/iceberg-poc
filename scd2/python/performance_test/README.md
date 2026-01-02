@@ -26,7 +26,7 @@ export S3_WAREHOUSE_BUCKET=warehouse-bucket
 export S3_UPLOAD_BUCKET=admin-bucket
 export S3_UPLOAD_PREFIX=iceberg_poc
 export UPLOAD_TO_S3=false
-export DOWNLOAD_INITIAL_DATASET_FROM_S3=true
+export DOWNLOAD_INITIAL_DATASET_FROM_S3=false
 ```
 
 Set environment variables for lightsail environment

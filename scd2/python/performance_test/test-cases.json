@@ -10,6 +10,14 @@
         },
         {
             "case_id": 2,
+            "description": "Partition by month(valid_from) and is_current_version, no sorting",
+            "partition_cols": ["month(valid_from)", "is_current_version"],
+            "sort_cols": [],
+            "restrict_current_expression": "is_current_version = true",
+            "active": true
+        },
+        {
+            "case_id": 3,
             "description": "Partition by day(valid_from), sort by is_current_version",
             "partition_cols": ["day(valid_from)"],
             "sort_cols": ["is_current_version"],
@@ -17,7 +25,15 @@
             "active": true
         },    
         {
-            "case_id": 3,
+            "case_id": 4,
+            "description": "Partition by month(valid_from), sort by is_current_version",
+            "partition_cols": ["month(valid_from)"],
+            "sort_cols": ["is_current_version"],
+            "restrict_current_expression": "is_current_version = true",
+            "active": true
+        },    
+        {
+            "case_id": 5,
             "description": "Partition by is_current_version only, sort by person_id",
             "partition_cols": ["is_current_version"],
             "sort_cols": ["person_id"],
@@ -25,7 +41,7 @@
             "active": true
         },
         {
-            "case_id": 4,
+            "case_id": 6,
             "description": "Partition by is_current_version and day(valid_from), no sorting",
             "partition_cols": ["is_current_version", "day(valid_from)"],
             "sort_cols": [],
@@ -33,7 +49,23 @@
             "active": true
         },
         {
-            "case_id": 5,
+            "case_id": 7,
+            "description": "Partition by is_current_version and month(valid_from), no sorting",
+            "partition_cols": ["is_current_version", "month(valid_from)"],
+            "sort_cols": [],
+            "restrict_current_expression": "is_current_version = true",
+            "active": true
+        },        
+        {
+            "case_id": 8,
+            "description": "Partition by day(valid_from), is_current_version, sort by person_id",
+            "partition_cols": ["day(valid_from)", "is_current_version"],
+            "sort_cols": ["person_id"],
+            "restrict_current_expression": "is_current_version = true",
+            "active": true
+        },
+        {
+            "case_id": 9,
             "description": "Partition by month(valid_from) and is_current_version, sort by person_id",
             "partition_cols": ["month(valid_from)", "is_current_version"],
             "sort_cols": ["person_id"],
@@ -41,15 +73,7 @@
             "active": true
         },
         {
-            "case_id": 6,
-            "description": "Partition by day(valid_from), is_current_version, and is_active, sort by person_id",
-            "partition_cols": ["day(valid_from)", "is_current_version", "is_active"],
-            "sort_cols": ["person_id"],
-            "restrict_current_expression": "is_current_version = true",
-            "active": true
-        },
-        {
-            "case_id": 7,
+            "case_id": 10,
             "description": "Partition by bucket(16, person_id), sort by is_current_version",
             "partition_cols": ["bucket(person_id, 16)"],
             "sort_cols": ["is_current_version"],
@@ -57,7 +81,7 @@
             "active": true
         },
         {
-            "case_id": 8,
+            "case_id": 11,
             "description": "Partition by bucket(16, person_id), is_current_version, sort by valid_from",
             "partition_cols": ["bucket(person_id, 16)", "is_current_version"],
             "sort_cols": ["valid_from"],
@@ -65,25 +89,33 @@
             "active": true
         },
         {
-            "case_id": 9,
-            "description": "Partition by day(valid_from) and day(valid_to), sort by is_current_version",
-            "partition_cols": ["day(valid_from)", "day(valid_to)"],
+            "case_id": 12,
+            "description": "Partition by month(valid_from) and month(valid_to), sort by is_current_version",
+            "partition_cols": ["month(valid_from)", "month(valid_to)"],
             "sort_cols": ["is_current_version"],
             "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },       
         {
-            "case_id": 10,
-            "description": "Partition by day(valid_from), sort by valid_to",
-            "partition_cols": ["day(valid_from)"],
+            "case_id": 13,
+            "description": "Partition by month(valid_from), sort by valid_to",
+            "partition_cols": ["month(valid_from)"],
             "sort_cols": ["valid_to"],
             "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
-        },       
+        },
         {
-            "case_id": 11,
+            "case_id": 14,
             "description": "Partition by day(valid_to), no sorting",
             "partition_cols": ["day(valid_to)"],
+            "sort_cols": [],
+            "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "active": true
+        },               
+        {
+            "case_id": 15,
+            "description": "Partition by month(valid_to), no sorting",
+            "partition_cols": ["month(valid_to)"],
             "sort_cols": [],
             "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
