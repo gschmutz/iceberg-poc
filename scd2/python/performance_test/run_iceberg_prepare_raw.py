@@ -393,8 +393,9 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
         if DOWNLOAD_INITIAL_DATASET_FROM_S3:
             # Download the initial dataset from S3
             s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/data-{tshirt}.parquet"
+            logger.info(f"Downloading s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
             s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
-            logger.info(f"Downloaded s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
+            logger.info(f"Successfully downloaded {local_file} from S3")
 
         arrow_table = pq.read_table(local_file)
         df = arrow_table.to_pandas()
