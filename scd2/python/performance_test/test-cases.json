@@ -15,6 +15,13 @@
             "active": true
         },
         {
+            "case_id": 9,
+            "description": "Partition by is_current_version and day(valid_from), no sorting",
+            "partition_cols": ["is_current_version", "day(valid_from)"],
+            "sort_cols": [],
+            "active": true
+        },
+        {
             "case_id": 3,
             "description": "Partition by month(valid_from) and is_current_version, sort by person_id",
             "partition_cols": ["month(valid_from)", "is_current_version"],
@@ -55,6 +62,13 @@
             "partition_cols": ["day(valid_from)"],
             "sort_cols": ["is_current_version"],
             "active": true
-        }        
+        },
+        {
+            "case_id": 9,
+            "description": "Partition by is_current_version and day(valid_from), no sorting",
+            "partition_cols": ["is_current_version", "day(valid_from)"],
+            "sort_cols": [],
+            "active": true
+        }                
     ]
 }
