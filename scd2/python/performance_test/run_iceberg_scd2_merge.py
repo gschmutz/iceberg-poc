@@ -470,7 +470,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
     # run optimize at the end as well
     run_optimize_table(tshirt=tshirt, case_id=case_id)
 
-def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
+def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restrict_current_expression: str = ""):
     conn = get_trino_connection()
     
     query = f"""
@@ -482,25 +482,25 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str):
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
 
-def run_select_count_current(tshirt: str, run_id: str, case_id: int):
+def run_select_count_current(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT COUNT(*) AS current_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
-        WHERE is_current_version = TRUE
+        WHERE {restrict_current_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_CURRENT_{case_id}_{tshirt}", statement_name="count all current persons", result=result) 
 
-def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
+def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT gender, COUNT(*) AS gender_count
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
-        WHERE is_current_version = TRUE
+        WHERE {restrict_current_expression}
         AND is_active = TRUE
         GROUP BY gender
     """
@@ -508,14 +508,15 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int):
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all current persons", result=result) 
 
-def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int):
+def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT COUNT(*) AS person_in_ch
         FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
         where cast('2024-01-05' as date) between valid_from and valid_to
-        AND is_current_version = TRUE AND is_active = TRUE
+        AND {restrict_current_expression} 
+        AND is_active = TRUE
         AND country = 'CH'
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -546,10 +547,9 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
     
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs):
-                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id)
-                run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
-                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
-                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
+                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-#run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[9], drop_benchmark_table_first=False)
-run_optimize_table(tshirt="l", case_id=3)
+run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[9], drop_benchmark_table_first=True)
