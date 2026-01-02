@@ -230,6 +230,7 @@ def format_cte(load_date: str, raw_table_name: str, dim_table_name: str, pk_col:
                 valid_from
             FROM iceberg_hive.default.{dim_table_name}
             WHERE is_current_version = TRUE
+            AND valid_to = TIMESTAMP '9999-12-31 23:59:59'
         ) tgt
         ON src.{pk_col} = tgt.{pk_col}
     ),
@@ -289,6 +290,7 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
     USING minio.default.scd2_view AS source
     ON target.{pk_col} = source.merge_key
     AND target.is_current_version = TRUE
+    AND target.valid_to = TIMESTAMP '9999-12-31 23:59:59'
 
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
