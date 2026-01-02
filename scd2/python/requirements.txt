@@ -4,7 +4,7 @@ duckdb
 boto3
 trino
 faker
-pyiceberg[s3fs,hive,pyiceberg-core]
+pyiceberg[s3fs,hive,pyiceberg-core,sql-sqlite]
 pyarrow
 thrift
 s3fs

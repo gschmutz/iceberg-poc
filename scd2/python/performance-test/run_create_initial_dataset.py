@@ -114,4 +114,4 @@ def create_initial_data(tshirt: str, initial_rows: int):
         s3.upload_file(local_file, S3_UPLOAD_BUCKET, s3_key)
         logger.info(f"Uploaded {local_file} to s3://{S3_UPLOAD_BUCKET}/{s3_key}")
 
-create_initial_data("xxl", 10_000_000)    
+create_initial_data("xs", 5_000)    

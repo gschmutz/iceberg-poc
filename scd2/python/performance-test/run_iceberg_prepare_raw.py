@@ -23,7 +23,8 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
-import s3fs
+from pyiceberg.types import NestedField
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 
@@ -125,6 +126,56 @@ arrow_schema = pa.schema([
     pa.field("export_date", pa.date32(), nullable=True),
     pa.field("load_ts", pa.timestamp("us"), nullable=True),
 ])
+
+iceberg_schema = Schema(
+    NestedField(1, "surrogate_key", StringType(), required=False),
+    NestedField(2, "person_id", StringType(), required=False),
+
+    # identity
+    NestedField(3, "salutation", StringType(), required=False),
+    NestedField(4, "title", StringType(), required=False),
+    NestedField(5, "first_name", StringType(), required=False),
+    NestedField(6, "middle_name", StringType(), required=False),
+    NestedField(7, "last_name", StringType(), required=False),
+    NestedField(8, "suffix", StringType(), required=False),
+    NestedField(9, "gender", StringType(), required=False),
+
+    # contact
+    NestedField(10, "email", StringType(), required=False),
+    NestedField(11, "phone_mobile", StringType(), required=False),
+    NestedField(12, "phone_home", StringType(), required=False),
+
+    # address
+    NestedField(13, "street", StringType(), required=False),
+    NestedField(14, "house_number", StringType(), required=False),
+    NestedField(15, "postal_code", StringType(), required=False),
+    NestedField(16, "city", StringType(), required=False),
+    NestedField(17, "state", StringType(), required=False),
+    NestedField(18, "country", StringType(), required=False),
+
+    # personal
+    NestedField(19, "birth_date", DateType(), required=False),
+    NestedField(20, "nationality", StringType(), required=False),
+    NestedField(21, "marital_status", StringType(), required=False),
+    NestedField(22, "number_of_children", IntegerType(), required=False),
+
+    # employment
+    NestedField(23, "employment_status", StringType(), required=False),
+    NestedField(24, "job_title", StringType(), required=False),
+    NestedField(25, "employer", StringType(), required=False),
+    NestedField(26, "annual_income", DoubleType(), required=False),
+
+    # identifiers
+    NestedField(27, "national_id", StringType(), required=False),
+    NestedField(28, "tax_id", StringType(), required=False),
+
+    # metadata
+    NestedField(29, "source_system", StringType(), required=False),
+    NestedField(30, "status", StringType(), required=False),
+    NestedField(31, "operation", StringType(), required=False),
+    NestedField(32, "export_date", DateType(), required=False),
+    NestedField(33, "load_ts", TimestampType(), required=False),
+)
 
 def format_create_raw_table(table_name: str) -> str:
 
@@ -291,23 +342,35 @@ def run_raw_create_table(table_name: str):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
-def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int = 0):
+def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, initial_rows: int = 0):
+    
     fake = Faker()
     Faker.seed(42)
 
     # create raw table
     table_name = f"raw_person_{tshirt}"
-    run_raw_create_table(table_name)
 
-    # Prepare catalog properties with comprehensive S3 configuration
-    catalog_props = {
-        "name": "iceberg",
-        "type": "hive",
-        "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
-        "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/",
-        "s3.endpoint": S3_ENDPOINT_URL,
-        "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
-    }
+    if use_hms:
+        # create raw table
+        run_raw_create_table(table_name)
+
+        # Prepare catalog properties with comprehensive S3 configuration
+        catalog_props = {
+            "name": "iceberg",
+            "type": "hive",
+            "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
+            "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/",
+            "s3.endpoint": S3_ENDPOINT_URL,
+            "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
+        }
+    else:
+        catalog_props = {
+            "name": "iceberg",
+            "type": "in-memory",
+            "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/warehouse",
+            "s3.endpoint": S3_ENDPOINT_URL,
+            "s3.path-style-access": S3_PATH_STYLE_ACCESS,
+        }
     
     # Add AWS credentials if available
     if AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY:
@@ -316,7 +379,6 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         
     catalog = load_catalog(**catalog_props)
     print(f"Catalog properties: {catalog.properties}")
-    print(f"Tables: {catalog.list_tables('default')}")
 
     if (generate_data):
         # Generate initial data
@@ -336,7 +398,23 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         df = arrow_table.to_pandas()
         next_person_id = df['person_id'].astype(int).max() + 1
 
-    table = catalog.load_table(f"default.{table_name}")
+    table_identifier = f"default.{table_name}"
+    if use_hms:
+        table = catalog.load_table(f"default.{table_name}")
+    else:
+        catalog.create_namespace("default")
+        if not catalog.table_exists(table_identifier):
+            table = catalog.create_table(
+                identifier=table_identifier,
+                schema=iceberg_schema,
+                properties={
+                    "format-version": "2",
+                    "write.format.default": "parquet",
+                }
+            )
+            logger.info(f"Created Iceberg table {table_identifier}")
+        else:
+            table = catalog.load_table(table_identifier)
 
     start_date = date(2024, 1, 1)
     DAYS = 60
@@ -355,10 +433,7 @@ def prepare_raw_data(tshirt: str, generate_data: bool = True, initial_rows: int 
         arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
         table.append(arrow_table)
 
-
-
         # 5️⃣ Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
-
-prepare_raw_data("l", generate_data=False, initial_rows=0)    
+prepare_raw_data(use_hms=False, tshirt="xs", generate_data=False, initial_rows=0)    
