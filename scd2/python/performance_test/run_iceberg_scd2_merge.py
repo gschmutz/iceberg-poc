@@ -377,10 +377,11 @@ def run_optimize_table(tshirt: str, case_id: int):
     table_name = f"dim_person_{case_id}_{tshirt}"
     optimize_stmt = f"""
                     ALTER TABLE {table_name}
-                    EXECUTE optimize (file_size_threshold => '128MB');
+                    EXECUTE optimize (file_size_threshold => '256MB')
                     """
     print(optimize_stmt)
-    execute_with_metrics(conn.cursor(), optimize_stmt)
+    result = execute_with_metrics(conn.cursor(), optimize_stmt)
+    print (result)
     logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
 
 def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None, sort_cols: list = None):
@@ -550,4 +551,5 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'])
 
-run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[9], drop_benchmark_table_first=False)
+#run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[9], drop_benchmark_table_first=False)
+run_optimize_table(tshirt="l", case_id=3)
