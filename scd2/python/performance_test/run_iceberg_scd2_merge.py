@@ -83,7 +83,6 @@ def get_trino_connection():
         schema="default",
         http_scheme="http",
         session_properties={
-            "use_query_result_cache": "false"
         }
     )
 
