@@ -561,7 +561,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
 
 def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
 
-    person_id = "1027985"  # known person_id to select at the end
+    person_id = "1349659"  # known person_id to select at the end
     
     run_benchmark_create_table(drop_benchmark_table_first)
 
