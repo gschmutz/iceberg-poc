@@ -119,7 +119,11 @@ def format_create_benchmark_table():
             processed_bytes BIGINT,
             success BOOLEAN,
             error_message VARCHAR,
-            executed_at TIMESTAMP
+            executed_at TIMESTAMP,
+            iceberg_snapshot_id BIGINT,
+            iceberg_nof_files BIGINT,
+            iceberg_status_list ARRAY<VARCHAR>,
+            iceberg_file_list ARRAY<VARCHAR>
         )
         WITH (
             location = 's3a://warehouse-bucket/warehouse/default/benchmark'
@@ -346,12 +350,12 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
 
     return stmt
 
-def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict):
+def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict, iceberg_metadata: list = []):
 
     INSERT_SQL = """
-        INSERT INTO iceberg_hive.default.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at)
+        INSERT INTO iceberg_hive.default.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
         VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """
 
@@ -372,6 +376,10 @@ def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int,
             result["success"],
             result["error"],
             result["executed_at"],
+            iceberg_metadata[0] if iceberg_metadata else None,
+            iceberg_metadata[1] if iceberg_metadata else None,
+            iceberg_metadata[2] if iceberg_metadata else None,
+            iceberg_metadata[3] if iceberg_metadata else None
         ),
     )
     cursor.fetchall()
@@ -417,6 +425,27 @@ def run_benchmark_create_table(drop_it_first: bool):
 
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Benchmark table created successfully.")
+        
+def run_select_iceberg_metadata(tshirt: str, case_id: int):
+    conn = get_trino_connection()
+    
+    query = f"""
+            SELECT s.snapshot_id,
+                    count(*) nof_files,
+                    array_agg(case when e.status = 0 then 'existing' when e.status = 1 then 'added' when e.status = 2 then 'deleted' end) status_list,
+                    array_agg(e.data_file.file_path) file_list
+            FROM iceberg_hive."default"."dim_person_{case_id}_{tshirt}$snapshots" s
+            JOIN iceberg_hive."default"."dim_person_{case_id}_{tshirt}$entries" e
+            ON s.snapshot_id = e.snapshot_id
+            WHERE s.snapshot_id in (select snapshot_id from iceberg_hive."default"."dim_person_{case_id}_{tshirt}$snapshots" order by committed_at desc limit 1)
+            AND e.status IN (0, 1, 2)
+            GROUP BY s.snapshot_id
+    """
+    cursor = conn.cursor()
+    cursor.execute(query)
+    result = cursor.fetchone()
+
+    return result
 
 def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str, day_number: int, load_date: str):
     conn = get_trino_connection()
@@ -452,10 +481,12 @@ def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str
     result = execute_with_metrics(conn.cursor(), merge_stmt)
     print (f"Executed test-case {case_id} for day {day_number} for load date {load_date} in {result["elapsed_ms"]} ms")
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day_number, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result)
+    # retrieve iceberg metadata after merge
+    iceberg_metadata = run_select_iceberg_metadata(tshirt=tshirt, case_id=case_id)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day_number, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
 
     logger.info(f"Merge statement for {load_date} {result}")
-        
 
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
 
@@ -557,4 +588,4 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[1], drop_benchmark_table_first=False)
+run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=True)

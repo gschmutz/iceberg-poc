@@ -56,7 +56,8 @@ AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 DOWNLOAD_INITIAL_DATASET_FROM_S3 = get_param('DOWNLOAD_INITIAL_DATASET_FROM_S3', 'true').lower() == 'true'
 
-UPDATE_RATE = 0.10
+# 0.01 = 1% of data is xxxx
+UPDATE_RATE = 0.005
 INSERT_RATE = 0.05
 DELETE_RATE = 0.001
 
