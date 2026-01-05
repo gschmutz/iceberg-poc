@@ -9,6 +9,7 @@ In the 3.x version an `MSCK REPAIR` is called on the Hive Metastore services whe
 Set environment variables for local environment
 
 ```bash
+export TSHIRT_SIZE = "l"
 export HMS_HOST=localhost
 export HMS_PORT=9083
 
@@ -32,6 +33,7 @@ export DOWNLOAD_INITIAL_DATASET_FROM_S3=false
 Set environment variables for lightsail environment
 
 ```bash
+export TSHIRT_SIZE = "l"
 export HMS_HOST=dataplatform
 export HMS_PORT=9083
 
