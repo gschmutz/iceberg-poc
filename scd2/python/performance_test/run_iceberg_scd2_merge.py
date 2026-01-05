@@ -238,7 +238,7 @@ def format_cte(load_date: str, raw_table_name: str, dim_table_name: str, pk_col:
                         )
                     )
                 ) AS row_hash
-            FROM iceberg_hive.default.{raw_table_name}
+            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{raw_table_name}
             WHERE export_date = DATE '{load_date}'
         ) src
         LEFT JOIN (
@@ -255,7 +255,7 @@ def format_cte(load_date: str, raw_table_name: str, dim_table_name: str, pk_col:
                 ) AS row_hash,
                 source_loaded_at,
                 valid_from
-            FROM iceberg_hive.default.{dim_table_name}
+            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{dim_table_name}
             WHERE is_current_version = TRUE
             AND valid_to = TIMESTAMP '9999-12-31 23:59:59'
         ) tgt
@@ -313,7 +313,7 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
     cast_source_val_columns_str = format_values(cast_to_varchar(prefixed_val_columns))    
     stmt = f"""
 
-    MERGE INTO iceberg_hive.default.{dim_table_name} AS target
+    MERGE INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{dim_table_name} AS target
     USING minio.default.scd2_view AS source
     ON target.{pk_col} = source.merge_key
     AND target.is_current_version = TRUE
@@ -373,7 +373,7 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
 def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict, iceberg_metadata: list = []):
 
     INSERT_SQL = """
-        INSERT INTO iceberg_hive.default.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
+        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
         VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
@@ -530,7 +530,7 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restr
     
     query = f"""
         SELECT *
-        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE person_id = '{person_id}'
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -542,7 +542,7 @@ def run_select_count_current(tshirt: str, run_id: str, case_id: int, restrict_cu
 
     query = f"""
         SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
-        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_current_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -554,7 +554,7 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_
 
     query = f"""
         SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
-        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_current_expression}
         AND is_active = TRUE
         GROUP BY gender
@@ -568,7 +568,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
 
     query = f"""
         SELECT COUNT(*) AS person_in_ch, array_agg(person_id) AS persons
-        FROM iceberg_hive.default.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         where cast('2024-01-05' as date) between valid_from and valid_to
         AND {restrict_current_expression} 
         AND is_active = TRUE
