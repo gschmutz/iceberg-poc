@@ -15,6 +15,9 @@ from datetime import date, timedelta, datetime
 
 import pyarrow as pa
 
+import trino
+from trino.auth import BasicAuthentication
+
 from pyiceberg.schema import Schema
 from pyiceberg.types import (
     StringType,
@@ -23,14 +26,16 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
-import s3fs
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
-import trino
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# size of benchmark
+TSHIRT_SIZE = get_param('TSHIRT_SIZE', 'xl').lower()
+NOF_DAYS = int(get_param('NOF_DAYS', '30'))
  
 ZONE = get_zone_name(upper=True)
 # Environment variables for setting the filter to apply when reading the baseline counts from Kafka. If not set (left to default) then all the tables will consumed and compared against actual counts.
@@ -41,14 +46,16 @@ TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
 TRINO_HOST = get_param('TRINO_HOST', 'localhost')
 TRINO_PORT = get_param('TRINO_PORT', '28082')
 TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
+TRINO_SCHEMA = get_param('TRINO_SCHEMA', 'default')
 TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
 
 # Connect to MinIO or AWS S3
 S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
 
-S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
-S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": ZONE.upper(), "env": ENV.upper() } )
-S3_ADMIN_BUCKET_PREFIX = get_param('S3_ADMIN_BUCKET_PREFIX', '')
+S3_WAREHOUSE_BUCKET = get_param('S3_WAREHOUSE_BUCKET', 'warehouse-bucket')
+S3_WAREHOUSE_BUCKET = replace_vars_in_string(S3_WAREHOUSE_BUCKET, { "zone": "", "env": "" } )
+S3_WAREHOUSE_PREFIX = get_param('S3_WAREHOUSE_PREFIX', 'iceberg-poc')
+S3_WAREHOUSE_PREFIX = replace_vars_in_string(S3_WAREHOUSE_PREFIX, { "zone": "", "env": "" } )
 
 INITIAL_PERSONS = 1_000_000   # scale here
 UPDATE_RATE = 0.05
@@ -74,16 +81,24 @@ s3 = boto3.client(**s3_config)
 
 def get_trino_connection():
 
+    if TRINO_USE_SSL:
+        http_scheme = "https"
+    else:
+        http_scheme = "http"
+
     # Construct connection URLs
     conn = trino.dbapi.connect(
         host=f"{TRINO_HOST}",
         port=int(TRINO_PORT),
         user=f"{TRINO_USER}",
         catalog=f"{TRINO_CATALOG}",
-        schema="default",
-        http_scheme="http",
-        session_properties={
-        }
+        schema=f"{TRINO_SCHEMA}",
+        http_scheme=http_scheme,
+        auth=BasicAuthentication(
+            TRINO_USER,
+            TRINO_PASSWORD
+        ) if TRINO_PASSWORD else None,
+        verify=False  # Disable SSL verification for self-signed certificates,
     )
 
     return conn
@@ -105,7 +120,7 @@ def cast_to_varchar(values):
     
 def format_create_benchmark_table():
     ddl = f"""
-        CREATE TABLE IF NOT EXISTS iceberg_hive."default".benchmark (
+        CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (
             run_id VARCHAR,
             case_id VARCHAR,
             day_number INT,
@@ -126,7 +141,7 @@ def format_create_benchmark_table():
             iceberg_file_list ARRAY<VARCHAR>
         )
         WITH (
-            location = 's3a://warehouse-bucket/warehouse/default/benchmark'
+            location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/benchmark'
         )
     """
     return ddl
@@ -137,7 +152,7 @@ def format_create_dim_table(table_name: str, partioning_cols: list, sort_cols: l
     sorted_by_str = ", ".join([f"'{col}'" for col in sort_cols]) if sort_cols else ""
     
     ddl = f"""
-    CREATE TABLE IF NOT EXISTS iceberg_hive."default".{table_name} (
+    CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name} (
         surrogate_key VARCHAR,
         person_id VARCHAR,
         -- identity
@@ -190,7 +205,7 @@ def format_create_dim_table(table_name: str, partioning_cols: list, sort_cols: l
     WITH (
         partitioning = ARRAY[{partitioning_str}],
         sorted_by = ARRAY[{sorted_by_str}],
-        location = 's3a://warehouse-bucket/warehouse/default/{table_name}'
+        location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{table_name}'
     )
     """
     return ddl
@@ -401,7 +416,7 @@ def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None,
     conn = get_trino_connection()
 
     table_name = f"dim_person_{case_id}_{tshirt}"
-    drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
+    drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
     print(drop_table_stmt)
     execute_with_metrics(conn.cursor(), drop_table_stmt)
 
@@ -415,7 +430,7 @@ def run_benchmark_create_table(drop_it_first: bool):
     conn = get_trino_connection()
 
     if drop_it_first:
-        drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".benchmark"""
+        drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark"""
         print(drop_table_stmt)
         execute_with_metrics(conn.cursor(), drop_table_stmt)
 
@@ -434,10 +449,10 @@ def run_select_iceberg_metadata(tshirt: str, case_id: int):
                     count(*) nof_files,
                     array_agg(case when e.status = 0 then 'existing' when e.status = 1 then 'added' when e.status = 2 then 'deleted' end) status_list,
                     array_agg(e.data_file.file_path) file_list
-            FROM iceberg_hive."default"."dim_person_{case_id}_{tshirt}$snapshots" s
-            JOIN iceberg_hive."default"."dim_person_{case_id}_{tshirt}$entries" e
+            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$snapshots" s
+            JOIN {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$entries" e
             ON s.snapshot_id = e.snapshot_id
-            WHERE s.snapshot_id in (select snapshot_id from iceberg_hive."default"."dim_person_{case_id}_{tshirt}$snapshots" order by committed_at desc limit 1)
+            WHERE s.snapshot_id in (select snapshot_id from {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$snapshots" order by committed_at desc limit 1)
             AND e.status IN (0, 1, 2)
             GROUP BY s.snapshot_id
     """
@@ -493,8 +508,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
     run_dim_create_table(tshirt=tshirt, case_id=case_id, partition_cols=partition_cols, sort_cols=sort_cols)
 
     start_date = date(2024, 1, 1)
-    DAYS = 30
-    for d in range(DAYS):
+    for d in range(NOF_DAYS):
         load_date = start_date + timedelta(days=d)
         print (load_date)
         run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
@@ -559,7 +573,11 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where current on 5 jan", result=result) 
 
-def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
+def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
+
+    tshirt = TSHIRT_SIZE.lower()
+
+    logger.info(f"Running test-cases for tshirt size {tshirt} for {number_of_runs} runs")
 
     person_id = "1349659"  # known person_id to select at the end
     
@@ -588,4 +606,4 @@ def run_test_cases(tshirt: str, number_of_runs: int, run_for_test_cases: list, d
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-run_test_cases(tshirt="l", number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=True)
+run_test_cases(number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=True)
