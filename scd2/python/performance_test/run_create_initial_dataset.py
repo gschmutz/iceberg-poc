@@ -92,6 +92,7 @@ def generate_person_row(fake: Faker, person_id: int) -> dict:
     }
 
 def determine_initial_rows(tshirt: str) -> int:
+    tshirt = tshirt.lower()
     if tshirt == 'xs':
         return 1_000
     elif tshirt == 's':
