@@ -56,6 +56,13 @@ S3_WAREHOUSE_BUCKET = get_param('S3_WAREHOUSE_BUCKET', 'warehouse-bucket')
 S3_WAREHOUSE_BUCKET = replace_vars_in_string(S3_WAREHOUSE_BUCKET, { "zone": "", "env": "" } )
 S3_WAREHOUSE_PREFIX = get_param('S3_WAREHOUSE_PREFIX', 'iceberg-poc')
 S3_WAREHOUSE_PREFIX = replace_vars_in_string(S3_WAREHOUSE_PREFIX, { "zone": "", "env": "" } )
+S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
+S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
+S3_UPLOAD_PREFIX = get_param('S3_UPLOAD_PREFIX', 'iceberg-poc')
+S3_UPLOAD_PREFIX = replace_vars_in_string(S3_UPLOAD_PREFIX, { "zone": "", "env": "" } )
+AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
+AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
+DOWNLOAD_TEST_CASES_FROM_S3 = get_param('DOWNLOAD_TEST_CASES_FROM_S3', 'false').lower() in ('true', '1', 't')
 
 INITIAL_PERSONS = 1_000_000   # scale here
 UPDATE_RATE = 0.05
@@ -67,8 +74,6 @@ s3 = boto3.client('s3')
 
 # Create S3 client configuration
 s3_config = {"service_name": "s3"}
-AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
-AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 
 if AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY:
     s3_config["aws_access_key_id"] = AWS_ACCESS_KEY
@@ -583,8 +588,17 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
     
     run_benchmark_create_table(drop_benchmark_table_first)
 
+    local_file = f"test-cases.json"
+    
+    if DOWNLOAD_TEST_CASES_FROM_S3:
+        # Download the initial dataset from S3
+        s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/test-cases.json"
+        logger.info(f"Downloading s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
+        s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
+        logger.info(f"Successfully downloaded {local_file} from S3")
+
     # Load and execute all test cases
-    with open('test-cases.json', 'r') as f:
+    with open(local_file, 'r') as f:
         test_data = json.load(f)
 
     for _ in range(number_of_runs):
