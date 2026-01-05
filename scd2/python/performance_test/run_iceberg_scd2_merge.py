@@ -298,7 +298,7 @@ def format_cte(load_date: str, raw_table_name: str, dim_table_name: str, pk_col:
 def format_view(load_date: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list):
     cte = format_cte(load_date, raw_table_name, dim_table_name, pk_col, val_columns);
     stmt = f"""
-    CREATE OR REPLACE VIEW minio.default.scd2_view AS
+    CREATE OR REPLACE VIEW {TRINO_CATALOG}.{TRINO_SCHEMA}.scd2_view AS
         {cte}
     SELECT *
     FROM prepared_source
@@ -314,7 +314,7 @@ def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: st
     stmt = f"""
 
     MERGE INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{dim_table_name} AS target
-    USING minio.default.scd2_view AS source
+    USING {TRINO_CATALOG}.{TRINO_SCHEMA}.scd2_view AS source
     ON target.{pk_col} = source.merge_key
     AND target.is_current_version = TRUE
     AND target.valid_to = TIMESTAMP '9999-12-31 23:59:59'
