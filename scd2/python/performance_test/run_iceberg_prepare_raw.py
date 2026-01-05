@@ -67,19 +67,24 @@ UPDATE_RATE = 0.005
 INSERT_RATE = 0.05
 DELETE_RATE = 0.001
 
+if TRINO_USE_SSL:
+    http_scheme = "https"
+else:
+    http_scheme = "http"
+
 # Construct connection URLs
 conn = trino.dbapi.connect(
     host=f"{TRINO_HOST}",
     port=int(TRINO_PORT),
     user=f"{TRINO_USER}",
     catalog=f"{TRINO_CATALOG}",
-    schema="default",
-    http_scheme="https",
+    schema=f"{TRINO_SCHEMA}",
+    http_scheme=http_scheme,
     auth=BasicAuthentication(
         TRINO_USER,
         TRINO_PASSWORD
     ) if TRINO_PASSWORD else None,
-    verify=TRINO_USE_SSL,
+    verify=False  # Disable SSL verification for self-signed certificates,
 )
 
 # Create a session and S3 client
@@ -414,11 +419,11 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
         df = arrow_table.to_pandas()
         next_person_id = df['person_id'].astype(int).max() + 1
 
-    table_identifier = f"default.{table_name}"
+    table_identifier = f"{table_name}"
     if use_hms:
-        table = catalog.load_table(f"default.{table_name}")
+        table = catalog.load_table(table_identifier)
     else:
-        catalog.create_namespace("default")
+        catalog.create_namespace(f"{TRINO_SCHEMA}")
         if not catalog.table_exists(table_identifier):
             table = catalog.create_table(
                 identifier=table_identifier,
