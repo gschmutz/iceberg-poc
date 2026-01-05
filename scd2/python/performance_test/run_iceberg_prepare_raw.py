@@ -364,10 +364,12 @@ def run_raw_create_table(table_name: str):
     conn.cursor().execute(create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
-def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, initial_rows: int = 0):
+def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: int = 0):
     
     fake = Faker()
     Faker.seed(42)
+
+    tshirt = TSHIRT_SIZE.lower()
 
     # create raw table
     table_name = f"raw_person_{tshirt}"
@@ -458,4 +460,4 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
         # 5️⃣ Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
-prepare_raw_data(use_hms=True, tshirt=TSHIRT_SIZE, generate_data=False, initial_rows=0)    
+prepare_raw_data(use_hms=True, generate_data=False, initial_rows=0)    
