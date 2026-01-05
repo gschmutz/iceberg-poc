@@ -9,7 +9,8 @@ In the 3.x version an `MSCK REPAIR` is called on the Hive Metastore services whe
 Set environment variables for local environment
 
 ```bash
-export TSHIRT_SIZE = "l"
+export TSHIRT_SIZE="l"
+export NOF_DAYS=30
 export HMS_HOST=localhost
 export HMS_PORT=9083
 
@@ -18,6 +19,7 @@ export TRINO_PASSWORD=
 export TRINO_HOST=localhost
 export TRINO_PORT=28082
 export TRINO_CATALOG=iceberg_hive
+export TRINO_SCHEMA=default
 
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
@@ -33,7 +35,8 @@ export DOWNLOAD_INITIAL_DATASET_FROM_S3=false
 Set environment variables for lightsail environment
 
 ```bash
-export TSHIRT_SIZE = "l"
+export TSHIRT_SIZE="l"
+export NOF_DAYS=30
 export HMS_HOST=dataplatform
 export HMS_PORT=9083
 
@@ -42,6 +45,7 @@ export TRINO_PASSWORD=
 export TRINO_HOST=dataplatform
 export TRINO_PORT=28082
 export TRINO_CATALOG=iceberg_hive
+export TRINO_SCHEMA=default
 
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
