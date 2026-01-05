@@ -4,6 +4,7 @@ import logging
 import uuid
 import boto3
 import trino
+from trino.auth import BasicAuthentication
 import random
 from datetime import date, timedelta
 from faker import Faker
@@ -71,11 +72,14 @@ conn = trino.dbapi.connect(
     host=f"{TRINO_HOST}",
     port=int(TRINO_PORT),
     user=f"{TRINO_USER}",
-    password=f"{TRINO_PASSWORD}",
     catalog=f"{TRINO_CATALOG}",
     schema="default",
     http_scheme="https",
-    verify=False,
+    auth=BasicAuthentication(
+        TRINO_USER,
+        TRINO_PASSWORD
+    ) if TRINO_PASSWORD else None,
+    verify=TRINO_USE_SSL,
 )
 
 # Create a session and S3 client
