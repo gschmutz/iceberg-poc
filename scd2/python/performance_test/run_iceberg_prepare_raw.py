@@ -240,7 +240,7 @@ def format_create_raw_table(table_name: str) -> str:
     WITH (
         format = 'PARQUET',
         partitioning = ARRAY['day(export_date)'],
-        location = 's3a://warehouse-bucket/warehouse/default/{table_name}'   
+        location = 's3a://{S3_WAREHOUSE_BUCKET}/{TRINO_SCHEMA}.db/{table_name}'   
     )
     """
     return ddl
@@ -342,12 +342,13 @@ def run_raw_create_table(table_name: str):
 
     drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
     print(drop_table_stmt)
-    execute_with_metrics(conn.cursor(), drop_table_stmt)
+    conn.cursor().execute(drop_table_stmt)
+    logger.info(f"Dropped raw table {table_name} if it existed.")
 
     create_table_stmt = format_create_raw_table(table_name)
     print(create_table_stmt)
 
-    execute_with_metrics(conn.cursor(), create_table_stmt)
+    conn.cursor().execute(create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
 def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, initial_rows: int = 0):
