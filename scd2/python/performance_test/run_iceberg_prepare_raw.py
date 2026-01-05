@@ -71,9 +71,11 @@ conn = trino.dbapi.connect(
     host=f"{TRINO_HOST}",
     port=int(TRINO_PORT),
     user=f"{TRINO_USER}",
+    password=f"{TRINO_PASSWORD}",
     catalog=f"{TRINO_CATALOG}",
     schema="default",
     http_scheme="https",
+    verify=False,
 )
 
 # Create a session and S3 client
