@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # size of benchmark
-TSHIRT_SIZE = get_param('TSHIRT_SIZE', 'xl').lower()
+TSHIRT_SIZE = get_param('TSHIRT_SIZE', 's').lower()
 
 # Connect to MinIO or AWS S3
 S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
@@ -108,10 +108,11 @@ def determine_initial_rows(tshirt: str) -> int:
     else:
         raise ValueError(f"Unknown TSHIRT_SIZE: {tshirt}")
 
-def create_initial_data(tshirt: str):
+def create_initial_data():
     fake = Faker()
     Faker.seed(42)
 
+    tshirt = TSHIRT_SIZE
     initial_rows = determine_initial_rows(tshirt)
 
     logger.info(f"Generating initial dataset with {initial_rows} rows for size {tshirt}...")
@@ -140,4 +141,4 @@ def create_initial_data(tshirt: str):
         s3.upload_file(local_file, S3_UPLOAD_BUCKET, s3_key)
         logger.info(f"Uploaded {local_file} to s3://{S3_UPLOAD_BUCKET}/{s3_key}")
 
-create_initial_data(TSHIRT_SIZE)    
+create_initial_data()    

@@ -31,7 +31,11 @@ from util import get_param, get_credential, get_zone_name, replace_vars_in_strin
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
- 
+
+# size of benchmark
+TSHIRT_SIZE = get_param('TSHIRT_SIZE', 'xl').lower()
+NOF_DAYS = int(get_param('NOF_DAYS', '30'))
+
 TRINO_USER = get_credential('TRINO_USER', 'trino')
 TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
 TRINO_HOST = get_param('TRINO_HOST', 'localhost')
@@ -421,9 +425,8 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
             table = catalog.load_table(table_identifier)
 
     start_date = date(2024, 1, 1)
-    DAYS = 30
 
-    for d in range(DAYS):
+    for d in range(NOF_DAYS):
         export_date = start_date + timedelta(days=d)
 
         # 1️⃣ Apply daily updates / deletes / inserts
@@ -440,4 +443,4 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
         # 5️⃣ Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
-prepare_raw_data(use_hms=True, tshirt="l", generate_data=False, initial_rows=0)    
+prepare_raw_data(use_hms=True, tshirt=TSHIRT_SIZE, generate_data=False, initial_rows=0)    
