@@ -40,7 +40,8 @@ TRINO_USER = get_credential('TRINO_USER', 'trino')
 TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
 TRINO_HOST = get_param('TRINO_HOST', 'localhost')
 TRINO_PORT = get_param('TRINO_PORT', '28082')
-TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
+TRINO_CATALOG = get_param('TRINO_CATALOG', 'iceberg_hive')
+TRINO_SCHEMA = get_param('TRINO_SCHEMA', 'default')
 TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
 
 HMS_HOST = get_param('HMS_HOST', 'localhost')
@@ -187,7 +188,7 @@ iceberg_schema = Schema(
 def format_create_raw_table(table_name: str) -> str:
 
     ddl = f"""
-    CREATE TABLE IF NOT EXISTS iceberg_hive."default".{table_name} (
+    CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name} (
         surrogate_key VARCHAR,
         person_id VARCHAR,
 
@@ -339,7 +340,7 @@ def apply_daily_changes(fake: Faker, df: pd.DataFrame, next_person_id: int):
 
 def run_raw_create_table(table_name: str):
 
-    drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
+    drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
     print(drop_table_stmt)
     execute_with_metrics(conn.cursor(), drop_table_stmt)
 
