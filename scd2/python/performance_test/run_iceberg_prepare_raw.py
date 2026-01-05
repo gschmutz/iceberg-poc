@@ -54,6 +54,8 @@ S3_PATH_STYLE_ACCESS = get_param('S3_PATH_STYLE_ACCESS', 'true').lower() == 'tru
 
 S3_WAREHOUSE_BUCKET = get_param('S3_WAREHOUSE_BUCKET', 'warehouse-bucket')
 S3_WAREHOUSE_BUCKET = replace_vars_in_string(S3_WAREHOUSE_BUCKET, { "zone": "", "env": "" } )
+S3_WAREHOUSE_PREFIX = get_param('S3_WAREHOUSE_PREFIX', 'iceberg-poc')
+S3_WAREHOUSE_PREFIX = replace_vars_in_string(S3_WAREHOUSE_PREFIX, { "zone": "", "env": "" } )
 S3_UPLOAD_BUCKET = get_param('S3_UPLOAD_BUCKET', 'upload-bucket')
 S3_UPLOAD_BUCKET = replace_vars_in_string(S3_UPLOAD_BUCKET, { "zone": "", "env": "" } )
 S3_UPLOAD_PREFIX = get_param('S3_UPLOAD_PREFIX', 'iceberg-poc')
@@ -251,7 +253,7 @@ def format_create_raw_table(table_name: str) -> str:
     WITH (
         format = 'PARQUET',
         partitioning = ARRAY['day(export_date)'],
-        location = 's3a://{S3_WAREHOUSE_BUCKET}/{TRINO_SCHEMA}.db/{table_name}'   
+        location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{table_name}'   
     )
     """
     return ddl
@@ -379,7 +381,7 @@ def prepare_raw_data(use_hms: bool, tshirt: str, generate_data: bool = True, ini
             "name": "iceberg",
             "type": "hive",
             "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
-            "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/",
+            "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/",
             "s3.endpoint": S3_ENDPOINT_URL,
             "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
         }
