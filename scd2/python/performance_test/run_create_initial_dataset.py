@@ -92,6 +92,8 @@ def create_initial_data(tshirt: str, initial_rows: int):
     fake = Faker()
     Faker.seed(42)
 
+    logger.info(f"Generating initial dataset with {initial_rows} rows for size {tshirt}...")
+
     rows = [generate_person_row(fake, i) for i in range(initial_rows)]
     df = pd.DataFrame(rows)
 
