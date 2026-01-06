@@ -404,6 +404,18 @@ def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int,
     )
     cursor.fetchall()
 
+def run_analyze_table(tshirt: str, case_id: int):
+    conn = get_trino_connection()
+
+    table_name = f"dim_person_{case_id}_{tshirt}"
+    optimize_stmt = f"""
+                    ANALYZE {table_name}
+                    """
+    print(optimize_stmt)
+    result = execute_with_metrics(conn.cursor(), optimize_stmt)
+    print (result)
+    logger.info(f"Analyze table for thsirt {tshirt} and test-case {case_id} executed successfully.")
+
 def run_optimize_table(tshirt: str, case_id: int):
     conn = get_trino_connection()
 
@@ -620,4 +632,4 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-run_test_cases(number_of_runs=1, run_for_test_cases=[], drop_benchmark_table_first=False)
+run_test_cases(number_of_runs=5, run_for_test_cases=[], drop_benchmark_table_first=False)
