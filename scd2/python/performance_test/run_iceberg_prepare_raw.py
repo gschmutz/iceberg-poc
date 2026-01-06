@@ -386,6 +386,8 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
             "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/",
             "s3.endpoint": S3_ENDPOINT_URL,
             "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
+            "s3.multipart.threshold": "134217728",  # 128 MB
+            "s3.multipart.size": "67108864",  # 64 MB
         }
     else:
         catalog_props = {
@@ -394,6 +396,8 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
             "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/warehouse",
             "s3.endpoint": S3_ENDPOINT_URL,
             "s3.path-style-access": S3_PATH_STYLE_ACCESS,
+            "s3.multipart.threshold": "134217728",  # 128 MB
+            "s3.multipart.size": "67108864",  # 64 MB
         }
     
     # Add AWS credentials if available

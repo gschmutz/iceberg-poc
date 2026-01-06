@@ -20,15 +20,16 @@ export TRINO_HOST=localhost
 export TRINO_PORT=28082
 export TRINO_CATALOG=iceberg_hive
 export TRINO_SCHEMA=default
+export TRINO_USE_SSL=false
 
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
 export S3_ENDPOINT_URL=http://localhost:9000
 export S3_PATH_STYLE_ACCESS=true
 export S3_WAREHOUSE_BUCKET=warehouse-bucket
-export S3_WAREHOUSE_PREFIX=iceberg_poc
+export S3_WAREHOUSE_PREFIX=warhouse
 export S3_UPLOAD_BUCKET=admin-bucket
-export S3_UPLOAD_PREFIX=iceberg_poc
+export S3_UPLOAD_PREFIX=warehouse
 export UPLOAD_TO_S3=false
 export DOWNLOAD_INITIAL_DATASET_FROM_S3=false
 export DOWNLOAD_TEST_CASES_FROM_S3=false
@@ -48,6 +49,7 @@ export TRINO_HOST=dataplatform
 export TRINO_PORT=28082
 export TRINO_CATALOG=iceberg_hive
 export TRINO_SCHEMA=default
+export TRINO_USE_SSL=false
 
 export AWS_ACCESS_KEY_ID=admin
 export AWS_SECRET_ACCESS_KEY=abc123abc123
