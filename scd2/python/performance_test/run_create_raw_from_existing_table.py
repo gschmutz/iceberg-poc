@@ -240,7 +240,7 @@ def run_insert_from_existing_table(table_name: str):
             export_date=export_date.strftime("%Y-%m-%d")
         )
         print(stmt)
-        #conn.cursor().execute(stmt)
+        conn.cursor().execute(stmt)
         logger.info(f"Inserted data from {source_table_name} to {target_table_name} successfully.")
 
 if __name__ == "__main__":
