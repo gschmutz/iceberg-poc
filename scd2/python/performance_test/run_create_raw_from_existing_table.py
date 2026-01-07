@@ -226,7 +226,7 @@ def run_insert_from_existing_table(table_name: str):
     source_table_name = table_name
 
     # create raw table
-    run_raw_create_table(table_name)
+    run_raw_create_table(target_table_name)
 
     # set the start date back to NOF_DAYS+1 ago
     start_date = date.today() - timedelta(days=NOF_DAYS+1)
