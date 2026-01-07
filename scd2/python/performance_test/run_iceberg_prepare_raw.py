@@ -447,21 +447,30 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
 
     start_date = date(2024, 1, 1)
 
+    batch_size = 1_000_000  # adjust to a reasonable batch size
     for d in range(NOF_DAYS):
         export_date = start_date + timedelta(days=d)
 
-        # 1️⃣ Apply daily updates / deletes / inserts
+        # Apply daily updates / deletes / inserts
         df, next_person_id = apply_daily_changes(fake, df, next_person_id)
 
-        # 2️⃣ Add export_date and load_ts columns
+        # Add export_date and load_ts columns
         df['export_date'] = export_date
         df['load_ts'] = datetime.now()
 
-        # 3️⃣ Convert to Arrow Table
+        # Convert to Arrow Table
+        arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
+
+        # Split into record batches and append each one
+        for batch in arrow_table.to_batches(batch_size=batch_size):
+            batch_table = pa.Table.from_batches([batch])
+            table.append(batch_table)
+
+        # Convert to Arrow Table
         arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
         table.append(arrow_table)
 
-        # 5️⃣ Print progress
+        # Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
 prepare_raw_data(use_hms=True, generate_data=False, initial_rows=0)    
