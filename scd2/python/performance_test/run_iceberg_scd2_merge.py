@@ -6,6 +6,7 @@ import uuid
 import boto3
 import random
 import time
+import argparse
 from datetime import date, timedelta
 from faker import Faker
 import pandas as pd
@@ -632,4 +633,57 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
 
-run_test_cases(number_of_runs=1, run_for_test_cases=[], drop_benchmark_table_first=False)
+def run_select_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
+
+    tshirt = TSHIRT_SIZE.lower()
+
+    logger.info(f"Running select test-cases for tshirt size {tshirt} for {number_of_runs} runs")
+
+    person_id = "1349659"  # known person_id to select at the end
+    
+    run_benchmark_create_table(drop_benchmark_table_first)
+
+    local_file = f"test-cases.json"
+    
+    if DOWNLOAD_TEST_CASES_FROM_S3:
+        # Download the initial dataset from S3
+        s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/test-cases.json"
+        logger.info(f"Downloading s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
+        s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
+        logger.info(f"Successfully downloaded {local_file} from S3")
+
+    # Load and execute all test cases
+    with open(local_file, 'r') as f:
+        test_data = json.load(f)
+
+    for _ in range(number_of_runs):
+        run_id: str = str(uuid.uuid4())
+
+        for test_case in test_data['test_cases']:
+            if not test_case.get('active', True):
+                continue
+            if run_for_test_cases and test_case['case_id'] not in run_for_test_cases:
+                continue
+            logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
+                
+            # At the end let's perform some selects to benchmark read performance
+            for _ in range(number_of_runs*2):
+                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", help="Command to run")
+    parser.add_argument("--number_of_runs", default=1, type=int)
+    parser.add_argument("--run_for_test_cases", default=[], type=list)
+    parser.add_argument("--drop_benchmark_table_first", default=False, type=bool)
+    args = parser.parse_args()
+
+    if args.command == "run_test_cases":
+        run_test_cases(args.number_of_runs, args.run_for_test_cases, drop_benchmark_table_first=args.drop_benchmark_table_first)
+    elif args.command == "run_select_test_cases":
+        run_select_test_cases(args.number_of_runs, args.run_for_test_cases, drop_benchmark_table_first=args.drop_benchmark_table_first)
+    else:
+        logger.error(f"Unknown command: {args.command}")
