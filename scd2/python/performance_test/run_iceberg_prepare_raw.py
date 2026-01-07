@@ -466,10 +466,6 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
             batch_table = pa.Table.from_batches([batch])
             table.append(batch_table)
 
-        # Convert to Arrow Table
-        arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
-        table.append(arrow_table)
-
         # Print progress
         print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
 
