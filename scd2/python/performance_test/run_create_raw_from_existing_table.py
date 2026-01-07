@@ -107,10 +107,12 @@ s3 = boto3.client(**s3_config)
 
 def format_create_raw_table(table_name: str) -> str:
 
+    # setting timestamp to TIMSTAMP(6) as Iceberg always stores timestamps with microsecond precision
+
     ddl = f"""
     CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name} (
         clientdocumentid BIGINT,
-        clientdocumentcreationdate TIMESTAMP(3),
+        clientdocumentcreationdate TIMESTAMP(6),
         clientdocumentpriorityid BIGINT,
         clientdocumentpriorityenum VARCHAR,
         clientdocumentstatusid BIGINT,
@@ -118,7 +120,7 @@ def format_create_raw_table(table_name: str) -> str:
         clientdocumentformid BIGINT,
         clientdocumentlabel VARCHAR,
         clientdocumentdescription VARCHAR,
-        clientdocumentsignaturedate TIMESTAMP(3),
+        clientdocumentsignaturedate TIMESTAMP(6),
         clientdocumentobjectvers BIGINT, 
         clientdocumentdetails VARCHAR,
         clientdocumentnecessary TINYINT,
@@ -130,24 +132,24 @@ def format_create_raw_table(table_name: str) -> str:
         clientdocumentdeviationtype BIGINT,
         clientdocumentwaiverlocation BIGINT,
         clientdocumentpledgeborrow TINYINT,
-        clientdocumentvaliduntil TIMESTAMP(3),
+        clientdocumentvaliduntil TIMESTAMP(6),
         clientdocumentebaeruserid VARCHAR,
         clientdocumentownership BIGINT,
         clientdocumentsource BIGINT,
         clientdocumenthosttransmitid BIGINT,
         clientdocumentdispatchstate BIGINT,
-        clientdocumenttaxstartdate TIMESTAMP(3),
+        clientdocumenttaxstartdate TIMESTAMP(6),
         clientdocumentcollprovthird BIGINT,
         clientdocumentcrsescalation VARCHAR,
         clientdocumentfirstactivation VARCHAR,
         clientdocumentcrscarftype VARCHAR,
         dp_record_id VARCHAR,
-        dp_load_timestamp TIMESTAMP(3),
+        dp_load_timestamp TIMESTAMP(6),
         dp_valid_from DATE,
         dp_valid_to DATE,
 
         export_date DATE,
-        load_ts TIMESTAMP(3)
+        load_ts TIMESTAMP(6)
     )
     WITH (
         format = 'PARQUET',
@@ -163,7 +165,7 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
     INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{target_table_name}
     SELECT
         clientdocumentid,
-        clientdocumentcreationdate,
+        CAST(clientdocumentcreationdate AS TIMESTAMP(6)) AS clientdocumentcreationdate,
         clientdocumentpriorityid,
         clientdocumentpriorityenum,
         clientdocumentstatusid,
@@ -171,7 +173,7 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
         clientdocumentformid,
         clientdocumentlabel,
         clientdocumentdescription,
-        clientdocumentsignaturedate,
+        CAST(clientdocumentsignaturedate AS TIMESTAMP(6)) AS clientdocumentsignaturedate,
         clientdocumentobjectvers, 
         clientdocumentdetails,
         clientdocumentnecessary,
@@ -183,24 +185,24 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
         clientdocumentdeviationtype,
         clientdocumentwaiverlocation,
         clientdocumentpledgeborrow,
-        clientdocumentvaliduntil,
+        CAST(clientdocumentvaliduntil AS TIMESTAMP(6)) AS clientdocumentvaliduntil,
         clientdocumentebaeruserid,
         clientdocumentownership,
         clientdocumentsource,
         clientdocumenthosttransmitid,
         clientdocumentdispatchstate,
-        clientdocumenttaxstartdate,
+        CAST(clientdocumenttaxstartdate AS TIMESTAMP(6)) AS clientdocumenttaxstartdate,
         clientdocumentcollprovthird,
         clientdocumentcrsescalation,
         clientdocumentfirstactivation,
         clientdocumentcrscarftype,
         dp_record_id,
-        dp_load_timestamp,
+        CAST(dp_load_timestamp AS TIMESTAMP(6)) AS dp_load_timestamp,
         dp_valid_from,
         dp_valid_to,
 
         CAST('{export_date}' AS DATE) as export_date,
-        dp_load_timestamp as load_ts
+        CAST(dp_load_timestamp AS TIMESTAMP(6)) as load_ts
     FROM hive.cur_zone.{source_table_name}
     WHERE CAST('{export_date}' AS DATE) BETWEEN dp_valid_from AND dp_valid_to
     """
