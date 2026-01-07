@@ -201,17 +201,17 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
 
         CAST('{export_date}' AS DATE) as export_date,
         dp_load_timestamp as load_ts
-    FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{source_table_name}
+    FROM hive.cur_zone.{source_table_name}
     WHERE export_date = CAST('{export_date}' AS DATE)
     """
     return ddl
 
 def run_raw_create_table(table_name: str):
 
-    drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
-    print(drop_table_stmt)
-    conn.cursor().execute(drop_table_stmt)
-    logger.info(f"Dropped raw table {table_name} if it existed.")
+    #drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
+    #print(drop_table_stmt)
+    #conn.cursor().execute(drop_table_stmt)
+    #logger.info(f"Dropped raw table {table_name} if it existed.")
 
     create_table_stmt = format_create_raw_table(table_name)
     print(create_table_stmt)
