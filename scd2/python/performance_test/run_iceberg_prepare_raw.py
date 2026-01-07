@@ -462,7 +462,7 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
         arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
 
         # Split into record batches and append each one
-        for batch in arrow_table.to_batches(batch_size=batch_size):
+        for batch in arrow_table.to_batches(max_chunksize=batch_size):
             batch_table = pa.Table.from_batches([batch])
             table.append(batch_table)
 
