@@ -204,7 +204,7 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
         CAST('{export_date}' AS DATE) as export_date,
         CAST(dp_load_timestamp AS TIMESTAMP(6)) as load_ts
     FROM hive.cur_zone.{source_table_name}
-    WHERE CAST('{export_date}' AS DATE) BETWEEN dp_valid_from AND dp_valid_to - 1
+    WHERE CAST('{export_date}' AS DATE) BETWEEN dp_valid_from AND dp_valid_to - INTERVAL '1' DAY
     """
     return ddl
 
