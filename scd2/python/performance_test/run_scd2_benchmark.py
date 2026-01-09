@@ -29,6 +29,8 @@ from pyiceberg.types import (
 )
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+from scd2 import run_dim_update, create_dim_table 
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +86,35 @@ if S3_ENDPOINT_URL:
     s3_config["verify"] = False  # Disable SSL verification for self-signed certificates
 
 s3 = boto3.client(**s3_config)
+
+cols_with_type = [
+    "salutation VARCHAR",
+    "title VARCHAR",
+    "first_name VARCHAR",
+    "middle_name VARCHAR",
+    "last_name VARCHAR",
+    "suffix VARCHAR",
+    "gender VARCHAR",
+    "email VARCHAR",
+    "phone_mobile VARCHAR",
+    "phone_home VARCHAR",
+    "street VARCHAR",
+    "house_number VARCHAR",
+    "postal_code VARCHAR",
+    "city VARCHAR",
+    "state VARCHAR",
+    "country VARCHAR",
+    "birth_date DATE",
+    "nationality VARCHAR",
+    "marital_status VARCHAR",
+    "number_of_children INT",
+    "employment_status VARCHAR",
+    "job_title VARCHAR",
+    "employer VARCHAR",
+    "annual_income DOUBLE",
+    "national_id VARCHAR",
+    "tax_id VARCHAR",
+]
 
 def get_trino_connection():
 
@@ -152,225 +183,6 @@ def format_create_benchmark_table():
     """
     return ddl
 
-def format_create_dim_table(table_name: str, partioning_cols: list, sort_cols: list):
-
-    partitioning_str = ", ".join([f"'{col}'" for col in partioning_cols]) if partioning_cols else ""
-    sorted_by_str = ", ".join([f"'{col}'" for col in sort_cols]) if sort_cols else ""
-    
-    ddl = f"""
-    CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name} (
-        surrogate_key VARCHAR,
-        person_id VARCHAR,
-        -- identity
-        salutation VARCHAR,
-        title VARCHAR,
-        first_name VARCHAR,
-        middle_name VARCHAR,
-        last_name VARCHAR,
-        suffix VARCHAR,
-        gender VARCHAR,
-        -- contact
-        email VARCHAR,
-        phone_mobile VARCHAR,
-        phone_home VARCHAR,
-        -- address
-        street VARCHAR,
-        house_number VARCHAR,
-        postal_code VARCHAR,
-        city VARCHAR,
-        state VARCHAR,
-        country VARCHAR,
-        -- personal
-        birth_date DATE,
-        nationality VARCHAR,
-        marital_status VARCHAR,
-        number_of_children INT,
-        -- employment
-        employment_status VARCHAR,
-        job_title VARCHAR,
-        employer VARCHAR,
-        annual_income DOUBLE,
-        -- identifiers
-        national_id VARCHAR,
-        tax_id VARCHAR,
-        -- metadata
-        source_system VARCHAR,
-        record_status VARCHAR,
-        -- SCD2 metadata columns
-        valid_from TIMESTAMP,
-        valid_to TIMESTAMP,
-        is_current_version BOOLEAN,
-        is_active BOOLEAN,
-        source_loaded_at TIMESTAMP,
-        created_at TIMESTAMP,
-        replaced_at TIMESTAMP,
-        -- Additional metadata
-        change_type VARCHAR,
-        record_hash VARCHAR
-    )
-    WITH (
-        partitioning = ARRAY[{partitioning_str}],
-        sorted_by = ARRAY[{sorted_by_str}],
-        location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{table_name}'
-    )
-    """
-    return ddl
-
-def format_cte(load_date: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list):
-    val_columns_str = format_values(val_columns)
-    cast_val_columns_str = format_values(cast_to_varchar(val_columns))
-
-    stmt = f"""
-    WITH changed_records AS (
-        SELECT 
-            src.*,
-            CASE 
-                WHEN tgt.{pk_col} IS NULL THEN 'NEW'
-                WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
-                ELSE 'UNCHANGED'
-            END AS change_classification
-        FROM (
-            SELECT *,
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[{pk_col}, {cast_val_columns_str}, status])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash
-            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{raw_table_name}
-            WHERE export_date = DATE '{load_date}'
-        ) src
-        LEFT JOIN (
-            SELECT 
-                surrogate_key,
-                {pk_col},
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[{pk_col}, {cast_val_columns_str}, CASE WHEN is_active THEN 'ACTIVE' ELSE 'INACTIVE' END])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash,
-                source_loaded_at,
-                valid_from
-            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{dim_table_name}
-            WHERE is_current_version = TRUE
-            AND valid_to = TIMESTAMP '9999-12-31 23:59:59'
-        ) tgt
-        ON src.{pk_col} = tgt.{pk_col}
-    ),
-    records_to_process AS (
-        SELECT *
-        FROM changed_records
-        WHERE change_classification IN ('NEW', 'CHANGED')
-    ),
-    prepared_source AS (
-        -- Original records for updates
-        SELECT
-            surrogate_key,
-            {pk_col} AS merge_key,
-            {pk_col},
-            {val_columns_str},
-            export_date,
-            status,
-            'UPDATE_EXISTING' AS operation_type
-        FROM records_to_process
-
-        UNION ALL
-
-        -- Duplicate records for inserts
-        SELECT
-            surrogate_key,
-            NULL AS merge_key,
-            {pk_col},
-            {val_columns_str},
-            export_date,
-            status,
-            'INSERT_NEW_VERSION' AS operation_type
-        FROM records_to_process
-        WHERE change_classification = 'CHANGED'
-    )
-    """
-    return stmt
-
-def format_view(load_date: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list):
-    cte = format_cte(load_date, raw_table_name, dim_table_name, pk_col, val_columns);
-    stmt = f"""
-    CREATE OR REPLACE VIEW {TRINO_CATALOG}.{TRINO_SCHEMA}.scd2_view AS
-        {cte}
-    SELECT *
-    FROM prepared_source
-    """
-    return stmt
-
-def format_merge(current_timestamp: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list):
-    prefixed_val_columns = add_prefix(val_columns, "source")
-
-    val_columns_str = format_values(val_columns)
-    source_val_columns_str = format_values(prefixed_val_columns)
-    cast_source_val_columns_str = format_values(cast_to_varchar(prefixed_val_columns))    
-    stmt = f"""
-
-    MERGE INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{dim_table_name} AS target
-    USING {TRINO_CATALOG}.{TRINO_SCHEMA}.scd2_view AS source
-    ON target.{pk_col} = source.merge_key
-    AND target.is_current_version = TRUE
-    AND target.valid_to = TIMESTAMP '9999-12-31 23:59:59'
-
-    WHEN MATCHED 
-        AND source.operation_type = 'UPDATE_EXISTING'
-        AND source.export_date > target.source_loaded_at
-    THEN UPDATE SET
-        valid_to = CAST(source.export_date AS TIMESTAMP) - INTERVAL '1' SECOND,
-        is_current_version = FALSE,
-        change_type = 'SUPERSEDED',
-        created_at = TIMESTAMP '{current_timestamp}'
-
-    WHEN NOT MATCHED
-    THEN INSERT (
-        surrogate_key,
-        {pk_col},
-        {val_columns_str},
-        valid_from,
-        valid_to,
-        is_current_version,
-        is_active,
-        source_loaded_at,
-        created_at,
-        replaced_at,
-        change_type,
-        record_hash
-    ) VALUES (
-        source.surrogate_key,
-        source.{pk_col},
-        {source_val_columns_str},
-        source.export_date,
-        TIMESTAMP '9999-12-31 23:59:59',
-        TRUE,
-        CASE WHEN source.status = 'ACTIVE' THEN TRUE ELSE FALSE END,
-        source.export_date,
-        TIMESTAMP '{current_timestamp}',
-        TIMESTAMP '9999-12-31 23:59:59',
-        CASE 
-            WHEN source.operation_type = 'UPDATE_EXISTING' THEN 'NEW'
-            ELSE 'SUPERSEDED_BY'
-        END,
-        to_hex(
-            sha256(
-                CAST(
-                    concat_ws('||', ARRAY[CAST(source.{pk_col} AS VARCHAR), {cast_source_val_columns_str}, status])
-                    AS VARBINARY
-                )
-            )
-        )
-    )
-    """
-
-    return stmt
-
 def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict, iceberg_metadata: list = []):
 
     INSERT_SQL = f"""
@@ -430,21 +242,7 @@ def run_optimize_table(tshirt: str, case_id: int):
     print (result)
     logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
 
-def run_dim_create_table(tshirt: str, case_id: int, partition_cols: list = None, sort_cols: list = None):
-    conn = get_trino_connection()
-
-    table_name = f"dim_person_{case_id}_{tshirt}"
-    drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{table_name}"""
-    print(drop_table_stmt)
-    execute_with_metrics(conn.cursor(), drop_table_stmt)
-
-    create_table_stmt = format_create_dim_table(table_name, partition_cols, sort_cols)
-    print(create_table_stmt)
-
-    execute_with_metrics(conn.cursor(), create_table_stmt)
-    logger.info(f"Dimension table for thsirt {tshirt} and test-case {case_id} created successfully.")
-
-def run_benchmark_create_table(drop_it_first: bool):
+def create_benchmark_table(drop_it_first: bool):
     conn = get_trino_connection()
 
     if drop_it_first:
@@ -459,7 +257,7 @@ def run_benchmark_create_table(drop_it_first: bool):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Benchmark table created successfully.")
         
-def run_select_iceberg_metadata(tshirt: str, case_id: int):
+def read_iceberg_metadata(tshirt: str, case_id: int):
     conn = get_trino_connection()
     
     query = f"""
@@ -480,65 +278,40 @@ def run_select_iceberg_metadata(tshirt: str, case_id: int):
 
     return result
 
-def run_dim_update(tshirt: str, run_id: str, case_id: int, case_description: str, day_number: int, load_date: str):
-    conn = get_trino_connection()
-
-    columns = [
-        "salutation", "title", "first_name", "middle_name", "last_name", "suffix",
-        "gender", "email", "phone_mobile", "phone_home", "street", "house_number",
-        "postal_code", "city", "state", "country", "birth_date", "nationality",
-        "marital_status", "number_of_children", "employment_status", "job_title",
-        "employer", "annual_income", "national_id", "tax_id"
-    ]
-
-    dim_table_name = f"dim_person_{case_id}_{tshirt}"
-
-    view_stmt = format_view(
-        load_date=load_date,
-        raw_table_name=f"raw_person_{tshirt}",
-        dim_table_name=dim_table_name,
-        pk_col="person_id",
-        val_columns=columns
-    )
-
-    merge_stmt = format_merge(
-        current_timestamp="2025-12-18 12:00:00",
-        raw_table_name=f"raw_person_{tshirt}",
-        dim_table_name=dim_table_name,
-        pk_col="person_id",
-        val_columns=columns
-    )
-    
-    execute_with_metrics(conn.cursor(), view_stmt)
-
-    result = execute_with_metrics(conn.cursor(), merge_stmt)
-    print (f"Executed test-case {case_id} for day {day_number} for load date {load_date} in {result["elapsed_ms"]} ms")
-
-    # retrieve iceberg metadata after merge
-    iceberg_metadata = run_select_iceberg_metadata(tshirt=tshirt, case_id=case_id)
-
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day_number, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
-
-    logger.info(f"Merge statement for {load_date} {result}")
-
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
+    table_name = "person"
+    
+    conn = get_trino_connection()
+    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id INT", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
 
-    run_dim_create_table(tshirt=tshirt, case_id=case_id, partition_cols=partition_cols, sort_cols=sort_cols)
-
-    start_date = date(2024, 1, 1)
-    for d in range(NOF_DAYS):
-        load_date = start_date + timedelta(days=d)
+    start_ts = datetime(2024, 1, 1, 0, 0, 0)
+    for day in range(NOF_DAYS):
+        load_date = start_ts + timedelta(days=day)
         print (load_date)
-        run_dim_update(tshirt=tshirt, run_id=run_id, case_id=case_id, case_description=case_description, day_number=d,load_date=load_date.strftime("%Y-%m-%d"))
+
+        result, iceberg_metadata = run_dim_update(
+            conn=conn,
+            trino_catalog=TRINO_CATALOG,
+            trino_schema=TRINO_SCHEMA,
+            raw_table_name=f"raw_person_{tshirt}",
+            dim_table_name=f"dim_person_{case_id}_{tshirt}",
+            scd2_view_name="view_employees_scd2",
+            load_ts=load_date.strftime("%Y-%m-%d"),
+            pk_col="person_id",
+            cols_with_type=cols_with_type,
+            current_timestamp=(start_ts + timedelta(days=day)).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+        insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
 
         # run optimize every 5 days
-        if d > 0 and d % 5 == 0:
+        if day > 0 and day % 5 == 0:
             run_optimize_table(tshirt=tshirt, case_id=case_id)
 
     # run optimize at the end as well
     run_optimize_table(tshirt=tshirt, case_id=case_id)
 
-def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restrict_current_expression: str = ""):
+def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restrict_active_expression: str = ""):
     conn = get_trino_connection()
     
     query = f"""
@@ -550,46 +323,72 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restr
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
 
-def run_select_count_current(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
+def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE {restrict_current_expression}
+        WHERE {restrict_active_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_CURRENT_{case_id}_{tshirt}", statement_name="count all current persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
 
-def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
+def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        WHERE is_latest = TRUE
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+
+def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE {restrict_current_expression}
+        WHERE {restrict_active_expression}
         AND is_active = TRUE
         GROUP BY gender
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all current persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all active persons", result=result) 
 
-def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_current_expression: str = ""):
+def run_select_count_by_gender_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        WHERE {restrict_active_expression}
+        AND is_latest = TRUE
+        GROUP BY gender
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by gender for all latest persons", result=result) 
+
+def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
         SELECT COUNT(*) AS person_in_ch, array_agg(person_id) AS persons
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        where cast('2024-01-05' as date) between valid_from and valid_to
-        AND {restrict_current_expression} 
+        where cast('2024-01-05' as date) between dp_valid_from and dp_valid_to
+        AND {restrict_active_expression} 
         AND is_active = TRUE
         AND country = 'CH'
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where current on 5 jan", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
 
 def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
 
@@ -599,7 +398,7 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
 
     person_id = "1349659"  # known person_id to select at the end
     
-    run_benchmark_create_table(drop_benchmark_table_first)
+    create_benchmark_table(drop_benchmark_table_first)
 
     local_file = f"test-cases.json"
     
@@ -628,50 +427,15 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
     
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs*2):
-                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_count_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_count_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_count_by_gender_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
 
 def run_select_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
-
-    tshirt = TSHIRT_SIZE.lower()
-
-    logger.info(f"Running select test-cases for tshirt size {tshirt} for {number_of_runs} runs")
-
-    person_id = "1349659"  # known person_id to select at the end
-    
-    run_benchmark_create_table(drop_benchmark_table_first)
-
-    local_file = f"test-cases.json"
-    
-    if DOWNLOAD_TEST_CASES_FROM_S3:
-        # Download the initial dataset from S3
-        s3_key = f"{S3_UPLOAD_PREFIX}/initial-dataset/test-cases.json"
-        logger.info(f"Downloading s3://{S3_UPLOAD_BUCKET}/{s3_key} to {local_file}")
-        s3.download_file(S3_UPLOAD_BUCKET, s3_key, local_file)
-        logger.info(f"Successfully downloaded {local_file} from S3")
-
-    # Load and execute all test cases
-    with open(local_file, 'r') as f:
-        test_data = json.load(f)
-
-    for _ in range(number_of_runs):
-        run_id: str = str(uuid.uuid4())
-
-        for test_case in test_data['test_cases']:
-            if not test_case.get('active', True):
-                continue
-            if run_for_test_cases and test_case['case_id'] not in run_for_test_cases:
-                continue
-            logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
-                
-            # At the end let's perform some selects to benchmark read performance
-            for _ in range(number_of_runs*2):
-                run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_count_current(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
-                run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_current_expression=test_case.get('restrict_current_expression'))
+    return
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
