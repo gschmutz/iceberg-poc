@@ -282,7 +282,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
     table_name = "person"
     
     conn = get_trino_connection()
-    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id INT", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
+    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id VARCHAR", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
 
     start_ts = datetime(2024, 1, 1, 0, 0, 0)
     for day in range(NOF_DAYS):
@@ -295,7 +295,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             trino_schema=TRINO_SCHEMA,
             raw_table_name=f"raw_person_{tshirt}",
             dim_table_name=f"dim_person_{case_id}_{tshirt}",
-            scd2_view_name="view_employees_scd2",
+            scd2_view_name="view_person_scd2",
             load_ts=load_date.strftime("%Y-%m-%d"),
             pk_col="person_id",
             cols_with_type=cols_with_type,
@@ -341,7 +341,7 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     query = f"""
         SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE is_latest = TRUE
+        WHERE dp_is_latest = TRUE
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -354,7 +354,6 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_
         SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
-        AND is_active = TRUE
         GROUP BY gender
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -368,7 +367,7 @@ def run_select_count_by_gender_latest(tshirt: str, run_id: str, case_id: int, re
         SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
-        AND is_latest = TRUE
+        AND dp_is_latest = TRUE
         GROUP BY gender
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -383,7 +382,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         where cast('2024-01-05' as date) between dp_valid_from and dp_valid_to
         AND {restrict_active_expression} 
-        AND is_active = TRUE
+        AND dp_is_active = TRUE
         AND country = 'CH'
     """
     result = execute_with_metrics(conn.cursor(), query)

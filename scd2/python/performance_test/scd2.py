@@ -89,7 +89,7 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
                     )
                 ) AS row_hash
             FROM {trino_catalog}.{trino_schema}.{raw_table_name}
-            WHERE load_ts = DATE '{load_ts}'
+            WHERE export_date = DATE '{load_ts}'
         ) src
         FULL OUTER JOIN (
             SELECT 
