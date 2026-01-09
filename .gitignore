@@ -1,3 +1,4 @@
 /scd2/python/venv
 **/.DS_Store
 /scd2/python/performance-test/.tmp
+/scd2/python/performance_test/__pycache__
