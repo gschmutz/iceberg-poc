@@ -57,7 +57,7 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     return ddl
 
 
-def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list):
+def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list, load_ts_col: str):
     val_columns_str = format_values(val_columns)
     prefixed_val_columns_str = format_values(add_prefix(val_columns, "src"))
     cast_val_columns_str = format_values(cast_to_varchar(val_columns))
@@ -70,7 +70,7 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
                 ELSE src.{pk_col}
             END AS {pk_col},
             {prefixed_val_columns_str},
-            src.load_ts,
+            src.{load_ts_col} AS load_ts,
             src.status,
             CASE 
                 WHEN tgt.{pk_col} IS NULL THEN 'NEW'
@@ -89,7 +89,7 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
                     )
                 ) AS row_hash
             FROM {trino_catalog}.{trino_schema}.{raw_table_name}
-            WHERE export_date = DATE '{load_ts}'
+            WHERE {load_ts_col} = DATE '{load_ts}'
         ) src
         FULL OUTER JOIN (
             SELECT 
@@ -144,11 +144,11 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
     """
     return stmt
 
-def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str):
+def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str, load_ts_col: str):
 
     val_columns = [col.split()[0] for col in cols_with_type]
 
-    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_col=pk_col, val_columns=val_columns)
+    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, load_ts_col=load_ts_col, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_col=pk_col, val_columns=val_columns)
     
     stmt = f"""
     CREATE OR REPLACE VIEW {trino_catalog}.{trino_schema}.{scd2_view_name} AS
@@ -248,7 +248,7 @@ def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Dimension table {dim_table_name}created successfully.")
 
-def run_select_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_table_name: str):
+def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_table_name: str):
     
     query = f"""
             SELECT s.snapshot_id,
@@ -268,7 +268,7 @@ def run_select_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim
 
     return result
 
-def run_dim_update(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str, current_timestamp: str):
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str, load_ts_col: str = "load_ts", current_timestamp: str = ""):
 
     view_stmt = format_view(
         trino_catalog=trino_catalog,
@@ -279,6 +279,7 @@ def run_dim_update(conn, trino_catalog: str, trino_schema: str, raw_table_name: 
         pk_col=pk_col,
         cols_with_type=cols_with_type,
         load_ts=load_ts,
+        load_ts_col=load_ts_col
     )
     
     #print (f"{view_stmt}")
@@ -301,6 +302,6 @@ def run_dim_update(conn, trino_catalog: str, trino_schema: str, raw_table_name: 
     result = execute_with_metrics(conn.cursor(), merge_stmt)
     print("Merge result:", result)
     # retrieve iceberg metadata after merge
-    iceberg_metadata = run_select_iceberg_metadata(conn, trino_catalog=trino_catalog, trino_schema=trino_schema, dim_table_name=dim_table_name)
+    iceberg_metadata = retrieve_iceberg_metadata(conn, trino_catalog=trino_catalog, trino_schema=trino_schema, dim_table_name=dim_table_name)
 
     return result, iceberg_metadata

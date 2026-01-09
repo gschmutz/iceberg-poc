@@ -30,7 +30,7 @@ from pyiceberg.types import (
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
-from scd2 import run_dim_update, create_dim_table 
+from scd2 import merge_into_dim_table, create_dim_table 
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -257,27 +257,6 @@ def create_benchmark_table(drop_it_first: bool):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Benchmark table created successfully.")
         
-def read_iceberg_metadata(tshirt: str, case_id: int):
-    conn = get_trino_connection()
-    
-    query = f"""
-            SELECT s.snapshot_id,
-                    count(*) nof_files,
-                    array_agg(case when e.status = 0 then 'existing' when e.status = 1 then 'added' when e.status = 2 then 'deleted' end) status_list,
-                    array_agg(e.data_file.file_path) file_list
-            FROM {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$snapshots" s
-            JOIN {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$entries" e
-            ON s.snapshot_id = e.snapshot_id
-            WHERE s.snapshot_id in (select snapshot_id from {TRINO_CATALOG}.{TRINO_SCHEMA}."dim_person_{case_id}_{tshirt}$snapshots" order by committed_at desc limit 1)
-            AND e.status IN (0, 1, 2)
-            GROUP BY s.snapshot_id
-    """
-    cursor = conn.cursor()
-    cursor.execute(query)
-    result = cursor.fetchone()
-
-    return result
-
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
     table_name = "person"
     
@@ -289,7 +268,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
         load_date = start_ts + timedelta(days=day)
         print (load_date)
 
-        result, iceberg_metadata = run_dim_update(
+        result, iceberg_metadata = merge_into_dim_table(
             conn=conn,
             trino_catalog=TRINO_CATALOG,
             trino_schema=TRINO_SCHEMA,
@@ -297,6 +276,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             dim_table_name=f"dim_person_{case_id}_{tshirt}",
             scd2_view_name="view_person_scd2",
             load_ts=load_date.strftime("%Y-%m-%d"),
+            load_ts_col="export_date",
             pk_col="person_id",
             cols_with_type=cols_with_type,
             current_timestamp=(start_ts + timedelta(days=day)).strftime("%Y-%m-%d %H:%M:%S"),
