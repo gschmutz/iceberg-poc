@@ -249,10 +249,9 @@ def run_analyze_table(tshirt: str, case_id: int):
     print (result)
     logger.info(f"Analyze table for thsirt {tshirt} and test-case {case_id} executed successfully.")
 
-def run_optimize_table(tshirt: str, case_id: int):
+def run_optimize_table(table_name: str):
     conn = get_trino_connection()
 
-    table_name = f"dim_person_{case_id}_{tshirt}"
     optimize_stmt = f"""
                     ALTER TABLE {table_name}
                     EXECUTE optimize (file_size_threshold => '256MB')
@@ -260,7 +259,7 @@ def run_optimize_table(tshirt: str, case_id: int):
     print(optimize_stmt)
     result = execute_with_metrics(conn.cursor(), optimize_stmt)
     print (result)
-    logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
+    logger.info(f"Optimize table for {table_name} executed successfully.")
 
         
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
@@ -294,10 +293,11 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
 
         # run optimize every 5 days
         if day > 0 and day % 5 == 0:
-            run_optimize_table(tshirt=tshirt, case_id=case_id)
+            run_optimize_table(table_name=dim_table_name)
 
-    # run optimize at the end as well
-    run_optimize_table(tshirt=tshirt, case_id=case_id)
+    # run optimize for dim table and benchmark at the end as well
+    run_optimize_table(table_name=dim_table_name)
+    run_optimize_table(table_name="benchmark")
 
 def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restrict_active_expression: str = ""):
     conn = get_trino_connection()
