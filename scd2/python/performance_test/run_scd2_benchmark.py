@@ -162,7 +162,8 @@ def format_create_benchmark_table():
             case_id VARCHAR,
             day_number INT,
             tshirt_size VARCHAR,
-            strategy VARCHAR,
+            dim_table_name VARCHAR,
+            statement_key VARCHAR,
             statement_name VARCHAR,
             query_id VARCHAR,
             elapsed_ms INT,
@@ -183,12 +184,12 @@ def format_create_benchmark_table():
     """
     return ddl
 
-def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, strategy: str, statement_name: str, result: dict, iceberg_metadata: list = []):
+def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, dim_table_name: str, statement_key: str, statement_name: str, result: dict, iceberg_metadata: list = []):
 
     INSERT_SQL = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, strategy, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
+        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, dim_table_name, statement_key, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
         VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """
 
@@ -199,7 +200,8 @@ def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int,
             case_id,
             day_number,
             tshirt_size,
-            strategy,
+            dim_table_name,
+            statement_key,
             statement_name,
             result["query_id"],
             result["elapsed_ms"],
@@ -259,6 +261,8 @@ def create_benchmark_table(drop_it_first: bool):
         
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
     table_name = "person"
+    dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
+    raw_table_name = f"raw_{table_name}_{tshirt}"
     
     conn = get_trino_connection()
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id VARCHAR", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
@@ -272,8 +276,8 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             conn=conn,
             trino_catalog=TRINO_CATALOG,
             trino_schema=TRINO_SCHEMA,
-            raw_table_name=f"raw_person_{tshirt}",
-            dim_table_name=f"dim_person_{case_id}_{tshirt}",
+            raw_table_name=raw_table_name,
+            dim_table_name=dim_table_name,
             scd2_view_name="view_person_scd2",
             load_ts=load_date.strftime("%Y-%m-%d"),
             load_ts_col="export_date",
@@ -282,7 +286,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             current_timestamp=(start_ts + timedelta(days=day)).strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-        insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, strategy=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
+        insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, dim_table_name=dim_table_name, statement_key=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
 
         # run optimize every 5 days
         if day > 0 and day % 5 == 0:
@@ -301,7 +305,7 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restr
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
 
 def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -313,7 +317,7 @@ def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_act
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
 
 def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -325,7 +329,7 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}", statement_name="count all active persons", result=result) 
 
 def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -338,7 +342,7 @@ def run_select_count_by_gender(tshirt: str, run_id: str, case_id: int, restrict_
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}", statement_name="count by gender for all active persons", result=result) 
 
 def run_select_count_by_gender_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -352,7 +356,7 @@ def run_select_count_by_gender_latest(tshirt: str, run_id: str, case_id: int, re
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by gender for all latest persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by gender for all latest persons", result=result) 
 
 def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -367,7 +371,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
 
 def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
 
