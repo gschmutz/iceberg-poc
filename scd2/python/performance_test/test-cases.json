@@ -127,6 +127,22 @@
             "sort_cols": [],
             "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
-        }           
+        },           
+        {
+            "case_id": 17,
+            "description": "Partition by dp_is_active and dp_is_latest, no sorting",
+            "partition_cols": ["dp_is_active", "dp_is_latest"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        },           
+        {
+            "case_id": 18,
+            "description": "Partition by dp_is_latest and dp_is_active, no sorting",
+            "partition_cols": ["dp_is_latest", "dp_is_active"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        }              
     ]
 }
