@@ -34,9 +34,9 @@
         },    
         {
             "case_id": 5,
-            "description": "Partition by dp_is_active only, sort by person_id",
+            "description": "Partition by dp_is_active only, sort by dp_is_latest",
             "partition_cols": ["dp_is_active"],
-            "sort_cols": ["person_id"],
+            "sort_cols": ["dp_is_latest"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
@@ -58,17 +58,17 @@
         },        
         {
             "case_id": 8,
-            "description": "Partition by day(dp_valid_from), dp_is_active, sort by person_id",
+            "description": "Partition by day(dp_valid_from), dp_is_active, sort by dp_is_latest",
             "partition_cols": ["day(dp_valid_from)", "dp_is_active"],
-            "sort_cols": ["person_id"],
+            "sort_cols": ["dp_is_latest"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 9,
-            "description": "Partition by month(dp_valid_from) and dp_is_active, sort by person_id",
+            "description": "Partition by month(dp_valid_from) and dp_is_active, sort by dp_is_latest",
             "partition_cols": ["month(dp_valid_from)", "dp_is_active"],
-            "sort_cols": ["person_id"],
+            "sort_cols": ["dp_is_latest"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
@@ -114,6 +114,14 @@
         },               
         {
             "case_id": 15,
+            "description": "Partition by month(dp_valid_to), no sorting",
+            "partition_cols": ["month(dp_valid_to)"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "active": true
+        },           
+        {
+            "case_id": 16,
             "description": "Partition by month(dp_valid_to), no sorting",
             "partition_cols": ["month(dp_valid_to)"],
             "sort_cols": [],
