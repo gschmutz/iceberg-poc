@@ -2,6 +2,8 @@ import logging
 import os
 import re
 import time
+import pandas as pd
+from tabulate import tabulate
 
 from datetime import date, timedelta, datetime
 
@@ -157,3 +159,49 @@ def execute_with_metrics(cursor, sql: str) -> dict:
         "error": error,
         "executed_at": datetime.utcnow(),
     }        
+
+VOLATILE_IDX = {9, 10, 11}
+def strip_volatile(row, volatile_idx: set):
+    return tuple(
+        v for i, v in enumerate(row)
+        if i not in volatile_idx
+    )
+
+def normalize_row(row):
+    return tuple(
+        v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v
+        for v in row
+    )
+
+def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[], order_by_cols: list=[], output_file=None):
+    cursor = conn.cursor()
+    # Build the column list, excluding columns in exclude_cols
+    if exclude_cols:
+        cursor.execute(f"SELECT * FROM {fully_qualified_table_name} LIMIT 0")
+        columns = [desc[0] for desc in cursor.description]
+        selected_columns = [col for col in columns if col not in exclude_cols]
+        column_list = ", ".join(selected_columns)
+    else:
+        column_list = "*"
+
+    # Build ORDER BY clause only if order_by_cols is not empty
+    order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+    
+    sql = f"""
+        SELECT {column_list}
+        FROM {fully_qualified_table_name}
+        {order_by_clause}
+        """
+    df = pd.read_sql_query(sql, conn)
+    return df
+
+def render_table(df, exclude_cols: list=[], output_file=None):
+    # Build the column list, excluding columns in exclude_cols
+    if exclude_cols:
+        selected_columns = [col for col in df.columns if col not in exclude_cols]
+        df = df[selected_columns]
+
+    table_output = tabulate(df, headers=df.columns, tablefmt="github")
+    table_output += "\n"
+
+    print(table_output)

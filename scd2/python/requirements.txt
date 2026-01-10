@@ -9,3 +9,5 @@ pyarrow
 thrift
 s3fs
 numpy
+tabulate
+pytest

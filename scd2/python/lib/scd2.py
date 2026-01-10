@@ -1,9 +1,10 @@
+from datetime import datetime
 import logging
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import execute_with_metrics
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+from util import execute_with_metrics, get_table_data, render_table
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -57,10 +58,11 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     return ddl
 
 
-def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list, load_ts_col: str):
+def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list, load_ts: datetime, load_ts_col: str):
     val_columns_str = format_values(val_columns)
     prefixed_val_columns_str = format_values(add_prefix(val_columns, "src"))
     cast_val_columns_str = format_values(cast_to_varchar(val_columns))
+    load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
 
     stmt = f"""
     WITH changed_records AS (
@@ -89,7 +91,7 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
                     )
                 ) AS row_hash
             FROM {trino_catalog}.{trino_schema}.{raw_table_name}
-            WHERE {load_ts_col} = DATE '{load_ts}'
+            WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         ) src
         FULL OUTER JOIN (
             SELECT 
@@ -144,7 +146,7 @@ def format_cte(trino_catalog: str, trino_schema: str, load_ts: str, raw_table_na
     """
     return stmt
 
-def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str, load_ts_col: str):
+def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str):
 
     val_columns = [col.split()[0] for col in cols_with_type]
 
@@ -159,13 +161,15 @@ def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_
     
     return stmt
 
-def format_merge(current_timestamp: str, load_ts: str, trino_catalog: str, trino_schema: str, dim_table_name: str, scd2_view_name: str, pk_col: str, val_columns: list):
+def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, trino_schema: str, dim_table_name: str, scd2_view_name: str, pk_col: str, val_columns: list):
     prefixed_val_columns = add_prefix(val_columns, "source")
 
     val_columns_str = format_values(val_columns)
     source_val_columns_str = format_values(prefixed_val_columns)
     cast_source_val_columns_str = format_values(cast_to_varchar(prefixed_val_columns))    
-    
+    load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
+    current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
+
     stmt = f"""
 
     MERGE INTO {trino_catalog}.{trino_schema}.{dim_table_name} AS target
@@ -180,7 +184,7 @@ def format_merge(current_timestamp: str, load_ts: str, trino_catalog: str, trino
     THEN UPDATE SET
         dp_valid_to = CASE 
                             WHEN source.change_classification = 'DELETED'
-                                THEN TIMESTAMP '{load_ts}' - INTERVAL '1' SECOND 
+                                THEN TIMESTAMP '{load_ts_str}' - INTERVAL '1' SECOND 
                             ELSE 
                                 CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
                         END,
@@ -194,7 +198,7 @@ def format_merge(current_timestamp: str, load_ts: str, trino_catalog: str, trino
                                 THEN 'DELETED' 
                             ELSE 'SUPERSEDED' 
                         END,
-        dp_replaced_at = TIMESTAMP '{current_timestamp}'
+        dp_replaced_at = TIMESTAMP '{current_ts_str}'
 
     WHEN NOT MATCHED
     THEN INSERT (
@@ -216,8 +220,8 @@ def format_merge(current_timestamp: str, load_ts: str, trino_catalog: str, trino
         TIMESTAMP '9999-12-31 23:59:59',
         TRUE,
         TRUE,
-        source.load_ts,
-        TIMESTAMP '{current_timestamp}',
+        TIMESTAMP '{current_ts_str}',
+        TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
         CASE 
             WHEN source.operation_type = 'UPDATE_EXISTING' THEN 'NEW'
@@ -248,7 +252,7 @@ def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name
     cursor = conn.cursor()
     cursor.execute(create_table_stmt)
 
-    logger.info(f"Dimension table {dim_table_name}created successfully.")
+    logger.info(f"Dimension table {dim_table_name} created successfully.")
 
 def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_table_name: str):
     
@@ -270,7 +274,7 @@ def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_t
 
     return result
 
-def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: str, load_ts_col: str = "load_ts", current_timestamp: str = ""):
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None):
 
     view_stmt = format_view(
         trino_catalog=trino_catalog,
@@ -288,10 +292,15 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
     result = execute_with_metrics(conn.cursor(), view_stmt)
     logger.info("View creation result:", result)
 
+    if True:
+        # For debugging: select from the view
+        df = get_table_data(conn, f"{trino_catalog}.{trino_schema}.{scd2_view_name}", order_by_cols=["merge_key"])
+        render_table(df)
+
     val_columns = [col.split()[0] for col in cols_with_type]
     merge_stmt = format_merge(
-        current_timestamp=current_timestamp,
         load_ts=load_ts,
+        current_ts=current_ts,
         trino_catalog=trino_catalog,
         trino_schema=trino_schema,
         dim_table_name=dim_table_name,
