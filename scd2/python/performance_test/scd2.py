@@ -245,7 +245,9 @@ def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name
     create_table_stmt = format_create_dim_table(trino_catalog, trino_schema, dim_table_name, s3_warehouse_bucket, s3_warehouse_prefix, pk_col_with_type, cols_with_type, partition_cols, sort_cols)
     print(create_table_stmt)
 
-    execute_with_metrics(conn.cursor(), create_table_stmt)
+    cursor = conn.cursor()
+    cursor.execute(create_table_stmt)
+
     logger.info(f"Dimension table {dim_table_name}created successfully.")
 
 def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_table_name: str):

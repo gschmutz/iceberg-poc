@@ -184,6 +184,24 @@ def format_create_benchmark_table():
     """
     return ddl
 
+
+def create_benchmark_table(drop_it_first: bool):
+    conn = get_trino_connection()
+
+    if drop_it_first:
+        drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark"""
+        logger.info(f"Benchmark table dropped successfully.")
+        execute_with_metrics(conn.cursor(), drop_table_stmt)
+
+    create_table_stmt = format_create_benchmark_table()
+
+    print(create_table_stmt)
+
+    cursor = conn.cursor()
+    cursor.execute(create_table_stmt)
+
+    logger.info(f"Benchmark table created successfully.")
+
 def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int, tshirt_size: str, dim_table_name: str, statement_key: str, statement_name: str, result: dict, iceberg_metadata: list = []):
 
     INSERT_SQL = f"""
@@ -244,20 +262,6 @@ def run_optimize_table(tshirt: str, case_id: int):
     print (result)
     logger.info(f"Optimize table for thsirt {tshirt} and test-case {case_id} executed successfully.")
 
-def create_benchmark_table(drop_it_first: bool):
-    conn = get_trino_connection()
-
-    if drop_it_first:
-        drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark"""
-        logger.info(f"Benchmark table dropped successfully.")
-        execute_with_metrics(conn.cursor(), drop_table_stmt)
-
-    create_table_stmt = format_create_benchmark_table()
-
-    print(create_table_stmt)
-
-    execute_with_metrics(conn.cursor(), create_table_stmt)
-    logger.info(f"Benchmark table created successfully.")
         
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
     table_name = "person"
