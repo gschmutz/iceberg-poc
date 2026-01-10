@@ -284,9 +284,9 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         load_ts_col=load_ts_col
     )
     
-    #print (f"{view_stmt}")
+    logger.debug (f"{view_stmt}")
     result = execute_with_metrics(conn.cursor(), view_stmt)
-    print("View creation result:", result)
+    logger.info("View creation result:", result)
 
     val_columns = [col.split()[0] for col in cols_with_type]
     merge_stmt = format_merge(
@@ -300,9 +300,9 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         val_columns=val_columns
     )
 
-    #print (f"{merge_stmt}")
+    logger.debug (f"{merge_stmt}")
     result = execute_with_metrics(conn.cursor(), merge_stmt)
-    print("Merge result:", result)
+    logger.info("Merge result:", result)
     # retrieve iceberg metadata after merge
     iceberg_metadata = retrieve_iceberg_metadata(conn, trino_catalog=trino_catalog, trino_schema=trino_schema, dim_table_name=dim_table_name)
 

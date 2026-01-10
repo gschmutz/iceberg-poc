@@ -13,7 +13,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
-from scd2 import run_dim_update, create_dim_table 
+from scd2 import merge_into_dim_table, create_dim_table 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -167,7 +167,8 @@ def test_step_1():
 
     logger.info("Insert batch 1 executed successfully.")
 
-    run_dim_update(
+    # run dimensional merge
+    merge_into_dim_table(
         conn=conn,
         trino_catalog=TRINO_CATALOG,
         trino_schema=TRINO_SCHEMA,
@@ -231,7 +232,7 @@ def test_step_2():
 
     logger.info("Insert batch 2 executed successfully.")
 
-    run_dim_update(
+    merge_into_dim_table(
         conn=conn,
         trino_catalog=TRINO_CATALOG,
         trino_schema=TRINO_SCHEMA,
