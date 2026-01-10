@@ -247,7 +247,7 @@ def create_benchmark_table(drop_it_first: bool):
 
     if drop_it_first:
         drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark"""
-        print(drop_table_stmt)
+        logger.info(f"Benchmark table dropped successfully.")
         execute_with_metrics(conn.cursor(), drop_table_stmt)
 
     create_table_stmt = format_create_benchmark_table()
