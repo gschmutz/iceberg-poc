@@ -38,7 +38,7 @@ export DOWNLOAD_TEST_CASES_FROM_S3=false
 Set environment variables for lightsail environment
 
 ```bash
-export TSHIRT_SIZE="l"
+export TSHIRT_SIZE="xs"
 export NOF_DAYS=30
 export HMS_HOST=dataplatform
 export HMS_PORT=9083
