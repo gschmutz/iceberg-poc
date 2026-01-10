@@ -369,7 +369,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, strategy=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
 
-def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
+def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
 
     tshirt = TSHIRT_SIZE.lower()
 
@@ -401,8 +401,9 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
             if run_for_test_cases and test_case['case_id'] not in run_for_test_cases:
                 continue
             logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
-            
-            run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
+
+            if not run_select_only:            
+                run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
     
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs*2):
@@ -413,20 +414,17 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark
                 run_select_count_by_gender_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_nof_person_in_ch_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
 
-def run_select_test_cases(number_of_runs: int, run_for_test_cases: list, drop_benchmark_table_first: bool = False):
-    return
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run")
     parser.add_argument("--number_of_runs", default=1, type=int)
     parser.add_argument("--run_for_test_cases", default=[], type=list)
+    parser.add_argument("--run_select_only", default=False, type=bool)
     parser.add_argument("--drop_benchmark_table_first", default=False, type=bool)
+
     args = parser.parse_args()
 
     if args.command == "run_test_cases":
-        run_test_cases(args.number_of_runs, args.run_for_test_cases, drop_benchmark_table_first=args.drop_benchmark_table_first)
-    elif args.command == "run_select_test_cases":
-        run_select_test_cases(args.number_of_runs, args.run_for_test_cases, drop_benchmark_table_first=args.drop_benchmark_table_first)
+        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=args.run_select_only, drop_benchmark_table_first=args.drop_benchmark_table_first)
     else:
         logger.error(f"Unknown command: {args.command}")
