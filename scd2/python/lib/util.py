@@ -199,24 +199,30 @@ def diff_with_color(df1, df2, index_cols=None):
     """
     df1 = old / expected
     df2 = new / actual
+    index_cols = list of columns that form the row key
     """
 
-    # --- Preserve column order ---
-    all_cols = list(df1.columns)
+    index_cols = index_cols or []
+
+    # --- Preserve final column order ---
+    final_cols = list(df1.columns)
     for col in df2.columns:
-        if col not in all_cols:
-            all_cols.append(col)
+        if col not in final_cols:
+            final_cols.append(col)
 
-    df1 = df1.reindex(columns=all_cols)
-    df2 = df2.reindex(columns=all_cols)
+    df1 = df1.reindex(columns=final_cols)
+    df2 = df2.reindex(columns=final_cols)
 
-    # --- Optional business key ---
+    # --- Set index for diff logic ---
     if index_cols:
-        df1 = df1.set_index(index_cols)
-        df2 = df2.set_index(index_cols)
+        df1_idx = df1.set_index(index_cols)
+        df2_idx = df2.set_index(index_cols)
+    else:
+        df1_idx = df1
+        df2_idx = df2
 
-    merged = df1.merge(
-        df2,
+    merged = df1_idx.merge(
+        df2_idx,
         how="outer",
         left_index=True,
         right_index=True,
@@ -226,32 +232,44 @@ def diff_with_color(df1, df2, index_cols=None):
 
     rows = []
 
-    for _, row in merged.iterrows():
+    for idx, row in merged.iterrows():
         output_row = []
 
-        for col in all_cols:
-            old = row.get(f"{col}_old")
-            new = row.get(f"{col}_new")
-
-            if row["_merge"] == "left_only":
-                val = old
-                cell = f"<span style='color:gray;'>{val}</span>"
-
-            elif row["_merge"] == "right_only":
-                val = new
-                cell = f"<span style='color: green;'>{val}</span>"
-
-            else:  # both
-                if old != new:
-                    cell = f"<span style='color: orange;'>{new}</span>"
+        for col in final_cols:
+            if col in index_cols:
+                # index column value
+                if isinstance(idx, tuple):
+                    val = idx[index_cols.index(col)]
                 else:
-                    cell = str(new)
+                    val = idx
+
+                # Color index column if row is inserted or deleted
+                if row["_merge"] == "right_only":
+                    cell = f"<span style='color: green;'>{val}</span>"
+                elif row["_merge"] == "left_only":
+                    cell = f"<span style='color:gray;'>{val}</span>"
+                else:
+                    cell = str(val)
+
+            else:
+                old = row.get(f"{col}_old")
+                new = row.get(f"{col}_new")
+
+                if row["_merge"] == "left_only":
+                    cell = f"<span style='color:gray;'>{old}</span>"
+                elif row["_merge"] == "right_only":
+                    cell = f"<span style='color: green;'>{new}</span>"
+                else:  # both
+                    if old != new:
+                        cell = f"<span style='color: orange;'>{new}</span>"
+                    else:
+                        cell = str(new)
 
             output_row.append(cell)
 
         rows.append(output_row)
 
-    result_df = pd.DataFrame(rows, columns=all_cols)
+    result_df = pd.DataFrame(rows, columns=final_cols)
     return result_df
 
 def render_init(title: str, output_file_name: str):

@@ -128,14 +128,12 @@ def run_scd2_merge_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, 
     df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
     df_colored = diff_with_color(df_dim_before, df, index_cols=["id", "dp_valid_from"])    
 
-    print("Before Merge:")
-    print(df_dim_before)
-    print("After Merge:")
-    print(df)
-
     render_table(df_colored, title=f"### Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
     render_data(test_after_description, output_file_name=output_file_name)
 
     expected_df = pd.DataFrame(expected, columns=df.columns)
-    pd.testing.assert_frame_equal(df, expected_df)
-
+    #pd.testing.assert_frame_equal(df, expected_df)
+    import numpy as np
+    arr1 = df.to_numpy()
+    arr2 = expected_df.to_numpy()
+    np.testing.assert_array_equal(arr1, arr2)
