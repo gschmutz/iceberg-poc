@@ -27,8 +27,9 @@ from pyiceberg.types import (
 )
 from pyiceberg.types import NestedField
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
+from constants import DATE_FORMAT
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -148,18 +149,17 @@ def format_create_raw_table(table_name: str) -> str:
         dp_valid_from DATE,
         dp_valid_to DATE,
 
-        export_date DATE,
-        load_ts TIMESTAMP(6)
+        dp_exported_at TIMESTAMP(6)
     )
     WITH (
         format = 'PARQUET',
-        partitioning = ARRAY['day(export_date)'],
+        partitioning = ARRAY['day(dp_exported_at)'],
         location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{table_name}'   
     )
     """
     return ddl
 
-def format_create_insert_table(source_table_name: str, target_table_name: str, export_date: str) -> str:
+def format_create_insert_table(source_table_name: str, target_table_name: str, dp_exported_at: str) -> str:
     
     ddl = f"""
     INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{target_table_name}
@@ -201,10 +201,9 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, e
         dp_valid_from,
         dp_valid_to,
 
-        CAST('{export_date}' AS DATE) as export_date,
-        CAST(dp_load_timestamp AS TIMESTAMP(6)) as load_ts
+        CAST('{dp_exported_at}' AS TIMESTAMP) as dp_exported_at
     FROM hive.cur_zone.{source_table_name}
-    WHERE CAST('{export_date}' AS DATE) BETWEEN dp_valid_from AND dp_valid_to - INTERVAL '1' DAY
+    WHERE CAST('{dp_exported_at}' AS TIMESTAMP) BETWEEN dp_valid_from AND dp_valid_to - INTERVAL '1' DAY
     """
     return ddl
 
@@ -233,13 +232,13 @@ def run_insert_from_existing_table(table_name: str):
     # set the start date back to NOF_DAYS+1 ago
     start_date = date.today() - timedelta(days=NOF_DAYS+1)
     for d in range(NOF_DAYS):
-        export_date = start_date + timedelta(days=d)
-        print (export_date)
+        dp_exported_at = start_date + timedelta(days=d)
+        print (dp_exported_at)
 
         stmt = format_create_insert_table(
             source_table_name=source_table_name,
             target_table_name=target_table_name,
-            export_date=export_date.strftime("%Y-%m-%d")
+            dp_exported_at=dp_exported_at.strftime(DATE_FORMAT)
         )
         print(stmt)
         conn.cursor().execute(stmt)
