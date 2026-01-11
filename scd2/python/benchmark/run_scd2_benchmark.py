@@ -66,11 +66,6 @@ AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 DOWNLOAD_TEST_CASES_FROM_S3 = get_param('DOWNLOAD_TEST_CASES_FROM_S3', 'false').lower() in ('true', '1', 't')
 
-INITIAL_PERSONS = 1_000_000   # scale here
-UPDATE_RATE = 0.05
-INSERT_RATE = 0.01
-DELETE_RATE = 0.005
-
 # Create a session and S3 client
 s3 = boto3.client('s3')
 
@@ -189,8 +184,8 @@ def create_benchmark_table(drop_it_first: bool):
 
     if drop_it_first:
         drop_table_stmt = f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark"""
-        logger.info(f"Benchmark table dropped successfully.")
-        execute_with_metrics(conn.cursor(), drop_table_stmt)
+#        execute_with_metrics(conn.cursor(), drop_table_stmt)
+#        logger.info(f"Benchmark table dropped successfully.")
 
     create_table_stmt = format_create_benchmark_table()
 
