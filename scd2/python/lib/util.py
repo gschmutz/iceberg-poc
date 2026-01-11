@@ -195,13 +195,92 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
     df = pd.read_sql_query(sql, conn)
     return df
 
-def render_table(df, exclude_cols: list=[], output_file=None):
+def diff_with_color(df1, df2, index_cols=None):
+    """
+    df1 = old / expected
+    df2 = new / actual
+    """
+
+    # --- Preserve column order ---
+    all_cols = list(df1.columns)
+    for col in df2.columns:
+        if col not in all_cols:
+            all_cols.append(col)
+
+    df1 = df1.reindex(columns=all_cols)
+    df2 = df2.reindex(columns=all_cols)
+
+    # --- Optional business key ---
+    if index_cols:
+        df1 = df1.set_index(index_cols)
+        df2 = df2.set_index(index_cols)
+
+    merged = df1.merge(
+        df2,
+        how="outer",
+        left_index=True,
+        right_index=True,
+        suffixes=("_old", "_new"),
+        indicator=True,
+    )
+
+    rows = []
+
+    for _, row in merged.iterrows():
+        output_row = []
+
+        for col in all_cols:
+            old = row.get(f"{col}_old")
+            new = row.get(f"{col}_new")
+
+            if row["_merge"] == "left_only":
+                val = old
+                cell = f"<span style='color:gray;'>{val}</span>"
+
+            elif row["_merge"] == "right_only":
+                val = new
+                cell = f"<span style='color: green;'>{val}</span>"
+
+            else:  # both
+                if old != new:
+                    cell = f"<span style='color: orange;'>{new}</span>"
+                else:
+                    cell = str(new)
+
+            output_row.append(cell)
+
+        rows.append(output_row)
+
+    result_df = pd.DataFrame(rows, columns=all_cols)
+    return result_df
+
+def render_init(title: str, output_file_name: str):
+    if output_file_name:
+        with open(output_file_name, "w") as f:
+            f.write(f"# {title}\n\n")
+
+def render_data(data: str, output_file_name=None):
+    if data and output_file_name:
+        with open(output_file_name, "a") as f:
+            f.write(data + "\n")
+
+def render_table(df, title:str = "", exclude_cols: list=[], output_file_name=None):
     # Build the column list, excluding columns in exclude_cols
     if exclude_cols:
         selected_columns = [col for col in df.columns if col not in exclude_cols]
         df = df[selected_columns]
 
-    table_output = tabulate(df, headers=df.columns, tablefmt="github")
+    table_output = ""
+    if title:
+        table_output += f"{title}\n"
     table_output += "\n"
+    table_output += tabulate(df, headers=df.columns, tablefmt="github", showindex=False)
+    table_output += "\n"
+    if exclude_cols:
+        table_output += "\n_the following columns where excluded from the result: `" + ", ".join(exclude_cols) + "`_\n"
 
-    print(table_output)
+    if (output_file_name):
+        with open(output_file_name, "a") as f:
+            f.write(table_output + "\n")
+
+    print(tabulate(df, headers=df.columns, tablefmt="github", showindex=False))

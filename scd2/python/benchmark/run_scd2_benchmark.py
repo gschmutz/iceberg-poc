@@ -27,9 +27,8 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 from scd2 import merge_into_dim_table, create_dim_table 
 
 # Set up logging
@@ -281,12 +280,12 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             trino_schema=TRINO_SCHEMA,
             raw_table_name=raw_table_name,
             dim_table_name=dim_table_name,
-            scd2_view_name="view_person_scd2",
-            load_ts=load_date.strftime("%Y-%m-%d"),
-            load_ts_col="export_date",
+            scd2_view_name=f"view_person_{tshirt}_scd2",
+            load_ts=load_date,
+            load_ts_col="export_at",
             pk_col="person_id",
             cols_with_type=cols_with_type,
-            current_timestamp=(start_ts + timedelta(days=day)).strftime("%Y-%m-%d %H:%M:%S"),
+            current_ts=(start_ts + timedelta(days=day)),
         )
 
         insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, dim_table_name=dim_table_name, statement_key=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)

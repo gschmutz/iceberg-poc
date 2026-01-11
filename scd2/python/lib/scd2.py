@@ -274,7 +274,7 @@ def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_t
 
     return result
 
-def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None):
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, show_input_to_merge: bool = False, output_file_name: str = None):
 
     view_stmt = format_view(
         trino_catalog=trino_catalog,
@@ -292,10 +292,10 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
     result = execute_with_metrics(conn.cursor(), view_stmt)
     logger.info("View creation result:", result)
 
-    if True:
+    if show_input_to_merge:
         # For debugging: select from the view
         df = get_table_data(conn, f"{trino_catalog}.{trino_schema}.{scd2_view_name}", order_by_cols=["merge_key"])
-        render_table(df)
+        render_table(df, output_file_name=output_file_name, title="### Input to Merge")
 
     val_columns = [col.split()[0] for col in cols_with_type]
     merge_stmt = format_merge(

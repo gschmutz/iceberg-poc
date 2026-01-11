@@ -2,10 +2,11 @@ import pandas as pd
 import sys
 import os
 import logging
+import trino
 from datetime import date, timedelta, datetime
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from util import get_param, get_credential, replace_vars_in_string, render_table, get_table_data
+from util import get_param, get_credential, replace_vars_in_string, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from scd2 import merge_into_dim_table 
 from constants import MAX_TS
@@ -50,14 +51,63 @@ COLS_WITH_TYPE = [
 EXCLUDE_COLS = ["record_hash","dp_load_timestamp", "change_type"]
 LOAD_TS_COL="dp_exported_at"
 
-def run_scd2_merge_test(conn, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected):
+def init_trino_connection():
+    if TRINO_USE_SSL:
+        http_scheme = "https"
+    else:
+        http_scheme = "http"
+
+    # Construct connection URLs
+    conn = trino.dbapi.connect(
+        host=f"{TRINO_HOST}",
+        port=int(TRINO_PORT),
+        user=f"{TRINO_USER}",
+        catalog=f"{TRINO_CATALOG}",
+        schema=f"{TRINO_SCHEMA}",
+        http_scheme=http_scheme,
+    )
+    return conn
+
+def create_raw_table(conn):
+    cursor = conn.cursor()
+
+    drop_table_sql = f"DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}"
+    cursor.execute(drop_table_sql)
+    logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
+    
+
+    # --- 1. Create Iceberg table ---
+    create_table_sql = f"""
+    CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
+        id INT,
+        first_name VARCHAR,
+        last_name VARCHAR,
+        city VARCHAR,
+        email VARCHAR,
+        status VARCHAR,
+        dp_exported_at TIMESTAMP
+    )
+    WITH (
+        format = 'PARQUET',
+        partitioning = ARRAY['dp_exported_at']
+    )
+    """
+
+    cursor.execute(create_table_sql)
+    logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
+
+def run_scd2_merge_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected, output_file_name:str=None, test_description:str=None, test_after_description:str=None):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
     cursor.execute(ins_stmt)
 
+    render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
+    render_data(test_description, output_file_name=output_file_name)
+
+    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_exported_at", "id"])
-    render_table(df_raw)
+    render_table(df_raw, title=f"### Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
     # run dimensional merge
     merge_into_dim_table(
@@ -71,10 +121,21 @@ def run_scd2_merge_test(conn, ins_stmt: str, load_ts: datetime, current_ts: date
         load_ts_col="dp_exported_at",
         pk_col="id",
         cols_with_type=COLS_WITH_TYPE,
-        current_ts=current_ts
+        current_ts=current_ts,
+        show_input_to_merge=True,
+        output_file_name=output_file_name
     )
     df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
-    render_table(df, exclude_cols=EXCLUDE_COLS)
+    df_colored = diff_with_color(df_dim_before, df, index_cols=["id", "dp_valid_from"])    
+
+    print("Before Merge:")
+    print(df_dim_before)
+    print("After Merge:")
+    print(df)
+
+    render_table(df_colored, title=f"### Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
+    render_data(test_after_description, output_file_name=output_file_name)
 
     expected_df = pd.DataFrame(expected, columns=df.columns)
     pd.testing.assert_frame_equal(df, expected_df)
+

@@ -26,7 +26,7 @@ from pyiceberg.types import (
 )
 from pyiceberg.types import NestedField
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 
 # Set up logging
@@ -144,8 +144,8 @@ arrow_schema = pa.schema([
     pa.field("status", pa.string()),
     pa.field("operation", pa.string()),
 
-    pa.field("export_date", pa.date32(), nullable=True),
-    pa.field("load_ts", pa.timestamp("us"), nullable=True),
+    pa.field("export_at", pa.timestamp("us"), nullable=True),
+    pa.field("load_timestamp", pa.timestamp("us"), nullable=True),
 ])
 
 iceberg_schema = Schema(
@@ -194,8 +194,8 @@ iceberg_schema = Schema(
     NestedField(29, "source_system", StringType(), required=False),
     NestedField(30, "status", StringType(), required=False),
     NestedField(31, "operation", StringType(), required=False),
-    NestedField(32, "export_date", DateType(), required=False),
-    NestedField(33, "load_ts", TimestampType(), required=False),
+    NestedField(32, "export_at", TimestampType(), required=False),
+    NestedField(33, "load_timestamp", TimestampType(), required=False),
 )
 
 def format_create_raw_table(table_name: str) -> str:
@@ -247,12 +247,12 @@ def format_create_raw_table(table_name: str) -> str:
         source_system VARCHAR,
         status VARCHAR,
         operation VARCHAR,
-        export_date DATE,
-        load_ts TIMESTAMP
+        export_at TIMESTAMP,
+        load_timestamp TIMESTAMP
     )
     WITH (
         format = 'PARQUET',
-        partitioning = ARRAY['day(export_date)'],
+        partitioning = ARRAY['day(export_at)'],
         location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{table_name}'   
     )
     """
@@ -445,18 +445,18 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
         else:
             table = catalog.load_table(table_identifier)
 
-    start_date = date(2024, 1, 1)
+    start_date = datetime(2024, 1, 1, 0, 0, 0)
 
     batch_size = 1_000_000  # adjust to a reasonable batch size
     for d in range(NOF_DAYS):
-        export_date = start_date + timedelta(days=d)
+        export_at = start_date + timedelta(days=d)
 
         # Apply daily updates / deletes / inserts
         df, next_person_id = apply_daily_changes(fake, df, next_person_id)
 
-        # Add export_date and load_ts columns
-        df['export_date'] = export_date
-        df['load_ts'] = datetime.now()
+        # Add export_at and load_timestamp columns
+        df['export_at'] = export_at
+        df['load_timestamp'] = datetime.now()
 
         # Convert to Arrow Table
         arrow_table = pa.Table.from_pandas(df, schema=arrow_schema, preserve_index=False)
@@ -467,6 +467,6 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
             table.append(batch_table)
 
         # Print progress
-        print(f"{export_date} | rows={len(df)} | next_person_id={next_person_id}")
+        print(f"{export_at} | rows={len(df)} | next_person_id={next_person_id}")
 
 prepare_raw_data(use_hms=True, generate_data=False, initial_rows=0)    

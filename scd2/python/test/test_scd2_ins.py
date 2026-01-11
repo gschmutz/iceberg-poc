@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="scd2_test.md"
+FILE_NAME="scd2_test_ins.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -37,8 +37,8 @@ def test_step_1():
 
     create_raw_table(conn)
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
-    render_init("Testing Physical Delete Operation", FILE_NAME)
-    render_data("This test valid a DELETE operation of a single record. The delete is created by a physical delete in the raw table, i.e., the record is removed from the raw table partition.", output_file_name=FILE_NAME)
+    render_init("Testing Insert Operation", FILE_NAME)
+    render_data("This test validates an INSERT operation of one new record", output_file_name=FILE_NAME)
 
     test_description = "Insert 3 records into raw table and perform initial SCD2 merge."
 
@@ -96,8 +96,10 @@ def test_step_2():
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
-        ) AS t (
+                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (10, 'Kevin', 'Loosli', 'Bern', 'kevin.loosli@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
+            ) AS t (
             id,
             first_name,
             last_name,
@@ -120,9 +122,14 @@ def test_step_2():
         "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
-        load_ts_1, load_ts_2 - timedelta(seconds=1), False, True,
-        current_ts_1, current_ts_1, current_ts_2,
-        "DELETED", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        load_ts_1, MAX_TS, True, True,
+        current_ts_1, current_ts_1, MAX_TS,
+        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+
+        (10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
+        load_ts_2, MAX_TS, True, True,
+        current_ts_2, current_ts_2, MAX_TS,
+        "NEW", "42DF24864F6CC276F5E3BC5B6C453D83F1FA5E223D21EA0189DB3F55D4E979D7"),
     ]
 
     # run test
