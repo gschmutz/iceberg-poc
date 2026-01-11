@@ -15,7 +15,7 @@ from datetime import date, timedelta, datetime
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string
 
 # Set up logging
