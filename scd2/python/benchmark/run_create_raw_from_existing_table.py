@@ -35,10 +35,6 @@ from constants import DATE_FORMAT
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# size of benchmark
-TSHIRT_SIZE = get_param('TSHIRT_SIZE', 'xl').lower()
-NOF_DAYS = int(get_param('NOF_DAYS', '30'))
-
 TRINO_USER = get_credential('TRINO_USER', 'trino')
 TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
 TRINO_HOST = get_param('TRINO_HOST', 'localhost')
@@ -65,11 +61,6 @@ S3_UPLOAD_PREFIX = replace_vars_in_string(S3_UPLOAD_PREFIX, { "zone": "", "env":
 AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
 AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
 DOWNLOAD_INITIAL_DATASET_FROM_S3 = get_param('DOWNLOAD_INITIAL_DATASET_FROM_S3', 'true').lower() in ('true', '1', 't')
-
-# 0.01 = 1% of data is xxxx
-UPDATE_RATE = 0.005
-INSERT_RATE = 0.05
-DELETE_RATE = 0.001
 
 if TRINO_USE_SSL:
     http_scheme = "https"
@@ -220,7 +211,7 @@ def run_raw_create_table(table_name: str):
     conn.cursor().execute(create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
-def run_insert_from_existing_table(table_name: str):
+def run_insert_from_existing_table(table_name: str, nof_days: int = 30):
 
     # create raw table
     target_table_name = f"raw_{table_name}"
@@ -230,8 +221,8 @@ def run_insert_from_existing_table(table_name: str):
     run_raw_create_table(target_table_name)
 
     # set the start date back to NOF_DAYS+1 ago
-    start_date = date.today() - timedelta(days=NOF_DAYS+1)
-    for d in range(NOF_DAYS):
+    start_date = date.today() - timedelta(days=nof_days+1)
+    for d in range(nof_days):
         dp_exported_at = start_date + timedelta(days=d)
         print (dp_exported_at)
 
@@ -248,6 +239,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run", default="run_insert_from_existing_table")
     parser.add_argument("--table_name", default="1", type=str)
+    parser.add_argument("--nof_days", default=30, type=int)
     args = parser.parse_args()
 
     if args.command == "run_insert_from_existing_table":
