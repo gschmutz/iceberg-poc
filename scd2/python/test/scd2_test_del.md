@@ -11,6 +11,14 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 
+### Input to Merge
+
+|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
+|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
+
 ### Dimensional Table `dim_person`
 
 | id                                   | first_name                               | last_name                                 | city                                      | email                                                       | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
@@ -32,6 +40,12 @@ Delete record with id=3 from raw table (physical delete) and perform SCD2 merge.
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
+
+### Input to Merge
+
+|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   |
+|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|
+|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  |
 
 ### Dimensional Table `dim_person`
 

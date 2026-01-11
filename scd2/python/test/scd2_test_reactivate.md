@@ -1,6 +1,6 @@
-# Testing Physical Delete Operation
+# Testing Reactivating a physically deleted record
 
-This test valid a DELETE operation of a single record. The delete is created by a physical delete in the raw table, i.e., the record is removed from the raw table partition.
+This test validates a REACTIVATE operation of a single record. The reactivate is created by re-inserting the record in the raw table partition.
 ## Test Step 1
 Insert 3 records into raw table and perform initial SCD2 merge.
 ### Raw Table `raw_person`
@@ -58,7 +58,7 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 3
-Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge.
+Reactivate record with `id=3` by inserting it again into the current partition of the raw table and perform SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
@@ -66,11 +66,11 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-10 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-10 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-10 00:00:00 |
 
 ### Input to Merge
 

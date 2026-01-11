@@ -83,7 +83,8 @@ def test_step_1():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    run_scd2_merge_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, 
+                        output_file_name=FILE_NAME, test_description=test_description)
 
 def test_step_2():
     logger.info("-------------------------------- Test Step 2 --------------------------------")
@@ -130,7 +131,8 @@ def test_step_2():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    run_scd2_merge_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, 
+                        output_file_name=FILE_NAME, test_description=test_description)
 
 def test_step_3():
     logger.info("-------------------------------- Test Step 3 --------------------------------")
@@ -177,5 +179,6 @@ def test_step_3():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    run_scd2_merge_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
+                        output_file_name=FILE_NAME, test_description=test_description)
 
