@@ -107,8 +107,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 dp_load_timestamp,
                 dp_valid_from
             FROM {trino_catalog}.{trino_schema}.{dim_table_name}
-            WHERE dp_is_active = TRUE
-            AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'
+            WHERE (dp_is_active = TRUE AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR dp_is_latest = true
         ) tgt
         ON src.{pk_col} = tgt.{pk_col}
     ),
@@ -175,8 +174,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     MERGE INTO {trino_catalog}.{trino_schema}.{dim_table_name} AS target
     USING {trino_catalog}.{trino_schema}.{scd2_view_name} AS source
     ON target.{pk_col} = source.merge_key
-    AND target.dp_is_active = TRUE
-    AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'
+    AND ((target.dp_is_active = TRUE AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
 
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
@@ -274,7 +272,7 @@ def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_t
 
     return result
 
-def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, show_input_to_merge: bool = False, output_file_name: str = None):
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, perform_merge_op: bool = True, show_input_to_merge: bool = False, output_file_name: str = None):
 
     view_stmt = format_view(
         trino_catalog=trino_catalog,
@@ -297,22 +295,25 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         df = get_table_data(conn, f"{trino_catalog}.{trino_schema}.{scd2_view_name}", order_by_cols=["merge_key"])
         render_table(df, output_file_name=output_file_name, title="### Input to Merge")
 
-    val_columns = [col.split()[0] for col in cols_with_type]
-    merge_stmt = format_merge(
-        load_ts=load_ts,
-        current_ts=current_ts,
-        trino_catalog=trino_catalog,
-        trino_schema=trino_schema,
-        dim_table_name=dim_table_name,
-        scd2_view_name=scd2_view_name,
-        pk_col=pk_col,
-        val_columns=val_columns
-    )
+    if perform_merge_op:
+        val_columns = [col.split()[0] for col in cols_with_type]
+        merge_stmt = format_merge(
+            load_ts=load_ts,
+            current_ts=current_ts,
+            trino_catalog=trino_catalog,
+            trino_schema=trino_schema,
+            dim_table_name=dim_table_name,
+            scd2_view_name=scd2_view_name,
+            pk_col=pk_col,
+            val_columns=val_columns
+        )
 
-    logger.debug (f"{merge_stmt}")
-    result = execute_with_metrics(conn.cursor(), merge_stmt)
-    logger.info("Merge result:", result)
-    # retrieve iceberg metadata after merge
-    iceberg_metadata = retrieve_iceberg_metadata(conn, trino_catalog=trino_catalog, trino_schema=trino_schema, dim_table_name=dim_table_name)
+        logger.debug (f"{merge_stmt}")
+        result = execute_with_metrics(conn.cursor(), merge_stmt)
+        logger.info("Merge result:", result)
+        # retrieve iceberg metadata after merge
+        iceberg_metadata = retrieve_iceberg_metadata(conn, trino_catalog=trino_catalog, trino_schema=trino_schema, dim_table_name=dim_table_name)
 
-    return result, iceberg_metadata
+        return result, iceberg_metadata
+    else:
+        return None, None
