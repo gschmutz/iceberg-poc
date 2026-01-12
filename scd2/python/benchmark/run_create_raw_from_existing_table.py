@@ -139,7 +139,8 @@ def format_create_raw_table(table_name: str) -> str:
         dp_load_timestamp TIMESTAMP(6),
         dp_valid_from DATE,
         dp_valid_to DATE,
-
+        
+        status VARCHAR,
         dp_exported_at TIMESTAMP(6)
     )
     WITH (
@@ -191,7 +192,7 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, d
         CAST(dp_load_timestamp AS TIMESTAMP(6)) AS dp_load_timestamp,
         dp_valid_from,
         dp_valid_to,
-
+        'ACTIVE' AS status,
         CAST('{dp_exported_at}' AS TIMESTAMP) as dp_exported_at
     FROM hive.cur_zone.{source_table_name}
     WHERE CAST('{dp_exported_at}' AS TIMESTAMP) BETWEEN dp_valid_from AND dp_valid_to - INTERVAL '1' DAY
