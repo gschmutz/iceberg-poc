@@ -123,25 +123,6 @@ services:
         pip install pyspark==3.5.3 boto3 lakefs_client lakefs jupyter_contrib_nbextensions tabulate papermill jupysql arrow pyarrow pandas grpcio-status
         start-notebook.sh
     restart: unless-stopped
-  #  ================================== Metabase ========================================== #
-  metabase:
-    image: metabase/metabase:latest
-    hostname: metabase
-    container_name: metabase
-    labels:
-      com.platys.name: metabase
-      com.platys.description: Simple and powerful analytics tool
-      com.platys.webui.title: Metabase UI
-      com.platys.webui.url: http://dataplatform:28257
-    ports:
-      - 28257:3000
-    environment:
-      MB_DB_TYPE: h2
-      MB_ENABLE_QUERY_CACHING: false
-    volumes:
-      - ./data-transfer:/data-transfer
-      - ./plugins/metabase/plugin:/plugins
-    restart: unless-stopped
   #  ================================== PostgreSQL ========================================== #
   postgresql:
     image: postgres:18
@@ -191,8 +172,8 @@ services:
       COORDINATOR_HOST: trino-1
       CATALOG_MANAGEMENT: static
       CATALOG_CONFIG_DIR: /catalog
-      QUERY_MAX_MEMORY_PER_NODE: 8GB
       #CATALOG_STORE: file
+      QUERY_MAX_MEMORY_PER_NODE: 8GB
       S3_ENDPOINT: http://minio-1:9000
       S3_REGION: us-east-1
       S3_AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
@@ -308,6 +289,52 @@ services:
         done
         #
         while [ 1 -eq 1 ];do sleep 60;done
+    restart: unless-stopped
+  #  ================================== Nimtabe ========================================== #
+  nimtable-web:
+    image: ghcr.io/nimtable/nimtable-web:nightly
+    container_name: nimtable-web
+    hostname: nimtable-web
+    labels:
+      com.platys.name: nimtable
+      com.platys.description: Control Plane for Iceberg
+      com.platys.webui.title: Nimtable Web UI
+      com.platys.webui.url: http://dataplatform:28280
+    depends_on:
+      - nimtable
+    ports:
+      - 28280:3000
+    environment:
+      - JAVA_API_URL=http://nimtable:8182
+      - DATABASE_URL=postgresql://postgres:abc123!@postgresql:5432/postgres
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+    volumes:
+      - ./data-transfer:/data-transfer
+    restart: unless-stopped
+  nimtable:
+    image: ghcr.io/nimtable/nimtable:nightly
+    container_name: nimtable
+    hostname: nimtable
+    labels:
+      com.platys.name: nimtable
+      com.platys.description: Control Plane for Iceberg
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    ports:
+      - 28281:8182
+    environment:
+      - JAVA_OPTS=-Xmx32g -Xms512m
+      - AWS_ACCESS_KEY_ID=${PLATYS_AWS_ACCESS_KEY:-admin}
+      - AWS_SECRET_ACCESS_KEY=${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      - AWS_REGION=us-east-1
+      - AWS_ENDPOINT_URL_S3=http://minio-1:9000
+      - AWS_ENDPOINT_URL_STS=http://minio-1:9000
+    volumes:
+      - ./data-transfer:/data-transfer
+      - ./conf/nimtable/config.yaml:/nimtable/config.yaml
     restart: unless-stopped
   #  ================================== markdown-viewer ========================================== #
   markdown-viewer:

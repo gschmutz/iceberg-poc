@@ -112,10 +112,12 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 4052 | 4052 | zeppelin (spark ui) |
 4053 | 4053 | zeppelin (spark ui) |
 4054 | 4054 | zeppelin (spark ui) |
+4173 | 4173 | data-contract-editor |
 4195 | 4195 | benthos-1 |
 4196 | 4196 | benthos-server |
 4200 | 4200 | cribl-master |
 4222 | 4222 | nats-1 |
+4242 | 4242 | data-contract-api |
 4317 | 4317 | otel-collector |
 4318 | 4318 | otel-collector |
 4319 | 4317 | jaeger |
@@ -292,6 +294,10 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 9103 | 9003 | mosquitto-3 |
 9114 | 9114 | elasticsearch-exporter |
 9121 | 9121 | redis-exporter |
+9123 | 9123 | fluss-coordinator-service |
+9124 | 9123 | fluss-tablet-server-1 |
+9125 | 9123 | fluss-tablet-server-2 |
+9126 | 9123 | fluss-tablet-server-3 |
 9200 | 9200 | elasticsearch-1 |
 9201 | 9200 | langwatch-opensearch |
 9300 | 9300 | elasticsearch-1 |
