@@ -215,7 +215,7 @@ def run_raw_create_table(table_name: str):
 def run_insert_from_existing_table(table_name: str, nof_days: int = 30):
 
     # create raw table
-    target_table_name = f"raw_{table_name}"
+    target_table_name = f"raw_{table_name}_l"
     source_table_name = table_name
 
     # create raw table
