@@ -267,7 +267,7 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
     raw_table_name = f"raw_{table_name}_{tshirt}"
     
     conn = get_trino_connection()
-    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id VARCHAR", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
+    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}id BIGINT", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
 
     start_ts = datetime(2025, 10, 12, 0, 0, 0)
     for day in range(number_of_days):
