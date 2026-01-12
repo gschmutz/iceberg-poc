@@ -261,8 +261,7 @@ def run_optimize_table(table_name: str):
     print (result)
     logger.info(f"Optimize table for {table_name} executed successfully.")
 
-        
-def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None):
+def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None, number_of_days: int = NOF_DAYS):
     table_name = "crm_clientdocument"
     dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
     raw_table_name = f"raw_{table_name}_{tshirt}"
@@ -270,10 +269,10 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
     conn = get_trino_connection()
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, f"dim_{table_name}_{case_id}_{tshirt}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type=f"{table_name}_id VARCHAR", cols_with_type=cols_with_type, partition_cols=partition_cols, sort_cols=sort_cols)
 
-    start_ts = datetime(2024, 1, 1, 0, 0, 0)
-    for day in range(NOF_DAYS):
+    start_ts = datetime(2025, 10, 12, 0, 0, 0)
+    for day in range(number_of_days):
         load_date = start_ts + timedelta(days=day)
-        print (load_date)
+        logger.info(f"Processing load date: {load_date}")
 
         result, iceberg_metadata = merge_into_dim_table(
             conn=conn,
@@ -380,7 +379,7 @@ def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, 
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
 
-def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
+def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days: int, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
 
     tshirt = TSHIRT_SIZE.lower()
 
@@ -412,7 +411,7 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_onl
             logger.info(f"Running test case {test_case['case_id']}: {test_case['description']}")
 
             if not run_select_only:            
-                run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'))
+                run_merge_all(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], case_description=test_case['description'], partition_cols=test_case.get('partition_cols'), sort_cols=test_case.get('sort_cols'), number_of_days=number_of_days)
     
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs*2):
