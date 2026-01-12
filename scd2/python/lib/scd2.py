@@ -286,9 +286,9 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         load_ts_col=load_ts_col
     )
     
-    logger.debug (f"{view_stmt}")
-    result = execute_with_metrics(conn.cursor(), view_stmt)
-    logger.info("View creation result:", result)
+    logger.info (f"{view_stmt}")
+    conn.cursor().execute(view_stmt)
+    logger.info("View created successfully.")
 
     if show_input_to_merge:
         # For debugging: select from the view

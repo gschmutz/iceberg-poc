@@ -289,9 +289,6 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             current_ts=(start_ts + timedelta(days=day)),
         )
 
-        if(result['error']):
-            logger.error(f"Error during SCD2 merge for tshirt {tshirt}, test-case {case_id} on day {day}: {result['error']}")
-
         insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, dim_table_name=dim_table_name, statement_key=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
 
         # run optimize every 5 days
