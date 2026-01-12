@@ -81,8 +81,8 @@ if S3_ENDPOINT_URL:
 
 s3 = boto3.client(**s3_config)
 
+# without pk column!!
 cols_with_type = [
-    "clientdocumentid BIGINT",
     "clientdocumentcreationdate TIMESTAMP(6)",
     "clientdocumentpriorityid BIGINT",
     "clientdocumentpriorityenum VARCHAR",
