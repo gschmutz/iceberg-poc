@@ -289,6 +289,9 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
             current_ts=(start_ts + timedelta(days=day)),
         )
 
+        if(result['error']):
+            logger.error(f"Error during SCD2 merge for tshirt {tshirt}, test-case {case_id} on day {day}: {result['error']}")
+
         insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=day, tshirt_size=tshirt, dim_table_name=dim_table_name, statement_key=f"SCD2_MERGE_{case_id}_{tshirt}", statement_name=case_description, result=result, iceberg_metadata=iceberg_metadata)
 
         # run optimize every 5 days
@@ -308,7 +311,7 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, restrict_active_expre
     query = f"""
         SELECT *
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
-        WHERE clientdocumentid = '{clientdocumentid}'
+        WHERE clientdocumentid = {clientdocumentid}
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -318,7 +321,7 @@ def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_act
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
+        SELECT sum(length(cast(clientdocumentpriorityenum AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -330,7 +333,7 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
+        SELECT sum(length(cast(clientdocumentpriorityenum AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """

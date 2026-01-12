@@ -8,3 +8,6 @@
 /scd2/python/benchmark/__pycache__
 /scd2/python/__pycache__
 scd2/python/__pycache__/util.cpython-312.pyc
+/scd2/python/lib/__pycache__
+*.pyc
+*.pyc
