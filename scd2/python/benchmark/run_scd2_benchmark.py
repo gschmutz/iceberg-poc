@@ -27,6 +27,8 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
+from benchmark_commons import fmt_checksum_cols
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 from scd2 import merge_into_dim_table, create_dim_table, optimize_table
@@ -110,6 +112,7 @@ cols_with_type = [
     "national_id VARCHAR",
     "tax_id VARCHAR",
 ]
+val_columns = [col.split()[0] for col in cols_with_type]
 
 def get_trino_connection():
 
@@ -281,11 +284,39 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, person_id: str, restr
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one person by PK", result=result)
 
+def run_select_over_time(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        WHERE dp_valid_from <= CAST('2024-01-10' as TIMESTAMP) and dp_valid_to >= CAST('2024-01-20' as TIMESTAMP)
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}", statement_name="select persons over time", result=result) 
+
+def run_select_over_time_and_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        WHERE dp_valid_from <= CAST('2024-01-10' as TIMESTAMP) AND dp_valid_to >= CAST('2024-01-20' as TIMESTAMP)
+        AND {restrict_active_expression}
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_person_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}", statement_name="select active persons over time", result=result) 
+
 def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
+        SELECT count(*) AS rows_active
+        , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -297,7 +328,8 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(first_name AS varchar))) AS length_sum, COUNT(*) AS person_count
+        SELECT count(*) AS rows_latest
+        , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """
@@ -336,9 +368,10 @@ def run_select_nof_person_in_ch_at_5th_of_jan(tshirt: str, run_id: str, case_id:
     conn = get_trino_connection()
 
     query = f"""
-        SELECT COUNT(*) AS person_in_ch, array_agg(person_id) AS persons
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        where cast('2024-01-05' as date) between dp_valid_from and dp_valid_to
+        WHERE cast('2024-01-05' as date) BETWEEN dp_valid_from AND dp_valid_to
         AND {restrict_active_expression} 
         AND dp_is_active = TRUE
         AND country = 'CH'
@@ -386,6 +419,8 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_onl
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs*2):
                 run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], person_id=person_id, restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_over_time(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_over_time_and_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_by_gender(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
@@ -403,6 +438,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == "run_test_cases":
-        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=args.run_select_only, drop_benchmark_table_first=args.drop_benchmark_table_first)
+        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=True, drop_benchmark_table_first=args.drop_benchmark_table_first)
     else:
         logger.error(f"Unknown command: {args.command}")

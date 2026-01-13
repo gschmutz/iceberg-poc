@@ -27,6 +27,8 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
+from benchmark_commons import fmt_checksum_cols
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
 from scd2 import merge_into_dim_table, create_dim_table, optimize_table
@@ -115,6 +117,7 @@ cols_with_type = [
     "clientdocumentfirstactivation TIMESTAMP(6)",
     "clientdocumentcrscarftype VARCHAR"
 ]
+val_columns = [col.split()[0] for col in cols_with_type]
 
 def get_trino_connection():
 
@@ -277,7 +280,6 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
 def run_select_one(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
-
     clientdocumentid = "44584281"  # known clientdocumentid to select at the end
 
     query = f"""
@@ -289,11 +291,26 @@ def run_select_one(tshirt: str, run_id: str, case_id: int, restrict_active_expre
 
     insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}", statement_name="select one clientdocument by PK", result=result)
 
+def run_select_over_time(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE dp_valid_from <= CAST('2025-10-25' as TIMESTAMP) and dp_valid_to >= CAST('2025-11-25' as TIMESTAMP)
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active clientdocuments", result=result) 
+
+
 def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(clientdocumentpriorityenum AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -305,7 +322,8 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     conn = get_trino_connection()
 
     query = f"""
-        SELECT sum(length(cast(clientdocumentpriorityenum AS varchar))) AS length_sum, COUNT(*) AS clientdocument_count
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """
