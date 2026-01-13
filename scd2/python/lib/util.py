@@ -173,7 +173,7 @@ def normalize_row(row):
         for v in row
     )
 
-def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[], order_by_cols: list=[], output_file=None):
+def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[], order_by_cols: list=[], for_version:str=None, output_file=None):
     cursor = conn.cursor()
     # Build the column list, excluding columns in exclude_cols
     if exclude_cols:
@@ -186,6 +186,9 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
 
     # Build ORDER BY clause only if order_by_cols is not empty
     order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+
+    if for_version is not None:
+        fully_qualified_table_name = f"{fully_qualified_table_name} FOR VERSION AS OF {for_version}"
     
     sql = f"""
         SELECT {column_list}
@@ -282,7 +285,12 @@ def render_data(data: str, output_file_name=None):
         with open(output_file_name, "a") as f:
             f.write(data + "\n")
 
-def render_table(df, title:str = "", exclude_cols: list=[], output_file_name=None):
+def render_table(df, title:str = "", include_cols: list=[], exclude_cols: list=[], output_file_name=None):
+    # Build the column list, including only columns in include_cols
+    if include_cols:
+        selected_columns = [col for col in include_cols if col in df.columns]
+        df = df[selected_columns]
+
     # Build the column list, excluding columns in exclude_cols
     if exclude_cols:
         selected_columns = [col for col in df.columns if col not in exclude_cols]

@@ -3,6 +3,8 @@ import sys
 import os
 import logging
 import trino
+import numpy as np
+
 from datetime import date, timedelta, datetime
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
@@ -134,7 +136,7 @@ def run_scd2_merge_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, 
 
     expected_df = pd.DataFrame(expected, columns=df.columns)
     #pd.testing.assert_frame_equal(df, expected_df)
-    import numpy as np
+
     arr1 = df.to_numpy()
     arr2 = expected_df.to_numpy()
     np.testing.assert_array_equal(arr1, arr2)

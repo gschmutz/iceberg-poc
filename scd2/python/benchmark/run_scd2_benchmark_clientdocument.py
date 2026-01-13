@@ -29,7 +29,7 @@ from pyiceberg.types import (
 )
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
-from scd2 import merge_into_dim_table, create_dim_table 
+from scd2 import merge_into_dim_table, create_dim_table, optimize_table
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -237,30 +237,6 @@ def insert_benchmark_metrics(cursor, run_id: str, case_id: str, day_number: int,
     )
     cursor.fetchall()
 
-def run_analyze_table(tshirt: str, case_id: int):
-    conn = get_trino_connection()
-
-    table_name = f"dim_crm_clientdocument_{case_id}_{tshirt}"
-    optimize_stmt = f"""
-                    ANALYZE {table_name}
-                    """
-    print(optimize_stmt)
-    result = execute_with_metrics(conn.cursor(), optimize_stmt)
-    print (result)
-    logger.info(f"Analyze table for thsirt {tshirt} and test-case {case_id} executed successfully.")
-
-def run_optimize_table(table_name: str):
-    conn = get_trino_connection()
-
-    optimize_stmt = f"""
-                    ALTER TABLE {table_name}
-                    EXECUTE optimize (file_size_threshold => '256MB')
-                    """
-    print(optimize_stmt)
-    result = execute_with_metrics(conn.cursor(), optimize_stmt)
-    print (result)
-    logger.info(f"Optimize table for {table_name} executed successfully.")
-
 def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str, partition_cols: list = None, sort_cols: list = None, number_of_days: int = NOF_DAYS):
     table_name = "crm_clientdocument"
     dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
@@ -292,11 +268,11 @@ def run_merge_all(tshirt: str, run_id: str, case_id: int, case_description: str,
 
         # run optimize every 5 days
         if day > 0 and day % 5 == 0:
-            run_optimize_table(table_name=dim_table_name)
+            optimize_table(conn, table_name=dim_table_name)
 
     # run optimize for dim table and benchmark at the end as well
-    run_optimize_table(table_name=dim_table_name)
-    run_optimize_table(table_name="benchmark")
+    optimize_table(conn, table_name=dim_table_name)
+    optimize_table(conn, table_name="benchmark")
 
 def run_select_one(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()

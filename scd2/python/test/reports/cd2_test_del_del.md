@@ -1,6 +1,6 @@
-# Testing Logical Delete Operation and that it stays consistent
+# Testing Physical Delete Operation
 
-This test validates a DELETE operation of a single record. The delete is created by a logical delete in the raw table, i.e., the record is set to INACTIVE. This test ensures that no further actions are taken with the same record in later partitions.
+This test valid a DELETE operation of a single record. The delete is created by a physical delete in the raw table, i.e., the record is removed from the raw table partition.
 ## Test Step 1
 Insert 3 records into raw table and perform initial SCD2 merge.
 ### Raw Table `raw_person`
@@ -30,7 +30,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 2
-Update record with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge.
+Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
@@ -40,13 +40,12 @@ Update record with `id=3` in raw table to INACTIVE (logical delete) and perform 
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | INACTIVE | 2026-01-05 00:00:00 |
 
 ### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | INACTIVE | DELETED                 | UPDATE_EXISTING  |
+|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   |
+|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|
+|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  |
 
 ### Dimensional Table `dim_person`
 
@@ -59,7 +58,7 @@ Update record with `id=3` in raw table to INACTIVE (logical delete) and perform 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 3
-Update record with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge.
+Keep record with `id=3` from raw table deleted in the next partition as well and perform SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
@@ -69,16 +68,14 @@ Update record with `id=3` in raw table to INACTIVE (logical delete) and perform 
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | INACTIVE | 2026-01-05 00:00:00 |
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-10 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-10 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | INACTIVE | 2026-01-10 00:00:00 |
 
 ### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-10 00:00:00 | INACTIVE | DELETED                 | UPDATE_EXISTING  |
+|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   |
+|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|
+|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  |
 
 ### Dimensional Table `dim_person`
 

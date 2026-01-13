@@ -272,6 +272,27 @@ def retrieve_iceberg_metadata(conn, trino_catalog: str, trino_schema: str, dim_t
 
     return result
 
+def optimize_table(conn, table_name: str):
+    optimize_stmt = f"""
+                    ALTER TABLE {table_name}
+                    EXECUTE optimize (file_size_threshold => '256MB')
+                    """
+    print(optimize_stmt)
+    result = execute_with_metrics(conn.cursor(), optimize_stmt)
+
+    logger.info(f"Optimize table for {table_name} executed successfully.")
+
+
+def run_analyze_table(conn, table_name: str):
+
+    analyze_stmt = f"""
+                    ANALYZE {table_name}
+                    """
+    print(analyze_stmt)
+    result = execute_with_metrics(conn.cursor(), analyze_stmt)
+
+    logger.info(f"Analyze table for {table_name} executed successfully.")
+
 def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, perform_merge_op: bool = True, show_input_to_merge: bool = False, output_file_name: str = None):
 
     view_stmt = format_view(
