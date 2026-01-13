@@ -43,7 +43,10 @@ SELECT
     max(CASE WHEN statement_key = 'SCD2_MERGE_12_l' THEN iceberg_nof_files END) AS nof_files_12_l,
     max(CASE WHEN statement_key = 'SCD2_MERGE_13_l' THEN iceberg_nof_files END) AS nof_files_13_l,
     max(CASE WHEN statement_key = 'SCD2_MERGE_14_l' THEN iceberg_nof_files END) AS nof_files_14_l,
-    max(CASE WHEN statement_key = 'SCD2_MERGE_15_l' THEN iceberg_nof_files END) AS nof_files_15_l
+    max(CASE WHEN statement_key = 'SCD2_MERGE_15_l' THEN iceberg_nof_files END) AS nof_files_15_l,
+    max(CASE WHEN statement_key = 'SCD2_MERGE_16_l' THEN iceberg_nof_files END) AS nof_files_16_l,
+    max(CASE WHEN statement_key = 'SCD2_MERGE_17_l' THEN iceberg_nof_files END) AS nof_files_17_l,
+    max(CASE WHEN statement_key = 'SCD2_MERGE_18_l' THEN iceberg_nof_files END) AS nof_files_18_l
 FROM benchmark_by_test_case_v
 WHERE statement_key like 'SCD2_MERGE%' AND tshirt_size = 'l'
 GROUP by day_number
@@ -69,7 +72,10 @@ SELECT
     max(CASE WHEN case_id = '12' THEN elapsed_s END) AS es_ts_12,
     max(CASE WHEN case_id = '13' THEN elapsed_s END) AS es_ts_13,
     max(CASE WHEN case_id = '14' THEN elapsed_s END) AS es_ts_14,
-    max(CASE WHEN case_id = '15' THEN elapsed_s END) AS es_ts_15
+    max(CASE WHEN case_id = '15' THEN elapsed_s END) AS es_ts_15,
+    max(CASE WHEN case_id = '16' THEN elapsed_s END) AS es_ts_16,
+    max(CASE WHEN case_id = '17' THEN elapsed_s END) AS es_ts_17,
+    max(CASE WHEN case_id = '18' THEN elapsed_s END) AS es_ts_18
 FROM benchmark_by_test_case_v
 WHERE statement_key like 'SCD2_SELECT%' AND tshirt_size = 'l'
 GROUP by day_number, regexp_replace(statement_key, '_[0-9]+_[a-zA-Z]$','')
