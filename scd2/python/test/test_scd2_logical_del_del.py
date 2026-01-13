@@ -41,9 +41,9 @@ def test_step_1():
     create_raw_table(conn)
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
     render_init("Testing Logical Delete Operation and that it stays consistent", FILE_NAME)
-    render_data("This test validates a DELETE operation of a single record. The delete is created by a logical delete in the raw table, i.e., the record is set to INACTIVE. This test ensures that no further actions are taken with the same record in later partitions.", output_file_name=FILE_NAME)
+    render_data("This test validates a DELETE operation of a single entity. The delete is created by a logical delete in the raw table, i.e., the record status is set to INACTIVE. This test ensures that no further actions are taken with the same record in later partitions.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 3 records into raw table and perform initial SCD2 merge."
+    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -91,7 +91,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = "Update record with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -139,7 +139,7 @@ def test_step_3():
 
     cursor = conn.cursor()
 
-    test_description = "Update record with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_3}, still have the entity with `id=3` in raw table as INACTIVE (logical delete) and perform SCD2 merge."
 
     # --- Insert statement (batch 3) ---
     insert_sql_3 = f"""

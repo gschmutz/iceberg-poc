@@ -1,8 +1,8 @@
 # Testing Physical Delete Operation
 
-This test valid a DELETE operation of a single record. The delete is created by a physical delete in the raw table, i.e., the record is removed from the raw table partition.
+This test validates a DELETE operation of a single entity. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.
 ## Test Step 1
-Insert 3 records into raw table and perform initial SCD2 merge.
+Insert 3 entities into raw table and perform initial SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
@@ -30,7 +30,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 2
-Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge.
+At 2026-01-05 00:00:00, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |

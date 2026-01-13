@@ -1,8 +1,8 @@
 # Testing Insert Operation
 
-This test validates an INSERT operation of one new record
+This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.
 ## Test Step 1
-Insert 3 records into raw table and perform initial SCD2 merge.
+Insert 3 entities into raw table and perform initial SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
@@ -30,7 +30,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 2
-Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge.
+At 2026-01-05 00:00:00, insert a new entity with `id=10` into the new partition of the raw table and perform SCD2 merge.
 ### Raw Table `raw_person`
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |

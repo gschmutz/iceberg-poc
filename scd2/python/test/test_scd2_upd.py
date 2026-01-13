@@ -39,9 +39,9 @@ def test_step_1():
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
     
     render_init("Testing Update Operation", FILE_NAME)
-    render_data("This test validates an UPDATE operation of one new record", output_file_name=FILE_NAME)
+    render_data("This test validates an UPDATE operation of one entity (with a new version) on a set of existing entities.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 3 records into raw table and perform initial SCD2 merge."
+    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -88,7 +88,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = "Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
