@@ -87,7 +87,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table an INACTIVE (logical delete) and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
