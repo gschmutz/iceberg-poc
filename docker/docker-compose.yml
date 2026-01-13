@@ -9,7 +9,7 @@ networks:
 services:
   #  ================================== Apache Hive Metastore ========================================== #
   hive-metastore:
-    image: trivadis/apache-hive:3.1.2-postgresql-metastore-s3
+    image: trivadis/apache-hive:4.2.0-postgresql-metastore-s3
     container_name: hive-metastore
     hostname: hive-metastore
     labels:
@@ -20,8 +20,12 @@ services:
         condition: service_healthy
     ports:
       - 9083:9083
+      - 9084:9084
     environment:
-      HIVE_VER: 3.1.2
+      HIVE_VER: 4.2.0
+      # configure iceberg catalog service (if HMS >= 4.1.0)
+      HIVE_SITE_CONF_metastore_catalog_servlet_port: 9084
+      HIVE_SITE_CONF_metastore_catalog_servlet_auth: none
       CORE_CONF_fs_defaultFS: file:///tmp
       HIVE_SITE_CONF_fs_defaultFS: file:///tmp
       HIVE_SITE_CONF_fs_s3a_endpoint: http://minio-1:9000
@@ -174,6 +178,8 @@ services:
       CATALOG_CONFIG_DIR: /catalog
       #CATALOG_STORE: file
       QUERY_MAX_MEMORY_PER_NODE: 8GB
+      HMS_ICEBERG_REST_CATALOG_URI: http://hive-metastore:9084/iceberg
+      HMS_ICEBERG_REST_CATALOG_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
       S3_ENDPOINT: http://minio-1:9000
       S3_REGION: us-east-1
       S3_AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
@@ -186,8 +192,6 @@ services:
       HIVE_RUN_AS_INVOKER: 'false'
       HIVE_LEGACY_TRANSLATION: 'false'
       NESSIE_CATALOG_WAREHOUSE_DIR: s3a://admin-bucket/nessie/warehouse
-      ICEBERG_REST_CATALOG_URI: http://iceberg-rest-catalog:8181
-      ICEBERG_REST_CATALOG_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
       HIVE_METASTORE_DB_USER: hive
       HIVE_METASTORE_DB_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
       POSTGRESQL_DATABASE: postgres
@@ -201,6 +205,7 @@ services:
       - ./conf/trino/single/log-debug.properties:/etc/trino/log.properties
       - ./conf/trino/catalog/minio.properties:/catalog/minio.properties
       - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties
+      - ./conf/trino/catalog/iceberg-hive-rest.properties:/catalog/iceberg_hive_rest.properties
       - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties
       - ./conf/trino/catalog/postgresql.properties:/catalog/postgresql.properties
       - ./custom-conf/trino/security:/etc/trino/security
