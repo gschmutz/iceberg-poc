@@ -302,8 +302,21 @@ def run_select_over_time(tshirt: str, run_id: str, case_id: int, restrict_active
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}", statement_name="select clientdocuments over time", result=result) 
 
+def run_select_over_time_and_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+    conn = get_trino_connection()
+
+    query = f"""
+        SELECT count(*) AS rows_over_time
+        , {fmt_checksum_cols(val_columns)}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE dp_valid_from <= CAST('2025-10-25' as TIMESTAMP) and dp_valid_to >= CAST('2025-11-25' as TIMESTAMP)
+        AND {restrict_active_expression}
+    """
+    result = execute_with_metrics(conn.cursor(), query)
+
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}", statement_name="select active clientdocuments over time", result=result) 
 
 def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -415,6 +428,8 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days
             # At the end let's perform some selects to benchmark read performance
             for _ in range(number_of_runs*2):
                 run_select_one(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_over_time(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_over_time_and_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_by_grouping(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
@@ -425,6 +440,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run")
     parser.add_argument("--number_of_runs", default=1, type=int)
+    parser.add_argument("--number_of_days", default=30, type=int)
     parser.add_argument("--run_for_test_cases", default=[], type=list)
     parser.add_argument("--run_select_only", default=False, type=bool)
     parser.add_argument("--drop_benchmark_table_first", default=False, type=bool)
@@ -432,6 +448,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == "run_test_cases":
-        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=args.run_select_only, drop_benchmark_table_first=args.drop_benchmark_table_first)
+        run_test_cases(number_of_runs=args.number_of_runs, number_of_days=args.number_of_days, run_for_test_cases=args.run_for_test_cases, run_select_only=args.run_select_only, drop_benchmark_table_first=args.drop_benchmark_table_first)
     else:
         logger.error(f"Unknown command: {args.command}")
