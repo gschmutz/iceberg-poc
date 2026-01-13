@@ -74,16 +74,16 @@
         },
         {
             "case_id": 10,
-            "description": "Partition by bucket(16, person_id), sort by dp_is_active",
-            "partition_cols": ["bucket(person_id, 16)"],
+            "description": "Partition by bucket(16, {pk_col}), sort by dp_is_active",
+            "partition_cols": ["bucket({pk_col}, 16)"],
             "sort_cols": ["dp_is_active"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 11,
-            "description": "Partition by bucket(16, person_id), dp_is_active, sort by dp_valid_from",
-            "partition_cols": ["bucket(person_id, 16)", "dp_is_active"],
+            "description": "Partition by bucket(16, {pk_col}), dp_is_active, sort by dp_valid_from",
+            "partition_cols": ["bucket({pk_col}, 16)", "dp_is_active"],
             "sort_cols": ["dp_valid_from"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true

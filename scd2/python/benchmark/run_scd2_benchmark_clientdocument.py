@@ -324,7 +324,7 @@ def run_select_count_by_grouping(tshirt: str, run_id: str, case_id: int, restric
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_{case_id}_{tshirt}", statement_name="count by grouping for all active persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_{case_id}_{tshirt}", statement_name="count by grouping for all active clientdocuments", result=result) 
 
 def run_select_count_by_grouping_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -338,7 +338,7 @@ def run_select_count_by_grouping_latest(tshirt: str, run_id: str, case_id: int, 
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by gender for all latest persons", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by grouping for all latest clientdocuments", result=result) 
 
 def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -353,7 +353,7 @@ def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, 
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}", statement_name="count all persons in CH which where active on 5 jan", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_NOF_CLIENTDOCUMENTS_IN_GROUPING_ON_DAY_{case_id}_{tshirt}", statement_name="count all clientdocuments in grouping which where active on 5 jan", result=result) 
 
 def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days: int, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
 
@@ -375,6 +375,11 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days
     # Load and execute all test cases
     with open(local_file, 'r') as f:
         test_data = json.load(f)
+        
+        # Replace {pk_col} with "clientdocumentid" throughout the test_data
+        test_data_str = json.dumps(test_data)
+        test_data_str = test_data_str.replace("{pk_col}", "clientdocumentid")
+        test_data = json.loads(test_data_str)
 
     for _ in range(number_of_runs):
         run_id: str = str(uuid.uuid4())
