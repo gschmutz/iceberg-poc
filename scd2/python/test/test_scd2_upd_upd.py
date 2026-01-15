@@ -47,7 +47,7 @@ def test_step_1():
     render_init("Testing Muliple Update Operations on same entity", FILE_NAME)
     render_data("This test validates multiple UPDATE operations on one entity over time producing many versions.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
+    test_description = "Insert 2 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""

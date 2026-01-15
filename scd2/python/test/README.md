@@ -19,5 +19,6 @@ The last column points to the markdown which is being generated in the test and 
 | 3 | test_scd2_del.py | Performs a single delete of entity using physical delete operation | [scd2_test_del.md](./reports/scd2_test_logical_del.md) |
 | 4 | test_scd2_logical_del.py | Performs a single delete of entity using logical delete operation | [scd2_test_logical_del.md](./reports/scd2_test_logical_del.md) |
 | 5 | test_scd2_upd_upd_.py | Performs multiple updates on a single entity over time | [scd2_test_upd_upd.md](./reports/scd2_test_upd_upd.md) |
+| 6 | test_scd2_sel_.py | Performs a point-in-time select to find the version of the entity which was valid at the time | [scd2_test_sel_upd.md](./reports/scd2_test_sel_upd.md) |
 | 99 | test_scd2_e2e_.py | Performs and end-to-end test with multiple steps and operations | [scd2_test_upd_upd.md](./reports/scd2_test_e2e.md) |
 

@@ -98,6 +98,29 @@ def create_raw_table(conn):
     cursor.execute(create_table_sql)
     logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
 
+def run_scd2_merge(conn, ins_stmt: str,load_ts: datetime, current_ts: datetime, perform_merge_op: bool = True):
+
+    # --- Prepare raw data ---
+    cursor = conn.cursor()
+    cursor.execute(ins_stmt)
+
+    # run dimensional merge
+    merge_into_dim_table(
+        conn=conn,
+        trino_catalog=TRINO_CATALOG,
+        trino_schema=TRINO_SCHEMA,
+        raw_table_name=RAW_TABLE_NAME,
+        dim_table_name=DIM_TABLE_NAME,
+        scd2_view_name=SCD2_VIEW_NAME,
+        load_ts=load_ts,
+        load_ts_col="dp_exported_at",
+        pk_col="id",
+        cols_with_type=COLS_WITH_TYPE,
+        current_ts=current_ts,
+        perform_merge_op=perform_merge_op,
+        show_input_to_merge=False
+    )
+
 def run_scd2_merge_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True):
 
     # --- Prepare raw data ---
