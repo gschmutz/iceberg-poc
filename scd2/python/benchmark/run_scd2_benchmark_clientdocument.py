@@ -27,6 +27,7 @@ from pyiceberg.types import (
     DateType,
     TimestampType,
 )
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../benchmark')))
 from benchmark_commons import fmt_checksum_cols
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
