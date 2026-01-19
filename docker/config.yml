@@ -266,10 +266,7 @@
       APICURIO_auth_import_default_users: false
       APICURIO_basic_auth_enabled: false
       APICURIO_eventsourcing_enabled: false
-      # either 'http' or 'kafka'
-      APICURIO_eventsourcing_protocol: 'kafka'
       APICURIO_eventsourcing_kafka_topic: 'registry-events'
-      APICURIO_eventsourcing_http_endpoint: ''
       #
       # ===== Schema Registry UI ========
       #
@@ -504,12 +501,12 @@
       #
       # ===== Apache Spark ========
       #
-      SPARK_enable: false
+      SPARK_enable: true
       # either 3.3 or 3.4 or 3.5
       SPARK_base_version: 3.5
       # "hive" or "in-memory"
       SPARK_catalog: hive
-      SPARK_workers: 2
+      SPARK_workers: 1
       # to restrict the default cores, use '-Dspark.deploy.defaultCores=6'
       SPARK_master_opts: ''
       SPARK_worker_cores:
@@ -660,6 +657,7 @@
       # ===== Apache Hive Metastore ========
       #
       HIVE_METASTORE_enable: true
+      HIVE_METASTORE_use_standalone_edition: true
       HIVE_METASTORE_transactional_event_listener_enabled: false
       # an implementatio of the TransactionalMetaStoreEventListener, for example 'org.apache.hive.hcatalog.listener.DbNotificationListener'
       HIVE_METASTORE_transactional_event_listeners:
@@ -1973,9 +1971,10 @@
       #
       # ===== DuckDB ========
       #
-      DUCKDB_enable: false
-      DUCKDB_ui_enabled: false
+      DUCKDB_enable: true
+      DUCKDB_ui_enabled: true
       DUCKDB_db_folder:
+      DUCKDB_init_script:      
       #
       # ===== QuackFlight ========
       #
@@ -2737,6 +2736,13 @@
       #===== Nimtable ========
       #
       NIMTABLE_enable: true
+
+      #
+      #===== Nimtable ========
+      #
+      LAKEVISION_enable: true
+      LAKEVISION_public_health_enabled: true
+      LAKEVISION_database_url: 'postgresql://postgres:abc123!@postgresql:5432/postgres'
       #
       # ===== Pure FTPd ========
       #
