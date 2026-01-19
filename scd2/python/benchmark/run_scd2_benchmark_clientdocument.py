@@ -138,7 +138,8 @@ def get_trino_connection():
             TRINO_USER,
             TRINO_PASSWORD
         ) if TRINO_PASSWORD else None,
-        verify=False  # Disable SSL verification for self-signed certificates,
+        verify=False,  # Disable SSL verification for self-signed certificates,
+        request_timeout=1800.0
     )
 
     return conn
