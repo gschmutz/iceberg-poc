@@ -32,6 +32,15 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.
 
 
+`
+        SELECT * 
+        FROM iceberg_hive.default.dim_person
+        WHERE dp_is_latest = TRUE
+        ORDER BY id
+        `
+
+
+
 **Dimensional Table `dim_person`**
 
 

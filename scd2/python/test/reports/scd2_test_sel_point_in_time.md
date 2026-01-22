@@ -31,6 +31,15 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 Select data valid at 2026-01-03 00:00:00. As we are selecting back in time the old version of Alice is shown where she lived in Zurich.
 
 
+`
+        SELECT * 
+        FROM iceberg_hive.default.dim_person
+        WHERE TIMESTAMP '2026-01-05 00:00:00' - INTERVAL '2' DAY BETWEEN dp_valid_from AND dp_valid_to
+        ORDER BY id
+        `
+
+
+
 **Dimensional Table `dim_person`**
 
 

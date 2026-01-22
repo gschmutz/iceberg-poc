@@ -181,6 +181,7 @@ def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=
     if display_result:
         render_data(f"### Perform Test", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
+        render_data(f"\n\n`{sel_stmt}`\n", output_file_name=output_file_name)
 
         render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)

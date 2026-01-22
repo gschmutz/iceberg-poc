@@ -32,6 +32,15 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 Select all the active data. Because Bob has been deleted at 2026-01-05 00:00:00 it will no longer be shown when selecting only ACTIVE records as of today.
 
 
+`
+        SELECT * 
+        FROM iceberg_hive.default.dim_person
+        WHERE dp_is_active = TRUE
+        ORDER BY id
+        `
+
+
+
 **Dimensional Table `dim_person`**
 
 
