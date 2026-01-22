@@ -16,7 +16,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_sel.md"
+FILE_NAME="reports/scd2_test_sel_point_in_time.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
