@@ -285,7 +285,7 @@ def render_data(data: str, output_file_name=None):
         with open(output_file_name, "a") as f:
             f.write(data + "\n")
 
-def render_table(df, title:str = "", include_cols: list=[], exclude_cols: list=[], output_file_name=None):
+def render_table(df, title:str = "", decscription: str = "", include_cols: list=[], exclude_cols: list=[], output_file_name=None):
     # Build the column list, including only columns in include_cols
     if include_cols:
         selected_columns = [col for col in include_cols if col in df.columns]
@@ -298,7 +298,9 @@ def render_table(df, title:str = "", include_cols: list=[], exclude_cols: list=[
 
     table_output = ""
     if title:
-        table_output += f"{title}\n"
+        table_output += f"\n\n**{title}**\n\n"
+    if decscription:
+        table_output += f"{decscription}\n\n"
     table_output += "\n"
     table_output += tabulate(df, headers=df.columns, tablefmt="github", showindex=False)
     table_output += "\n"

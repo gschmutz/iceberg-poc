@@ -11,7 +11,7 @@ from util import get_param, get_credential, replace_vars_in_string, render_init,
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from scd2 import merge_into_dim_table, create_dim_table, optimize_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, run_scd2_merge_test, create_raw_table, init_trino_connection
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, init_trino_connection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

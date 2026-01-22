@@ -9,7 +9,7 @@ from util import get_param, get_credential, replace_vars_in_string, render_init,
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from scd2 import merge_into_dim_table, create_dim_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, run_scd2_merge_test, create_raw_table, init_trino_connection
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, init_trino_connection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def test_step_1():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 def test_step_2():
     logger.info("-------------------------------- Test Step 2 --------------------------------")
@@ -127,7 +127,7 @@ def test_step_2():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 def test_step_3():
     logger.info("-------------------------------- Test Step 3 --------------------------------")
@@ -178,7 +178,7 @@ def test_step_3():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
 def test_step_4():
@@ -230,5 +230,5 @@ def test_step_4():
     ]
 
     # run test
-    run_scd2_merge_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 

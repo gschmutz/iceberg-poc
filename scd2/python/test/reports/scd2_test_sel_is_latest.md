@@ -1,38 +1,43 @@
 # Testing for valid data at a given at a given timestamp
 
-This test validates multiple UPDATE operations on one entity over time producing many versions.
-## Test Step 2
-Insert 2 entities into raw table, perform initial SCD2 merge and then do an update.
-### Raw Table `raw_person`
+This test validates a single SELECT operation for data valid at a timestamp 2026-01-03 00:00:00
+### Perform Preparation
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
-|------|--------------|-------------|--------|-------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 
-### Input to Merge
+**Raw Table `raw_person`**
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|
-|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    |
-|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION |
 
-### Dimensional Table `dim_person`
+|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|------|--------------|-------------|--------|--------------------------|----------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-05 00:00:00 |
 
-| id                                   | first_name                               | last_name                                | city                                    | email                                                      | dp_valid_from                                          | dp_valid_to                                             | dp_is_active                              | dp_is_latest                              | dp_created_at                                          | dp_replaced_at                                          |
-|--------------------------------------|------------------------------------------|------------------------------------------|-----------------------------------------|------------------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|-------------------------------------------|-------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|
-| 1                                    | Alice                                    | Meyer                                    | Zurich                                  | alice.meyer@example.com                                    | 2026-01-01 00:00:00                                    | <span style='color: orange;'>2026-01-04 23:59:59</span> | <span style='color: orange;'>False</span> | <span style='color: orange;'>False</span> | 2026-01-02 00:00:00                                    | <span style='color: orange;'>2026-01-06 00:00:00</span> |
-| <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Bern</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-05 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span>  | <span style='color: green;'>True</span>   | <span style='color: green;'>True</span>   | <span style='color: green;'>2026-01-06 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span>  |
-| 2                                    | Bob                                      | Keller                                   | Bern                                    | bob.keller@example.com                                     | 2026-01-01 00:00:00                                    | 9999-12-31 23:59:59                                     | True                                      | True                                      | 2026-01-02 00:00:00                                    | 9999-12-31 23:59:59                                     |
+
+
+**Dimensional Table `dim_person`**
+
+
+|   id | first_name   | last_name   | city   | email                    | dp_valid_from       | dp_valid_to         | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
-### Dim Table `dim_person` Result
+### Perform Test
+Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.
 
-|   id | first_name   | last_name   | city   | email                   | dp_valid_from       | dp_valid_to         | dp_is_active   | dp_is_latest   | dp_load_timestamp   | dp_created_at       | dp_replaced_at      | change_type   | record_hash                                                      |
-|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|---------------------|---------------|------------------------------------------------------------------|
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 | SUPERSEDED_BY | 67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 | NEW           | 68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE |
+
+**Dimensional Table `dim_person`**
+
+
+|   id | first_name   | last_name   | city   | email                    | dp_valid_from       | dp_valid_to         | dp_is_active   | dp_is_latest   | dp_load_timestamp   | dp_created_at       | dp_replaced_at      | change_type   | record_hash                                                      |
+|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|---------------------|---------------|------------------------------------------------------------------|
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 | SUPERSEDED_BY | 67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 | DELETED       | 68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 | NEW           | 67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E |
 

@@ -314,7 +314,7 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
     if show_input_to_merge:
         # For debugging: select from the view
         df = get_table_data(conn, f"{trino_catalog}.{trino_schema}.{scd2_view_name}", order_by_cols=["merge_key"])
-        render_table(df, output_file_name=output_file_name, title="### Input to Merge")
+        render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
     if perform_merge_op:
         val_columns = [col.split()[0] for col in cols_with_type]

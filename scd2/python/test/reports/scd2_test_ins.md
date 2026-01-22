@@ -3,7 +3,10 @@
 This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
-### Raw Table `raw_person`
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
@@ -11,7 +14,10 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 
-### Input to Merge
+
+
+**Input to Merge**
+
 
 |   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
 |-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
@@ -19,7 +25,10 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 |           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
 |           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
 
-### Dimensional Table `dim_person`
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                 | city                                      | email                                                       | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |--------------------------------------|------------------------------------------|-------------------------------------------|-------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
@@ -31,7 +40,10 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 
 ## Test Step 2
 At 2026-01-05 00:00:00, insert a new entity with `id=10` into the new partition of the raw table and perform SCD2 merge.
-### Raw Table `raw_person`
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
@@ -43,13 +55,19 @@ At 2026-01-05 00:00:00, insert a new entity with `id=10` into the new partition 
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-05 00:00:00 |
 |   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 |
 
-### Input to Merge
+
+
+**Input to Merge**
+
 
 |   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
 |-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
 |          10 |   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | 2026-01-05 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
 
-### Dimensional Table `dim_person`
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                    | first_name                               | last_name                                 | city                                    | email                                                       | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |---------------------------------------|------------------------------------------|-------------------------------------------|-----------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
