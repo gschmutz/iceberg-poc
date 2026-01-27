@@ -45,8 +45,10 @@ TRINO_CATALOG = get_param('TRINO_CATALOG', 'iceberg_hive')
 TRINO_SCHEMA = get_param('TRINO_SCHEMA', 'default')
 TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
 
+HMS_MAJOR_VERSION = get_param('HMS_MAJOR_VERSION', '4')
 HMS_HOST = get_param('HMS_HOST', 'localhost')
 HMS_PORT = get_param('HMS_PORT', '9083')
+HMS_REST_PORT = get_param('HMS_REST_PORT', '9084')
 
 # Connect to MinIO or AWS S3
 S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
@@ -378,18 +380,32 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
         # create raw table
         run_raw_create_table(table_name)
 
-        # Prepare catalog properties with comprehensive S3 configuration
-        catalog_props = {
-            "name": "iceberg",
-            "type": "hive",
-            "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
-            "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/",
-            "s3.endpoint": S3_ENDPOINT_URL,
-            "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
-            "s3.multipart.threshold": "134217728",  # 128 MB
-            "s3.multipart.size": "67108864",  # 64 MB
-        }
-    else:
+        if  HMS_MAJOR_VERSION == '3':
+            # Prepare catalog properties with comprehensive S3 configuration
+            catalog_props = {
+                "name": "iceberg",
+                "type": "hive",
+                "uri": f"thrift://{HMS_HOST}:{HMS_PORT}",
+                "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/",
+                "s3.endpoint": S3_ENDPOINT_URL,
+                "s3.path-style-access": S3_PATH_STYLE_ACCESS,  # Required for MinIO
+                "s3.multipart.threshold": "134217728",  # 128 MB
+                "s3.multipart.size": "67108864",  # 64 MB
+            }
+
+        if HMS_MAJOR_VERSION == '4':
+            # use HMS REST catalog, if HMS version is 4.x
+            catalog_props = {
+                "name": "iceberg",
+                "type": "rest",
+                "uri": f"http://{HMS_HOST}:{HMS_REST_PORT}/iceberg",
+                "warehouse": f"s3://{S3_WAREHOUSE_BUCKET}/warehouse",
+                "s3.endpoint": S3_ENDPOINT_URL,
+                "s3.path-style-access": S3_PATH_STYLE_ACCESS,
+                "s3.multipart.threshold": "134217728",  # 128 MB
+                "s3.multipart.size": "67108864",  # 64 MB
+            }
+    else: 
         catalog_props = {
             "name": "iceberg",
             "type": "in-memory",
@@ -399,7 +415,7 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
             "s3.multipart.threshold": "134217728",  # 128 MB
             "s3.multipart.size": "67108864",  # 64 MB
         }
-    
+
     # Add AWS credentials if available
     if AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY:
         catalog_props["s3.access-key-id"] = AWS_ACCESS_KEY
