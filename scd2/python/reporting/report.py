@@ -138,7 +138,7 @@ def report_merge_op():
         arr = np.array(all_vals)
 
         if arr.size == 0:
-            print("Skipping percentile computation: no values left after filtering")
+            logging.info("Skipping percentile computation: no values left after filtering")
             continue   # or return / set NaNs, depending on your logic
 
         Q1 = np.percentile(arr, 25)
@@ -149,18 +149,21 @@ def report_merge_op():
         upper = Q3 + 1.5 * IQR
         filtered = arr[(arr >= lower) & (arr <= upper)]
 
+        print (filtered)
+        logging.info("Filtered values for %s: %s", ts, filtered)
+
         #zs = zscore(arr)
         #filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
 
         if (ts == "es_ts_2_m"):
-            print("Filtered shape:", filtered.shape)
-            print("Filtered values:", filtered)
-            print("Original values:", arr)
+            logging.info("Filtered shape: %s", filtered.shape)
+            logging.info("Filtered values: %s", filtered)
+            logging.info("Original values: %s", arr)
 
             # Outliers = those not in filtered
             outliers = arr[(arr < lower) | (arr > upper)]
-            print("Outliers removed:")
-            print(outliers)
+            logging.info("Outliers removed:")
+            logging.info(outliers)
 
         merge_stats[ts] = {
             "count": len(filtered),
