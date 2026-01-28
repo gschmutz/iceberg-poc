@@ -127,7 +127,7 @@ def report_merge_op():
 
     # ———————————————————————————
     # --- MERGE SUMMARY ---
-    ts_keys = [f"es_ts_{i}_l" for i in range(1,16)]
+    ts_keys = [f"es_ts_{i}_l" for i in range(1,19)]
 
     merge_stats = {}
     for ts in ts_keys:
