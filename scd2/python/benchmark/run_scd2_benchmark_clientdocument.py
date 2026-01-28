@@ -304,7 +304,8 @@ def run_select_over_time(tshirt: str, run_id: str, case_id: int, restrict_active
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}", statement_name="select clientdocuments over time", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}", statement_name="select clientdocuments over time", result=result) 
 
 def run_select_over_time_and_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -318,7 +319,8 @@ def run_select_over_time_and_active(tshirt: str, run_id: str, case_id: int, rest
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}", statement_name="select active clientdocuments over time", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}", statement_name="select active clientdocuments over time", result=result) 
 
 def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -331,7 +333,8 @@ def run_select_count_active(tshirt: str, run_id: str, case_id: int, restrict_act
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}", statement_name="count all active clientdocuments", result=result) 
 
 def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -344,9 +347,10 @@ def run_select_count_latest(tshirt: str, run_id: str, case_id: int, restrict_act
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}", statement_name="count all latest clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}", statement_name="count all latest clientdocuments", result=result) 
 
-def run_select_count_by_grouping(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
+def run_select_count_by_grouping_active(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
 
     query = f"""
@@ -357,7 +361,8 @@ def run_select_count_by_grouping(tshirt: str, run_id: str, case_id: int, restric
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by grouping for all active clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_ACTIVE_{case_id}_{tshirt}", statement_name="count by grouping for all active clientdocuments", result=result) 
 
 def run_select_count_by_grouping_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -371,7 +376,8 @@ def run_select_count_by_grouping_latest(tshirt: str, run_id: str, case_id: int, 
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by grouping for all latest clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by grouping for all latest clientdocuments", result=result) 
 
 def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()
@@ -386,7 +392,8 @@ def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, 
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_NOF_CLIENTDOCUMENTS_IN_GROUPING_ON_DAY_{case_id}_{tshirt}", statement_name="count all clientdocuments in grouping which where active on 5 jan", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}"
+                             , statement_key=f"SCD2_SELECT_NOF_CLIENTDOCUMENTS_IN_GROUPING_ON_DAY_{case_id}_{tshirt}", statement_name="count all clientdocuments in grouping which where active on 5 jan", result=result) 
 
 def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days: int, run_select_only: bool = False, drop_benchmark_table_first: bool = False):
 
@@ -434,7 +441,7 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, number_of_days
                 run_select_over_time_and_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
-                run_select_count_by_grouping(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
+                run_select_count_by_grouping_active(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_count_by_grouping_latest(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
                 run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt=tshirt, run_id=run_id, case_id=test_case['case_id'], restrict_active_expression=test_case.get('restrict_active_expression'))
 
