@@ -179,7 +179,7 @@ def report_merge_op():
     merge_df = pd.DataFrame(merge_stats).round(3)
 
     print("\n==== Merge Summary Table ====")
-    print(merge_df)
+    print(merge_df.to_string(index=True, max_colwidth=20))
 
     local_file = f"merge_summary.csv"
 
@@ -245,9 +245,6 @@ def report_query_op():
     # --- OUTPUT ---
 
     for base, stats in query_stats.items():
-        pd.set_option('display.max_columns', None)  # Show all columns
-        pd.set_option('display.width', None)  # Auto-detect width
-
         df = pd.DataFrame(stats).round(3)
         print(f"\n==== Query Summary: {base} ====")
         print(df)
