@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import boto3
 import statistics
 import logging
 import ast
@@ -241,6 +242,8 @@ def report_query_op():
     for base, stats in query_stats.items():
         df = pd.DataFrame(stats).round(3)
         print(f"\n==== Query Summary: {base} ====")
+        pd.set_option('display.max_columns', None)  # Show all columns
+        pd.set_option('display.width', None)  # Auto-detect width
         print(df)
 
     # save CSVs
