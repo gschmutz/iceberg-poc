@@ -485,4 +485,5 @@ def prepare_raw_data(use_hms: bool, generate_data: bool = True, initial_rows: in
         # Print progress
         print(f"{export_at} | rows={len(df)} | next_person_id={next_person_id}")
 
-prepare_raw_data(use_hms=True, generate_data=False, initial_rows=0)    
+if __name__ == "__main__":
+    prepare_raw_data(use_hms=True, generate_data=False, initial_rows=0)    
