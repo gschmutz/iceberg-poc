@@ -402,6 +402,11 @@ def run_test_cases(number_of_runs: int, run_for_test_cases: list, run_select_onl
     # Load and execute all test cases
     with open(local_file, 'r') as f:
         test_data = json.load(f)
+        
+        # Replace {pk_col} with "clientdocumentid" throughout the test_data
+        test_data_str = json.dumps(test_data)
+        test_data_str = test_data_str.replace("{pk_col}", "person_id")
+        test_data = json.loads(test_data_str)
 
     for _ in range(number_of_runs):
         run_id: str = str(uuid.uuid4())
@@ -438,6 +443,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == "run_test_cases":
-        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=True, drop_benchmark_table_first=args.drop_benchmark_table_first)
+        run_test_cases(args.number_of_runs, args.run_for_test_cases, run_select_only=False, drop_benchmark_table_first=args.drop_benchmark_table_first)
     else:
         logger.error(f"Unknown command: {args.command}")

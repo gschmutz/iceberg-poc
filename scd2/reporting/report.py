@@ -3,18 +3,62 @@ import statistics
 import ast
 import pandas as pd
 import numpy as np
+from trino.dbapi import connect
 from scipy.stats import zscore
 
-merge_records = json.load(open("benchmark_merge_l_cust.json"))["select * from benchmark_scd2_merge_report_v"]
-query_records = json.load(open("benchmark_select_l_cust.json"))["select * from benchmark_scd2_query_report_v"]
+# -------------------------------------------------
+# Trino connection (adjust!)
+conn = connect(
+    host="dataplatform",
+    port=28082,
+    user="trino",
+    catalog="iceberg_hive",
+    schema="default",
+)
+
+def fetch_trino_rows(sql):
+    """
+    Execute SQL and return list of dicts:
+    [{col: value, ...}, ...]
+    """
+    cur = conn.cursor()
+    cur.execute(sql)
+
+    cols = [c[0] for c in cur.description]
+    rows = []
+    for row in cur.fetchall():
+        rows.append(dict(zip(cols, row)))
+    return rows
+
+merge_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_merge_report_v")
+query_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_query_report_v")
+
+print (merge_records)
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 200)
 
 # ———————————————————————————
 # Functions to parse string lists into floats
-def parse_list(s):
-    return [float(x) for x in ast.literal_eval(s)]
+def parse_list(v):
+    """
+    Handles:
+    - list[str] coming directly from Trino
+    - list[float]
+    - string representations like "{'10.94','18.42'}" (legacy JSON case)
+    """
+    if v is None:
+        return []
+
+    # Already a Python list (Trino ARRAY)
+    if isinstance(v, list):
+        return [float(x) for x in v if x is not None]
+
+    # Legacy JSON string case
+    if isinstance(v, str):
+        return [float(x) for x in ast.literal_eval(v)]
+
+    raise TypeError(f"Unexpected value type: {type(v)}")
 
 # ———————————————————————————
 # --- MERGE SUMMARY ---
@@ -28,6 +72,10 @@ for ts in ts_keys:
             all_vals.extend(parse_list(day[ts]))
     arr = np.array(all_vals)
 
+    if arr.size == 0:
+        print("Skipping percentile computation: no values left after filtering")
+        continue   # or return / set NaNs, depending on your logic
+
     Q1 = np.percentile(arr, 25)
     Q3 = np.percentile(arr, 75)
     IQR = Q3 - Q1
@@ -39,7 +87,7 @@ for ts in ts_keys:
     #zs = zscore(arr)
     #filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
 
-    if (ts == "es_ts_2_l"):
+    if (ts == "es_ts_2_m"):
         print("Filtered shape:", filtered.shape)
         print("Filtered values:", filtered)
         print("Original values:", arr)
@@ -63,47 +111,65 @@ merge_df = pd.DataFrame(merge_stats).round(3)
 print("\n==== Merge Summary Table ====")
 print(merge_df)
 
-# ———————————————————————————
-# --- QUERY SUMMARY ---
-# collect stats for each base strategy + ts combination
+# save CSVs
+pd.DataFrame(merge_stats).round(3).to_csv(f"merge_summary.csv")
+
 query_stats = {}
 
 for rec in query_records:
-    base = rec["base_strategy"]
-    for i in range(1, 16):
-        key = f"ts_{i}"
-        value_key = f"es_ts_{i}"
-        if value_key in rec:
-            vals = parse_list(rec[value_key])
-            arr = np.array(vals)
-            
-            Q1 = np.percentile(arr, 25)
-            Q3 = np.percentile(arr, 75)
-            IQR = Q3 - Q1
+    base = rec["base_statement_key"]
 
-            lower = Q1 - 1.5 * IQR
-            upper = Q3 + 1.5 * IQR
-            filtered = arr[(arr >= lower) & (arr <= upper)]
+    for i in range(1, 19):   # es_ts_1 … es_ts_18
+        ts_key = f"ts_{i}"
+        col = f"es_ts_{i}"
 
-            stats = {
-                "count": len(filtered),
-                "avg": np.mean(filtered),
-                "median": np.median(filtered),
-                "min": np.min(filtered),
-                "max": np.max(filtered),
-                "std": np.std(filtered)
-            }
-            query_stats.setdefault(base, {})[key] = stats
+        vals = rec.get(col)
 
-# create a separate table per base strategy
+        # skip NULL or empty arrays
+        if not vals:
+            continue
+
+        # convert ARRAY<VARCHAR> → numpy float array
+        arr = np.array(vals, dtype=float)
+
+        # safety guard (prevents your IndexError)
+        if arr.size < 2:
+            continue
+
+        # --- IQR outlier filtering ---
+        Q1 = np.percentile(arr, 25)
+        Q3 = np.percentile(arr, 75)
+        IQR = Q3 - Q1
+
+        lower = Q1 - 1.5 * IQR
+        upper = Q3 + 1.5 * IQR
+        filtered = arr[(arr >= lower) & (arr <= upper)]
+
+        # if everything got filtered out, fall back to original
+        if filtered.size == 0:
+            filtered = arr
+
+        stats = {
+            "count": int(filtered.size),
+            "avg": float(np.mean(filtered)),
+            "median": float(np.median(filtered)),
+            "min": float(np.min(filtered)),
+            "max": float(np.max(filtered)),
+            "std": float(np.std(filtered)),
+        }
+
+        query_stats.setdefault(base, {})[ts_key] = stats
+
+# ———————————————————————————
+# --- OUTPUT ---
+
 for base, stats in query_stats.items():
     df = pd.DataFrame(stats).round(3)
     print(f"\n==== Query Summary: {base} ====")
     print(df)
 
-# Save to CSV optionally
-merge_df.to_csv("merge_summary.csv")
+# save CSVs
 for base, stats in query_stats.items():
-    pd.DataFrame(stats).to_csv(f"query_summary_{base}.csv")
+    pd.DataFrame(stats).round(3).to_csv(f"query_summary_{base}.csv")
 
 print("\nSummary tables exported as CSV.")
