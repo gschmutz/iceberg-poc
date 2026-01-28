@@ -1,20 +1,53 @@
+import sys
+import os
 import json
 import statistics
 import ast
 import pandas as pd
 import numpy as np
-from trino.dbapi import connect
+import trino
+from trino.auth import BasicAuthentication
 from scipy.stats import zscore
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
+from util import get_param, get_credential
+
+TRINO_USER = get_credential('TRINO_USER', 'trino')
+TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
+TRINO_HOST = get_param('TRINO_HOST', 'localhost')
+TRINO_PORT = get_param('TRINO_PORT', '28082')
+TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
+TRINO_SCHEMA = get_param('TRINO_SCHEMA', 'default')
+TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
+
 
 # -------------------------------------------------
 # Trino connection (adjust!)
-conn = connect(
-    host="dataplatform",
-    port=28082,
-    user="trino",
-    catalog="iceberg_hive",
-    schema="default",
-)
+def get_trino_connection():
+
+    if TRINO_USE_SSL:
+        http_scheme = "https"
+    else:
+        http_scheme = "http"
+
+    # Construct connection URLs
+    conn = trino.dbapi.connect(
+        host=f"{TRINO_HOST}",
+        port=int(TRINO_PORT),
+        user=f"{TRINO_USER}",
+        catalog=f"{TRINO_CATALOG}",
+        schema=f"{TRINO_SCHEMA}",
+        http_scheme=http_scheme,
+        auth=BasicAuthentication(
+            TRINO_USER,
+            TRINO_PASSWORD
+        ) if TRINO_PASSWORD else None,
+        verify=False  # Disable SSL verification for self-signed certificates,
+    )
+
+    return conn
+
+conn = get_trino_connection()
 
 def fetch_trino_rows(sql):
     """
