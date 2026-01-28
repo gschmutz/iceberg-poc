@@ -357,7 +357,7 @@ def run_select_count_by_grouping(tshirt: str, run_id: str, case_id: int, restric
     """
     result = execute_with_metrics(conn.cursor(), query)
 
-    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_{case_id}_{tshirt}", statement_name="count by grouping for all active clientdocuments", result=result) 
+    insert_benchmark_metrics(cursor=conn.cursor(), run_id=run_id, case_id=f"{case_id}", day_number=0, tshirt_size=tshirt, dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}", statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}", statement_name="count by grouping for all active clientdocuments", result=result) 
 
 def run_select_count_by_grouping_latest(tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""):
     conn = get_trino_connection()

@@ -11,3 +11,4 @@ s3fs
 numpy
 tabulate
 pytest
+scipy
