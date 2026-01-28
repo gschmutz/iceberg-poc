@@ -20,7 +20,6 @@ TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
 TRINO_SCHEMA = get_param('TRINO_SCHEMA', 'default')
 TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
 
-
 # -------------------------------------------------
 # Trino connection (adjust!)
 def get_trino_connection():
@@ -63,14 +62,6 @@ def fetch_trino_rows(sql):
         rows.append(dict(zip(cols, row)))
     return rows
 
-merge_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_merge_report_v")
-query_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_query_report_v")
-
-print (merge_records)
-
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 200)
-
 # ———————————————————————————
 # Functions to parse string lists into floats
 def parse_list(v):
@@ -93,83 +84,31 @@ def parse_list(v):
 
     raise TypeError(f"Unexpected value type: {type(v)}")
 
-# ———————————————————————————
-# --- MERGE SUMMARY ---
-ts_keys = [f"es_ts_{i}_l" for i in range(1,16)]
+def report_merge_op():
+    merge_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_merge_report_v")
 
-merge_stats = {}
-for ts in ts_keys:
-    all_vals = []
-    for day in merge_records:
-        if ts in day:
-            all_vals.extend(parse_list(day[ts]))
-    arr = np.array(all_vals)
+    print (merge_records)
 
-    if arr.size == 0:
-        print("Skipping percentile computation: no values left after filtering")
-        continue   # or return / set NaNs, depending on your logic
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 200)
 
-    Q1 = np.percentile(arr, 25)
-    Q3 = np.percentile(arr, 75)
-    IQR = Q3 - Q1
 
-    lower = Q1 - 1.5 * IQR
-    upper = Q3 + 1.5 * IQR
-    filtered = arr[(arr >= lower) & (arr <= upper)]
+    # ———————————————————————————
+    # --- MERGE SUMMARY ---
+    ts_keys = [f"es_ts_{i}_l" for i in range(1,16)]
 
-    #zs = zscore(arr)
-    #filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
+    merge_stats = {}
+    for ts in ts_keys:
+        all_vals = []
+        for day in merge_records:
+            if ts in day:
+                all_vals.extend(parse_list(day[ts]))
+        arr = np.array(all_vals)
 
-    if (ts == "es_ts_2_m"):
-        print("Filtered shape:", filtered.shape)
-        print("Filtered values:", filtered)
-        print("Original values:", arr)
+        if arr.size == 0:
+            print("Skipping percentile computation: no values left after filtering")
+            continue   # or return / set NaNs, depending on your logic
 
-        # Outliers = those not in filtered
-        outliers = arr[(arr < lower) | (arr > upper)]
-        print("Outliers removed:")
-        print(outliers)
-
-    merge_stats[ts] = {
-        "count": len(filtered),
-        "avg": np.mean(filtered),
-        "median": np.median(filtered),
-        "min": np.min(filtered),
-        "max": np.max(filtered),
-        "std": np.std(filtered),
-    }
-
-merge_df = pd.DataFrame(merge_stats).round(3)
-
-print("\n==== Merge Summary Table ====")
-print(merge_df)
-
-# save CSVs
-pd.DataFrame(merge_stats).round(3).to_csv(f"merge_summary.csv")
-
-query_stats = {}
-
-for rec in query_records:
-    base = rec["base_statement_key"]
-
-    for i in range(1, 19):   # es_ts_1 … es_ts_18
-        ts_key = f"ts_{i}"
-        col = f"es_ts_{i}"
-
-        vals = rec.get(col)
-
-        # skip NULL or empty arrays
-        if not vals:
-            continue
-
-        # convert ARRAY<VARCHAR> → numpy float array
-        arr = np.array(vals, dtype=float)
-
-        # safety guard (prevents your IndexError)
-        if arr.size < 2:
-            continue
-
-        # --- IQR outlier filtering ---
         Q1 = np.percentile(arr, 25)
         Q3 = np.percentile(arr, 75)
         IQR = Q3 - Q1
@@ -178,31 +117,104 @@ for rec in query_records:
         upper = Q3 + 1.5 * IQR
         filtered = arr[(arr >= lower) & (arr <= upper)]
 
-        # if everything got filtered out, fall back to original
-        if filtered.size == 0:
-            filtered = arr
+        #zs = zscore(arr)
+        #filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
 
-        stats = {
-            "count": int(filtered.size),
-            "avg": float(np.mean(filtered)),
-            "median": float(np.median(filtered)),
-            "min": float(np.min(filtered)),
-            "max": float(np.max(filtered)),
-            "std": float(np.std(filtered)),
+        if (ts == "es_ts_2_m"):
+            print("Filtered shape:", filtered.shape)
+            print("Filtered values:", filtered)
+            print("Original values:", arr)
+
+            # Outliers = those not in filtered
+            outliers = arr[(arr < lower) | (arr > upper)]
+            print("Outliers removed:")
+            print(outliers)
+
+        merge_stats[ts] = {
+            "count": len(filtered),
+            "avg": np.mean(filtered),
+            "median": np.median(filtered),
+            "min": np.min(filtered),
+            "max": np.max(filtered),
+            "std": np.std(filtered),
         }
 
-        query_stats.setdefault(base, {})[ts_key] = stats
+    merge_df = pd.DataFrame(merge_stats).round(3)
 
-# ———————————————————————————
-# --- OUTPUT ---
+    print("\n==== Merge Summary Table ====")
+    print(merge_df)
 
-for base, stats in query_stats.items():
-    df = pd.DataFrame(stats).round(3)
-    print(f"\n==== Query Summary: {base} ====")
-    print(df)
+    # save CSVs
+    pd.DataFrame(merge_stats).round(3).to_csv(f"merge_summary.csv")
 
-# save CSVs
-for base, stats in query_stats.items():
-    pd.DataFrame(stats).round(3).to_csv(f"query_summary_{base}.csv")
 
-print("\nSummary tables exported as CSV.")
+def report_query_op():
+    query_records = fetch_trino_rows("SELECT * FROM benchmark_scd2_query_report_v")
+
+    query_stats = {}
+
+    for rec in query_records:
+        base = rec["base_statement_key"]
+
+        for i in range(1, 19):   # es_ts_1 … es_ts_18
+            ts_key = f"ts_{i}"
+            col = f"es_ts_{i}"
+
+            vals = rec.get(col)
+
+            # skip NULL or empty arrays
+            if not vals:
+                continue
+
+            # convert ARRAY<VARCHAR> → numpy float array
+            arr = np.array(vals, dtype=float)
+
+            # safety guard (prevents your IndexError)
+            if arr.size < 2:
+                continue
+
+            # --- IQR outlier filtering ---
+            Q1 = np.percentile(arr, 25)
+            Q3 = np.percentile(arr, 75)
+            IQR = Q3 - Q1
+
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+            filtered = arr[(arr >= lower) & (arr <= upper)]
+
+            # if everything got filtered out, fall back to original
+            if filtered.size == 0:
+                filtered = arr
+
+            stats = {
+                "count": int(filtered.size),
+                "avg": float(np.mean(filtered)),
+                "median": float(np.median(filtered)),
+                "min": float(np.min(filtered)),
+                "max": float(np.max(filtered)),
+                "std": float(np.std(filtered)),
+            }
+
+            query_stats.setdefault(base, {})[ts_key] = stats
+
+    # ———————————————————————————
+    # --- OUTPUT ---
+
+    for base, stats in query_stats.items():
+        df = pd.DataFrame(stats).round(3)
+        print(f"\n==== Query Summary: {base} ====")
+        print(df)
+
+    # save CSVs
+    for base, stats in query_stats.items():
+        pd.DataFrame(stats).round(3).to_csv(f"query_summary_{base}.csv")
+
+def report_all():
+    report_merge_op()
+    report_query_op()
+
+    print("\nSummary tables exported as CSV.")
+
+    
+if __name__ == "__main__":
+    report_all()
