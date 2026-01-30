@@ -80,6 +80,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification
+            , tgt.dp_valid_from     AS tgt_dp_valid_from
+            , tgt.dp_valid_to       AS tgt_dp_valid_to
         FROM (
             SELECT *,
                 to_hex(
@@ -105,9 +107,11 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                     )
                 ) AS row_hash,
                 dp_load_timestamp,
+                dp_valid_to,
                 dp_valid_from
             FROM {trino_catalog}.{trino_schema}.{dim_table_name}
-            WHERE (dp_is_active = TRUE AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR dp_is_latest = true
+            --WHERE (dp_is_active = TRUE AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR dp_is_latest = true
+            WHERE TIMESTAMP '{load_ts_str}' BETWEEN dp_valid_from AND dp_valid_to
         ) tgt
         ON src.{pk_col} = tgt.{pk_col}
     ),
@@ -125,7 +129,9 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             load_ts,
             status,
             change_classification,
-            'UPDATE_EXISTING' AS operation_type
+            'UPDATE_EXISTING' AS operation_type,
+            tgt_dp_valid_from,
+            tgt_dp_valid_to
         FROM records_to_process
 
         UNION ALL
@@ -138,7 +144,9 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             load_ts,
             status,
             change_classification,
-            'INSERT_NEW_VERSION' AS operation_type
+            'INSERT_NEW_VERSION' AS operation_type,
+            tgt_dp_valid_from,
+            tgt_dp_valid_to
         FROM records_to_process
         WHERE change_classification = 'CHANGED'
     )
@@ -329,7 +337,7 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
             val_columns=val_columns
         )
 
-        logger.debug (f"{merge_stmt}")
+        logger.info (f"{merge_stmt}")
         result = execute_with_metrics(conn.cursor(), merge_stmt)
         logger.info("Merge result:", result)
         # retrieve iceberg metadata after merge
