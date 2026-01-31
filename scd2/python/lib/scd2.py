@@ -80,8 +80,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification
-            , tgt.dp_valid_from     AS tgt_dp_valid_from
-            , tgt.dp_valid_to       AS tgt_dp_valid_to
+            , COALESCE(tgt.dp_valid_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_valid_from
+            , COALESCE(tgt.dp_valid_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_valid_to
         FROM (
             SELECT *,
                 to_hex(
