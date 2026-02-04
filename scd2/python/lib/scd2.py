@@ -80,8 +80,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification
-            , COALESCE(tgt.dp_valid_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_valid_from
-            , COALESCE(tgt.dp_valid_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_valid_to
+            , COALESCE(tgt.dp_valid_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_valid_from         -- not sure if we need valid_from downstream
+            , COALESCE(tgt.dp_valid_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_valid_to           -- set the valid_to to max if null (not found in dim table)
         FROM (
             SELECT *,
                 to_hex(
@@ -182,8 +182,8 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     MERGE INTO {trino_catalog}.{trino_schema}.{dim_table_name} AS target
     USING {trino_catalog}.{trino_schema}.{scd2_view_name} AS source
     ON target.{pk_col} = source.merge_key
-    AND ((target.dp_is_active = TRUE AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
-
+    --AND ((target.dp_is_active = TRUE AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
+    AND  (TIMESTAMP '{load_ts_str}' BETWEEN dp_valid_from AND dp_valid_to)
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
         --AND source.load_ts > target.dp_load_timestamp
@@ -223,9 +223,9 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         source.{pk_col},
         {source_val_columns_str},
         source.load_ts,
-        TIMESTAMP '9999-12-31 23:59:59',
-        TRUE,
-        TRUE,
+        source.tgt_dp_valid_to,
+        CASE WHEN source.tgt_dp_valid_to = TIMESTAMP '9999-12-31 23:59:59' THEN TRUE ELSE FALSE END,    -- set the is_active to true, if valid_to is max timestamp
+        CASE WHEN source.tgt_dp_valid_to = TIMESTAMP '9999-12-31 23:59:59' THEN TRUE ELSE FALSE END,    -- set the is_active to true, if valid_to is max timestamp
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
