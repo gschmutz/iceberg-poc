@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_ins.md"
+FILE_NAME="reports/scd2_test_upd_two_entities.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -24,23 +24,16 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 
 conn = init_trino_connection()
 
-#@pytest.fixture(autouse=True, scope="session")
-#def setup_data(request):
-#    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_valid_from"], sort_cols=[])
-#    yield
-#    logger.info("Finished all tests")
-
-
 def test_step_1():
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
     create_raw_table(conn)
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
-    render_init("Testing Insert Operation", FILE_NAME)
-    render_data("This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.", output_file_name=FILE_NAME)
+    
+    render_init("Testing Update Operation of 2 entities", FILE_NAME)
+    render_data("This test validates an UPDATE operation of two entities (with new versions) on a set of existing entities.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
+    test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -87,7 +80,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, insert the new entity with `id=10` into the new partition of the raw table and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update `city` of entity with `id=1` and `email` of entity with `id=3` in raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -95,10 +88,9 @@ def test_step_2():
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
                 (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
-                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
-                (10, 'Kevin', 'Loosli', 'Bern', 'kevin.loosli@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@newmail.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
             ) AS t (
             id,
             first_name,
@@ -112,9 +104,14 @@ def test_step_2():
 
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
-        load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
+        current_ts_1, current_ts_1, current_ts_2,
+        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+
+        (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
+        load_ts_2, MAX_TS, True, True,
+        current_ts_2, current_ts_2, MAX_TS,
+        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
@@ -122,14 +119,14 @@ def test_step_2():
         "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
-        load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
+        current_ts_1, current_ts_1, current_ts_2,
+        "SUPERSEDED", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
 
-        (10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@newmail.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "NEW", "42DF24864F6CC276F5E3BC5B6C453D83F1FA5E223D21EA0189DB3F55D4E979D7"),
+        "SUPERSEDED_BY", "B0A5C6A57EF49E849E24BE9F0DC86F9033CF64033CDB2A83F19D76321D1E12C9"),
     ]
 
     # run test

@@ -16,9 +16,11 @@ The last column points to the markdown which is being generated in the test and 
 
 | # | Python Script  |   Description | Link to Results as Markdown | Use Asserts |
 |---|------|------------|---------------------|-------|
-| 1 | test_iceberg_table_add_col.py | Add a column to an existing table and time travel to system time before. | [test_iceberg_table_add_col.md](./reports/test_iceberg_table_add_col.md) | no | 
+| 1 | test_iceberg_table_add_col.py | Add a column to an existing table and time travel to system time before. | [test_iceberg_table_add_col.md](./reports/test_iceberg_table_add_col.md) | yes | 
 | 2 | test_iceberg_table_rename.py | Rename an Iceberg table. | [tst_iceberg_table_rename.md](./reports/test_iceberg_table_rename.md) | no | 
-| 3 | test_iceberg_optimize.py | Optimize an iceberg table so that many small files are merged into larger ones. | [test_iceberg_optimize.md](./reports/test_iceberg_optimize.md) | no | 
+| 3 | test_iceberg_table_as_of.py | Test time travel in Iceberg table with the VERSION AS OF clause | [test_iceberg_table_as_of.md](./reports/test_iceberg_table_as_of.md) | yes | 
+| 4 | test_iceberg_optimize.py | Optimize an iceberg table so that many small files are merged into larger ones. | [test_iceberg_optimize.md](./reports/test_iceberg_optimize.md) | no | 
+
 
 ### SCD2
 

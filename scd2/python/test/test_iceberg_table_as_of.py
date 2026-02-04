@@ -16,11 +16,10 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/test_iceberg_table_add_col.md"
+FILE_NAME="reports/test_iceberg_table_as_of.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
-
 conn = init_trino_connection()
 
 def test_step_1():
@@ -28,8 +27,8 @@ def test_step_1():
 
     create_raw_table(conn)
 
-    render_init("Testing Add Column to existing Iceberg table", FILE_NAME)
-    render_data("This test validates an ALTER TABLE ADD COLUMN operation on an existing Iceberg table.", output_file_name=FILE_NAME)
+    render_init("Testing Timetravel", FILE_NAME)
+    render_data("This test validates an SELECT ... FOR VERSION AS OF operation on an existing Iceberg table.", output_file_name=FILE_NAME)
 
     render_data(f"## Test Step 1", output_file_name=FILE_NAME)
 
@@ -44,25 +43,13 @@ def test_step_1():
 
     conn.cursor().execute(insert_sql)
 
-    df_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
-    render_table(df_before, title=f"Table {RAW_TABLE_NAME} before ADD COLUMN", output_file_name=FILE_NAME)
-
-    rename_stmt = f"""
-                    ALTER TABLE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
-                    ADD COLUMN new_col VARCHAR AFTER email
-                    """
-    print(rename_stmt)
-    render_data(f"Executing ADD COLUMN", output_file_name=FILE_NAME)
-    conn.cursor().execute(rename_stmt)
-
+    # Prepare --- Update statement to add value to new_col ---
     update_sql = f"""
         UPDATE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
-        SET new_col = 'New Value'
+        SET email = 'alice.meyer@newcorp.com'
+        WHERE id = 1
     """
     conn.cursor().execute(update_sql)
-
-    # Run SELECT test
-    test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
 
     # Run SELECT test
     sel_stmt = f"""
@@ -72,10 +59,41 @@ def test_step_1():
         """
     
     expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com", "New Value", "ACTIVE", load_ts_1),
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "New Value", "ACTIVE", load_ts_1),
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "New Value", "ACTIVE", load_ts_1),
+        (1, "Alice", "Meyer", "Zurich", "alice.meyer@newcorp.com", "ACTIVE", load_ts_1),
+        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1),
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1),
     ]
 
+    # Run SELECT test
+    test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
+    scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+
+def test_step_2():
+    logger.info("-------------------------------- Test Step 2 --------------------------------")
+
+    sel_snapshot_id = f'''
+        SELECT snapshot_id 
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$snapshots" 
+        WHERE parent_id IS NOT NULL 
+        ORDER BY committed_at 
+        LIMIT 1
+        ''' 
+    snapshot_id = conn.cursor().execute(sel_snapshot_id).fetchone()[0]
+
+    # Run SELECT test
+    sel_stmt = f"""
+        SELECT * 
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        FOR VERSION AS OF {snapshot_id}
+        ORDER BY id
+        """
+    
+    expected = [
+        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com", "ACTIVE", load_ts_1),
+        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1),
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1),
+    ]
+
+    test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
     scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 

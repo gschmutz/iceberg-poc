@@ -1,4 +1,4 @@
-# Testing Update Operation
+# Testing Update Operation of 2 entities
 
 This test validates an UPDATE operation of two entities (with new versions) on a set of existing entities.
 ## Test Step 1

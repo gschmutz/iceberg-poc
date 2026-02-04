@@ -164,12 +164,12 @@ def test_step_3():
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, load_ts_3 - timedelta(seconds=1), False, False,
         current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@newmail.com",
         load_ts_3, MAX_TS, True, True,
         current_ts_3, current_ts_3, MAX_TS,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED_BY", "062C5F0E27D916E1E63C4ED339518C42D26BF8A32A5BA01F12B2524C03E1E2FB"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
@@ -178,7 +178,7 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
 
 def test_step_4():
@@ -216,12 +216,17 @@ def test_step_4():
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, load_ts_3 - timedelta(seconds=1), False, False,
         current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@newmail.com",
-        load_ts_3, MAX_TS, True, True,
-        current_ts_3, current_ts_3, MAX_TS,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        load_ts_3, load_ts_4 - timedelta(seconds=1), False, False,
+        current_ts_3, current_ts_3, current_ts_4,
+        "SUPERSEDED", "062C5F0E27D916E1E63C4ED339518C42D26BF8A32A5BA01F12B2524C03E1E2FB"),
+
+        (1, "Alice", "Müller-Meyer", "Bern", "alice.meyer@newmail.com",
+        load_ts_4, MAX_TS, True, True,
+        current_ts_4, current_ts_4, MAX_TS,
+        "SUPERSEDED_BY", "950A75C7A8739691A38825C641F92F9C43F04D4F02E99A7A6EDF8FE689381A53"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
@@ -230,5 +235,5 @@ def test_step_4():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

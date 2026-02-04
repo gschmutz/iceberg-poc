@@ -180,5 +180,5 @@ def test_step_3():
 
     # run test
     scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
-                        output_file_name=FILE_NAME, test_description=test_description)
+                        output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=False)
 

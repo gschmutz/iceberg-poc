@@ -172,6 +172,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
 
     arr1 = df.to_numpy()
     arr2 = expected_df.to_numpy()
+    #print (arr1)
     np.testing.assert_array_equal(arr1, arr2)
 
 def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, display_result: bool = True, show_input_to_merge: bool = True):

@@ -24,14 +24,6 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 
 conn = init_trino_connection()
 
-#@pytest.fixture(autouse=True, scope="session")
-#def setup_data(request):
-#    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_valid_from"], sort_cols=[])
-#    yield
-#    logger.info("Finished all tests")
-
-
 def test_step_1():
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
@@ -40,7 +32,7 @@ def test_step_1():
     render_init("Testing Physical Delete Operation", FILE_NAME)
     render_data("This test validates a DELETE operation of a single entity. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
+    test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -87,7 +79,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_valid_to` = current load timestamp - 1 second and `dp_is_active` = False."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
