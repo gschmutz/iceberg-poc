@@ -2,7 +2,10 @@
 
 This test validates an INSERT operation of one new record
 ## Test Step 1
-### Table raw_person
+
+
+**### Table raw_person**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
@@ -11,7 +14,10 @@ This test validates an INSERT operation of one new record
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 
 Executing RENAME of `raw_person` to `raw_person_renamed`
-### Table raw_person_renamed
+
+
+**### Table raw_person_renamed**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|

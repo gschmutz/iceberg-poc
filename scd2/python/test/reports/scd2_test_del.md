@@ -2,8 +2,11 @@
 
 This test validates a DELETE operation of a single entity. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.
 ## Test Step 1
-Insert 3 entities into raw table and perform initial SCD2 merge.
-### Raw Table `raw_person`
+At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge.
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
@@ -11,15 +14,21 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|
-|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
-|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                 | city                                      | email                                                       | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |--------------------------------------|------------------------------------------|-------------------------------------------|-------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
@@ -30,8 +39,11 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 2
-At 2026-01-05 00:00:00, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge.
-### Raw Table `raw_person`
+At 2026-01-05 00:00:00, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_valid_to` = current load timestamp - 1 second and `dp_is_active` = False.
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
@@ -41,13 +53,19 @@ At 2026-01-05 00:00:00, delete entity with `id=3` from raw table (physical delet
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   |
-|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|
-|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|---------------------|---------------------|
+|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 |   id | first_name   | last_name   | city   | email                    | dp_valid_from       | dp_valid_to                                             | dp_is_active                              | dp_is_latest   | dp_created_at       | dp_replaced_at                                          |
 |------|--------------|-------------|--------|--------------------------|---------------------|---------------------------------------------------------|-------------------------------------------|----------------|---------------------|---------------------------------------------------------|

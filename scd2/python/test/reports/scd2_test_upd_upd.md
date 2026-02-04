@@ -2,22 +2,31 @@
 
 This test validates multiple UPDATE operations on one entity over time producing many versions.
 ## Test Step 1
-Insert 3 entities into raw table and perform initial SCD2 merge.
-### Raw Table `raw_person`
+Insert 2 entities into raw table and perform initial SCD2 merge.
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type   |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|------------------|
-|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
-|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                 | city                                      | email                                                      | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |--------------------------------------|------------------------------------------|-------------------------------------------|-------------------------------------------|------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
@@ -28,7 +37,10 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 
 ## Test Step 2
 At 2026-01-05 00:00:00, update `city` of entity with `id=1` and perform SCD2 merge.
-### Raw Table `raw_person`
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
@@ -37,14 +49,20 @@ At 2026-01-05 00:00:00, update `city` of entity with `id=1` and perform SCD2 mer
 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | ACTIVE   | 2026-01-05 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|
-|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    |
-|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                | city                                    | email                                                      | dp_valid_from                                          | dp_valid_to                                             | dp_is_active                              | dp_is_latest                              | dp_created_at                                          | dp_replaced_at                                          |
 |--------------------------------------|------------------------------------------|------------------------------------------|-----------------------------------------|------------------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|-------------------------------------------|-------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|
@@ -56,7 +74,10 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 
 ## Test Step 3
 At 2026-01-10 00:00:00, update `email` of entity with `id=1` and perform SCD2 merge.
-### Raw Table `raw_person`
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
@@ -67,14 +88,20 @@ At 2026-01-10 00:00:00, update `email` of entity with `id=1` and perform SCD2 me
 |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | ACTIVE   | 2026-01-10 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-10 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|
-|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    |
-|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                | city                                    | email                                                      | dp_valid_from                                          | dp_valid_to                                             | dp_is_active                              | dp_is_latest                              | dp_created_at                                          | dp_replaced_at                                          |
 |--------------------------------------|------------------------------------------|------------------------------------------|-----------------------------------------|------------------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|-------------------------------------------|-------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|
@@ -87,7 +114,10 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 
 ## Test Step 4
 At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD2 merge.
-### Raw Table `raw_person`
+
+
+**Raw Table `raw_person`**
+
 
 |   id | first_name   | last_name    | city   | email                   | status   | dp_exported_at      |
 |------|--------------|--------------|--------|-------------------------|----------|---------------------|
@@ -100,14 +130,20 @@ At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD
 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | ACTIVE   | 2026-01-20 00:00:00 |
 |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-20 00:00:00 |
 
-### Input to Merge
 
-|   merge_key |   id | first_name   | last_name    | city   | email                   | load_ts             | status   | change_classification   | operation_type     |
-|-------------|------|--------------|--------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|
-|           1 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    |
-|         nan |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION |
 
-### Dimensional Table `dim_person`
+**Input to Merge**
+
+
+|   merge_key |   id | first_name   | last_name    | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|--------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
+
+
+
+**Dimensional Table `dim_person`**
+
 
 | id                                   | first_name                               | last_name                                       | city                                    | email                                                      | dp_valid_from                                          | dp_valid_to                                             | dp_is_active                              | dp_is_latest                              | dp_created_at                                          | dp_replaced_at                                          |
 |--------------------------------------|------------------------------------------|-------------------------------------------------|-----------------------------------------|------------------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|-------------------------------------------|-------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|
