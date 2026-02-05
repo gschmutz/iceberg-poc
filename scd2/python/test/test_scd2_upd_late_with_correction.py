@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_upd_upd.md"
+FILE_NAME="reports/scd2_test_upd_late_with_correction.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -25,8 +25,8 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-load_ts_4 = datetime.strptime('2026-01-20 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_4 = datetime.strptime('2026-01-21 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_4 = datetime.strptime('2026-01-15 00:00:00', '%Y-%m-%d %H:%M:%S')
+current_ts_4 = datetime.strptime('2026-01-16 00:00:00', '%Y-%m-%d %H:%M:%S')
 
 conn = init_trino_connection()
 
@@ -36,10 +36,10 @@ def test_step_1():
     create_raw_table(conn)
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
     
-    render_init("Testing Multiple Update Operations on same entity but different fields", FILE_NAME)
-    render_data("This test validates multiple UPDATE operations on one entity over time producing many versions.", output_file_name=FILE_NAME)
+    render_init("Testing Update Operation with correction in the past", FILE_NAME)
+    render_data("This test validates an UPDATE operation of one entity (with a new version) on a set of existing entities.", output_file_name=FILE_NAME)
 
-    test_description = "Insert 2 entities into raw table and perform initial SCD2 merge."
+    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -48,7 +48,8 @@ def test_step_1():
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}')
+                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}'),
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}')
         ) AS t (
             id,
             first_name,
@@ -70,6 +71,11 @@ def test_step_1():
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
         "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
+        load_ts_1, MAX_TS, True, True,
+        current_ts_1, current_ts_1, MAX_TS,
+        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
     ]
 
     # run test
@@ -80,7 +86,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, update `city` of entity with `id=1` and perform SCD2 merge."
+    test_description = f"At {load_ts_3}, update entity with `id=1` by setting city to bern and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -88,8 +94,9 @@ def test_step_2():
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
+                (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}'),
+                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}'),
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}')
             ) AS t (
             id,
             first_name,
@@ -103,39 +110,46 @@ def test_step_2():
 
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
-        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
+        load_ts_1, load_ts_3 - timedelta(seconds=1), False, False,
+        current_ts_1, current_ts_1, current_ts_3,
         "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
-        load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        load_ts_3, MAX_TS, True, True,
+        current_ts_3, current_ts_3, MAX_TS,
         "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE")
+        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
+        load_ts_1, MAX_TS, True, True,
+        current_ts_1, current_ts_1, MAX_TS,
+        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+
 
 def test_step_3():
     logger.info("-------------------------------- Test Step 3 --------------------------------")
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_3}, update `email` of entity with `id=1` and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update entity with `id=1` in raw table by setting city to basel and perform SCD2 merge."
 
-    # --- Insert statement (batch 3) ---
-    insert_sql_3 = f"""
+    # --- Insert statement (batch 2) ---
+    insert_sql = f"""
         INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@newmail.com', 'ACTIVE', TIMESTAMP '{load_ts_3}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}')
+                (1, 'Alice', 'Meyer', 'Basel', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
             ) AS t (
             id,
             first_name,
@@ -150,82 +164,30 @@ def test_step_3():
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
+        current_ts_1, current_ts_1, current_ts_4,
         "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
 
-        (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
+        (1, "Alice", "Meyer", "Basel", "alice.meyer@example.com",
         load_ts_2, load_ts_3 - timedelta(seconds=1), False, False,
-        current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        current_ts_4, current_ts_4, MAX_TS,
+        "SUPERSEDED_BY", "6089D4B331BA57E24DC4F9C90F68844864107FF9BF80432BE2E439D2D06A032F"),
 
-        (1, "Alice", "Meyer", "Bern", "alice.meyer@newmail.com",
+        (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_3, MAX_TS, True, True,
         current_ts_3, current_ts_3, MAX_TS,
-        "SUPERSEDED_BY", "062C5F0E27D916E1E63C4ED339518C42D26BF8A32A5BA01F12B2524C03E1E2FB"),
+        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE")
-    ]
+        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
 
-    # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
-
-
-def test_step_4():
-    logger.info("-------------------------------- Test Step 4 --------------------------------")
-
-    cursor = conn.cursor()
-
-    test_description = f"At {load_ts_4}, update `last_name` of entity with `id=1` and perform SCD2 merge."
-
-    # --- Insert statement (batch 4) ---
-    insert_sql_4 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
-        SELECT *
-        FROM (
-            VALUES
-                (1, 'Alice', 'Müller-Meyer', 'Bern', 'alice.meyer@newmail.com', 'ACTIVE', TIMESTAMP '{load_ts_4}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_4}')
-            ) AS t (
-            id,
-            first_name,
-            last_name,
-            city,
-            email,
-            status,
-            dp_exported_at
-        )
-    """
-
-    expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
-        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
-        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
-
-        (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
-        load_ts_2, load_ts_3 - timedelta(seconds=1), False, False,
-        current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
-
-        (1, "Alice", "Meyer", "Bern", "alice.meyer@newmail.com",
-        load_ts_3, load_ts_4 - timedelta(seconds=1), False, False,
-        current_ts_3, current_ts_3, current_ts_4,
-        "SUPERSEDED", "062C5F0E27D916E1E63C4ED339518C42D26BF8A32A5BA01F12B2524C03E1E2FB"),
-
-        (1, "Alice", "Müller-Meyer", "Bern", "alice.meyer@newmail.com",
-        load_ts_4, MAX_TS, True, True,
-        current_ts_4, current_ts_4, MAX_TS,
-        "SUPERSEDED_BY", "950A75C7A8739691A38825C641F92F9C43F04D4F02E99A7A6EDF8FE689381A53"),
-
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE")
+        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

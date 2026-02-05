@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_upd_backcorrect.md"
+FILE_NAME="reports/scd2_test_upd_late_no_correction.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -86,7 +86,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_3}, update entity with `id=1` by setting city to bern and perform SCD2 merge."
+    test_description = f"At {load_ts_3}, update entity with `id=1` by setting `city` to bern and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -139,15 +139,15 @@ def test_step_3():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, update entity with `id=1` in raw table by setting city to basel and perform SCD2 merge."
-
+    test_description = f"At {load_ts_2}, update entity with `id=1` in raw table by setting `city` to Bern and perform SCD2 merge."
+    
     # --- Insert statement (batch 2) ---
     insert_sql = f"""
         INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Basel', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
+                (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
                 (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}'),
                 (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}')
             ) AS t (
@@ -189,5 +189,5 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=False)
 
