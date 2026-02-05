@@ -98,7 +98,7 @@ def create_raw_table(conn):
     cursor.execute(create_table_sql)
     logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
 
-def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: list, perform_merge_op: bool = True, display_result: bool = True, output_file_name:str=None):
+def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
@@ -119,6 +119,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: 
             pk_col="id",
             cols_with_type=COLS_WITH_TYPE,
             current_ts=current_ts[idx],
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
             show_input_to_merge=False
         )
@@ -131,7 +132,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: 
     df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
     render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
 
-def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, display_result: bool = True, show_input_to_merge: bool = True):
+def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
@@ -157,6 +158,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
         pk_col="id",
         cols_with_type=COLS_WITH_TYPE,
         current_ts=current_ts,
+        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         perform_merge_op=perform_merge_op,
         show_input_to_merge=show_input_to_merge,
         output_file_name=output_file_name

@@ -58,7 +58,7 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     return ddl
 
 
-def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list, load_ts: datetime, load_ts_col: str):
+def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, pk_col: str, val_columns: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
     val_columns_str = format_values(val_columns)
     prefixed_val_columns_str = format_values(add_prefix(val_columns, "src"))
     cast_val_columns_str = format_values(cast_to_varchar(val_columns))
@@ -66,7 +66,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 
     stmt = f"""
     WITH changed_records AS (
-        SELECT 
+        SELECT
             CASE 
                 WHEN src.{pk_col} IS NULL THEN tgt.{pk_col} 
                 ELSE src.{pk_col}
@@ -76,7 +76,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             src.status,
             CASE 
                 WHEN tgt.{pk_col} IS NULL THEN 'NEW'
-                WHEN src.{pk_col} IS NULL OR src.status = 'INACTIVE' THEN 'DELETED'
+                WHEN (src.{pk_col} IS NULL AND NOT {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification
@@ -153,11 +153,11 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
     """
     return stmt
 
-def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str):
+def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
 
     val_columns = [col.split()[0] for col in cols_with_type]
 
-    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, load_ts_col=load_ts_col, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_col=pk_col, val_columns=val_columns)
+    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, load_ts_col=load_ts_col, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_col=pk_col, val_columns=val_columns, use_delta_mode_for_raw_table=use_delta_mode_for_raw_table)
     
     stmt = f"""
     CREATE OR REPLACE VIEW {trino_catalog}.{trino_schema}.{scd2_view_name} AS
@@ -301,7 +301,9 @@ def run_analyze_table(conn, table_name: str):
 
     logger.info(f"Analyze table for {table_name} executed successfully.")
 
-def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, perform_merge_op: bool = True, show_input_to_merge: bool = False, output_file_name: str = None):
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, 
+                         cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, use_delta_mode_for_raw_table: bool = False, 
+                         perform_merge_op: bool = True, show_input_to_merge: bool = False, output_file_name: str = None):
 
     view_stmt = format_view(
         trino_catalog=trino_catalog,
@@ -312,7 +314,8 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         pk_col=pk_col,
         cols_with_type=cols_with_type,
         load_ts=load_ts,
-        load_ts_col=load_ts_col
+        load_ts_col=load_ts_col,
+        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table
     )
     
     logger.info (f"{view_stmt}")
