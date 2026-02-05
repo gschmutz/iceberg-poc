@@ -22,7 +22,7 @@ The last column points to the markdown which is being generated in the test and 
 | 4 | test_iceberg_optimize.py | Optimize an iceberg table so that many small files are merged into larger ones. | [test_iceberg_optimize.md](./reports/test_iceberg_optimize.md) | no | 
 
 
-### SCD2
+### SCD2 (Full Source)
 
 | # | Python Script  |   Description | Link to Results as Markdown | Use Asserts |
 |---|------|------------|---------------------|----|
@@ -35,8 +35,18 @@ The last column points to the markdown which is being generated in the test and 
 | 7 | test_scd2_logical_del.py | Performs a single delete of entity using logical delete operation in the input table | [scd2_test_logical_del.md](./reports/scd2_test_logical_del.md) | yes
 | 8 | test_scd2_logical_del_with_many_versions.py | Performs a single delete of an entity (with many versions), using logical delete operation in the input table | [scd2_test_logical_del_with_many_versions.md](./reports/scd2_test_logical_del_with_many_versions.md) | yes
 | 9 | test_scd2_upd_upd_.py | Performs multiple updates on a single entity over time | [scd2_test_upd_upd.md](./reports/scd2_test_upd_upd.md) | yes |
-| 10 | test_scd2_sel_point_in_time.py | Performs a point-in-time select to find the version of the entity which was valid at the time | [scd2_sel_point_in_time.md](./reports/scd2_test_sel_point_in_time.md) | no |
-| 11 | test_scd2_sel_is_active.py | Performs a select to get all active versions of all entities. | [scd2_test_sel_is_active.md](./reports/scd2_test_sel_is_active.md) | no |
-| 12 | test_scd2_sel_is_latest.py | Performs a select to get all latest versions of all entities. | [scd2_test_sel_is_latest.md](./reports/scd2_test_sel_is_latest.md) | no |
+| 10 | test_del_and_reins_same_val.py | Performs a Re-Insert into an entity which has previously been deleted. Insert with same values and no gap. | [scd2_test_del_and_reins_same.md](./reports/scd2_test_del_and_reins_same.md) | yes |
+| 11 | test_del_and_reins_diff_val.py | Performs a Re-Insert into an entity which has previously been deleted. Insert with different values and no gap. | [scd2_test_del_and_reins_diff.md](./reports/scd2_test_del_and_reins_diff.md) | yes |
+| 12 | test_del_and_reins_gap_val.py | Performs a Re-Insert into an entity which has previously been deleted. Insert with gap. | [scd2_test_del_and_reins_gap.md](./reports/scd2_test_del_and_reins_gap.md) | yes |
+| 13 | test_scd2_sel_point_in_time.py | Performs a point-in-time select to find the version of the entity which was valid at the time | [scd2_sel_point_in_time.md](./reports/scd2_test_sel_point_in_time.md) | no |
+| 14 | test_scd2_sel_is_active.py | Performs a select to get all active versions of all entities. | [scd2_test_sel_is_active.md](./reports/scd2_test_sel_is_active.md) | no |
+| 15 | test_scd2_sel_is_latest.py | Performs a select to get all latest versions of all entities. | [scd2_test_sel_is_latest.md](./reports/scd2_test_sel_is_latest.md) | no |
 | 99 | test_scd2_e2e_.py | Performs and end-to-end test with multiple steps and operations | [scd2_test_upd_upd.md](./reports/scd2_test_e2e.md) | no |
 
+### SCD2 (Delta Source)
+
+| # | Python Script  |   Description | Link to Results as Markdown | Use Asserts |
+|---|------|------------|---------------------|----|
+| 1 | test_scd2_delta_ins_empty.py | Performs a single insert of entity into an empty dimension table | [scd2_delta_test_ins_empty.md](./reports/scd2_delta_test_ins_empty.md) | yes
+| 2 | test_scd2_delta_ins.py | Performs a single insert of a new entity into a non-empty dimension table | [scd2_delta_test_ins.md](./reports/scd2_delta_test_ins.md) | yes |
+| 7 | test_scd2_delta_logical_del.py | Performs a single delete of entity using logical delete operation in the input table | [scd2_delta_test_logical_del.md](./reports/scd2_delata_test_logical_del.md) | yes

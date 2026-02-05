@@ -7,9 +7,9 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_data
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table, create_dim_table
+from scd2 import merge_into_dim_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, init_trino_connection
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, create_raw_table, init_trino_connection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def test_step_1():
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
     create_raw_table(conn)
-    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
+    create_dim_table_for_test(conn)
     render_init("Testing Physical Delete Operation", FILE_NAME)
     render_data("This test validates a DELETE operation of a single entity. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.", output_file_name=FILE_NAME)
 

@@ -9,7 +9,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table, create_dim_table, optimize_table
+from scd2 import merge_into_dim_table, optimize_table
 from constants import MAX_TS
 from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, init_trino_connection
 
@@ -22,14 +22,6 @@ load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
 conn = init_trino_connection()
-
-#@pytest.fixture(autouse=True, scope="session")
-#def setup_data(request):
-#    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_valid_from"], sort_cols=[])
-#    yield
-#    logger.info("Finished all tests")
-
 
 def test_step_1():
     logger.info("-------------------------------- Test Step 1 --------------------------------")

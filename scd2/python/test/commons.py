@@ -10,7 +10,7 @@ from datetime import date, timedelta, datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table 
+from scd2 import merge_into_dim_table, create_dim_table
 from constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
@@ -97,6 +97,9 @@ def create_raw_table(conn):
 
     cursor.execute(create_table_sql)
     logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
+
+def create_dim_table_for_test(conn):
+    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
 
 def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None):
 
