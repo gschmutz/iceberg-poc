@@ -13,5 +13,5 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://dataplatform:
+Navigate to <http://10.156.72.221:
 

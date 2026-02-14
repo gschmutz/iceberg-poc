@@ -16,5 +16,5 @@ platys gen
 You can use it as a Confluent-compliant registry by using the following Schema Registry URL
 
 ```
-http://dataplatform:8081/apis/ccompat/v6
+http://10.156.72.221:8081/apis/ccompat/v6
 ```

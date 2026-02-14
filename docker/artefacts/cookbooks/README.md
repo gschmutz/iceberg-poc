@@ -1,6 +1,9 @@
-# Modern Data Platform Cookbooks  - v1.19.0
+# Modern Data Platform Cookbooks  - v1.19.1
 
 Inhere we are documenting cookbooks on how to use the platform:
+
+ * **Data Catalogs**
+   * [Using Open Data Discovery Platform (ODD)](./recipes/using-odd/README) - `1.19.1`
 
  * **Airflow**
    * [Schedule and Run Simple Python Application with Airflow](./recipes/airflow-schedule-python-app/README) - `1.16.0`
@@ -77,6 +80,7 @@ Inhere we are documenting cookbooks on how to use the platform:
    * [SASL/SCRAM Authentication with KRaft](./recipes/kafka-sasl-scram-authentication-kraft/README) - `1.17.0`
    * [SASL/PLAIN Authentication](./recipes/kafka-sasl-plain-authentication/README) - `1.17.0`
    * [Working with real and synthetic data streams](./recipes/kafka-working-with-real-and-synthetic-streams/README) - `1.19.0`
+	* [Using Shadowtraffic for simulating production traffic on Kafka](./recipes/using-shadowtraffic-with-kafka/README) - `1.19.0`
 
  * **Confluent Enterprise Platform**
    * [Using Confluent Enterprise Tiered Storage](./recipes/confluent-tiered-storage/README) - `1.13.0`

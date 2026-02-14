@@ -1,4 +1,4 @@
-# `modern-data-platform` - Port Mappings - 1.19.0
+# `modern-data-platform` - Port Mappings - 1.19.1
 
 This table reserves the external ports for the various services. Not all services have to be used in the platform at a given time. But by reserving, we can assure that there are no conflicts if a service is added at a later time.
 
@@ -149,6 +149,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 5442 | 5432 | hive-metastore-db |
 5443 | 5432 | ehrbase-db |
 5444 | 5432 | xtdb |
+5445 | 5432 | odd-platform-db |
 5500 | 5500 | oracledb-ee-1 |
 5501 | 5500 | oracledb-ee-1 |
 5502 | 5500 | oracledb-ee-1 |
@@ -420,6 +421,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 19201 | 9200 | amundsen-elasticsearch |
 19202 | 9200 | datahub-elasticsearch |
 19203 | 9200 | openmetadata-elasticsearch |
+19204 | 9300 | openmetadata-elasticsearch |
 19092 | 19092 | kafka-1 (docker-host)   |
 19093 | 19093 | kafka-2 (docker-host    |
 19094 | 19094 | kafka-3 (docker-host)   |
@@ -843,6 +845,8 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28396 | 8080 | xtdb |
 28397 | 8081 | lakevision |
 28398 | 8080 | lakevision |
+28399 | 8080 | odd-platform |
+28400 | 8080 | shadowtraffic |
 
 ## Ports > 28500
 

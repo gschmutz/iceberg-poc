@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://dataplatform:9443/fhir-server/api/v4/$healthcheck>. 
+Navigate to <http://10.156.72.221:9443/fhir-server/api/v4/$healthcheck>. 
