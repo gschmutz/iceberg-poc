@@ -56,7 +56,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_exported_at
+            dp_loaded_at
         )
     """
     # --- Insert statement (batch 2) ---
@@ -74,7 +74,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_exported_at
+            dp_loaded_at
         )
     """
     scd2_merge_as_preparation(conn, ins_stmts=[insert_sql_1,insert_sql_2]

@@ -51,7 +51,7 @@ COLS_WITH_TYPE = [
     ]
 
 EXCLUDE_COLS = ["record_hash","dp_load_timestamp", "change_type"]
-LOAD_TS_COL="dp_exported_at"
+LOAD_TS_COL="dp_loaded_at"
 
 def init_trino_connection():
     if TRINO_USE_SSL:
@@ -87,11 +87,11 @@ def create_raw_table(conn):
         city VARCHAR,
         email VARCHAR,
         status VARCHAR,
-        dp_exported_at TIMESTAMP
+        dp_loaded_at TIMESTAMP
     )
     WITH (
         format = 'PARQUET',
-        partitioning = ARRAY['dp_exported_at']
+        partitioning = ARRAY['dp_loaded_at']
     )
     """
 
@@ -118,7 +118,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: 
             dim_table_name=DIM_TABLE_NAME,
             scd2_view_name=SCD2_VIEW_NAME,
             load_ts=load_ts[idx],
-            load_ts_col="dp_exported_at",
+            load_ts_col="dp_loaded_at",
             pk_col="id",
             cols_with_type=COLS_WITH_TYPE,
             current_ts=current_ts[idx],
@@ -129,7 +129,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: 
     
     render_data(f"### Perform Preparation", output_file_name=output_file_name)
 
-    df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_exported_at", "id"])
+    df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at", "id"])
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
     df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
@@ -145,7 +145,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     render_data(test_description, output_file_name=output_file_name)
 
     df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
-    df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_exported_at", "id"])
+    df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at", "id"])
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
     # run dimensional merge
@@ -157,7 +157,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
         dim_table_name=DIM_TABLE_NAME,
         scd2_view_name=SCD2_VIEW_NAME,
         load_ts=load_ts,
-        load_ts_col="dp_exported_at",
+        load_ts_col="dp_loaded_at",
         pk_col="id",
         cols_with_type=COLS_WITH_TYPE,
         current_ts=current_ts,

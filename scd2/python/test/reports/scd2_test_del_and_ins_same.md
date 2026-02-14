@@ -8,7 +8,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
@@ -45,7 +45,7 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
@@ -82,7 +82,7 @@ Reactivate record with `id=3` by inserting it again into the current partition o
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at      |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |

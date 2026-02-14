@@ -51,7 +51,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_exported_at
+            dp_loaded_at
         )
     """
 
@@ -98,7 +98,7 @@ def test_step_2():
             city,
             email,
             status,
-            dp_exported_at
+            dp_loaded_at
         )
     """
 
