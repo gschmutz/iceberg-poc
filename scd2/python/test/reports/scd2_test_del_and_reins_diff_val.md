@@ -19,11 +19,11 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
-|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                    | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
 
 
 
@@ -58,9 +58,9 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|---------------------|---------------------|
-|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email   | src_dp_valid_from   | load_ts   | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|---------|---------------------|-----------|----------|-------------------------|------------------|---------------------|---------------------|
+|           3 |    3 |              |             |        |         | 2026-01-05 00:00:00 |           |          | DELETED                 | UPDATE_EXISTING  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
 
 
 
@@ -98,9 +98,9 @@ Reactivate record with `id=3` by inserting it again but with a different value f
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
-|           3 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-05 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                    | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           3 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
 
 
 

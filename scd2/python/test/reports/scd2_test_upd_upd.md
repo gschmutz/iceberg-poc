@@ -1,4 +1,4 @@
-# Testing Muliple Update Operations on same entity
+# Testing Multiple Update Operations on same entity but different fields
 
 This test validates multiple UPDATE operations on one entity over time producing many versions.
 ## Test Step 1
@@ -8,7 +8,7 @@ Insert 2 entities into raw table and perform initial SCD2 merge.
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                   | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
@@ -18,10 +18,10 @@ Insert 2 entities into raw table and perform initial SCD2 merge.
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
-|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                   | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
 
 
 
@@ -42,7 +42,7 @@ At 2026-01-05 00:00:00, update `city` of entity with `id=1` and perform SCD2 mer
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                   | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
@@ -54,10 +54,10 @@ At 2026-01-05 00:00:00, update `city` of entity with `id=1` and perform SCD2 mer
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
-|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                   | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
 
 
 
@@ -79,7 +79,7 @@ At 2026-01-10 00:00:00, update `email` of entity with `id=1` and perform SCD2 me
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                   | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
@@ -93,10 +93,10 @@ At 2026-01-10 00:00:00, update `email` of entity with `id=1` and perform SCD2 me
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
-|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                   | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-10 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 |
 
 
 
@@ -119,7 +119,7 @@ At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name    | city   | email                   | status   | dp_exported_at      |
+|   id | first_name   | last_name    | city   | email                   | status   | dp_loaded_at        |
 |------|--------------|--------------|--------|-------------------------|----------|---------------------|
 |    1 | Alice        | Meyer        | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
@@ -135,10 +135,10 @@ At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name    | city   | email                   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|--------------|--------|-------------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
-|         nan |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name    | city   | email                   | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type     | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|--------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|--------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | UPDATE_EXISTING    | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
+|         nan |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 2026-01-20 00:00:00 | ACTIVE   | CHANGED                 | INSERT_NEW_VERSION | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |
 
 
 

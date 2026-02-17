@@ -8,7 +8,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
@@ -19,11 +19,11 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
-|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
-|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                    | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           1 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           2 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
 
 
 
@@ -45,7 +45,7 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
@@ -58,9 +58,9 @@ Delete record with `id=3` from raw table (physical delete) and perform SCD2 merg
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email   | load_ts   | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|---------|-----------|----------|-------------------------|------------------|---------------------|---------------------|
-|           3 |    3 |              |             |        |         |           |          | DELETED                 | UPDATE_EXISTING  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email   | src_dp_valid_from   | load_ts   | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|---------|---------------------|-----------|----------|-------------------------|------------------|---------------------|---------------------|
+|           3 |    3 |              |             |        |         | 2026-01-05 00:00:00 |           |          | DELETED                 | UPDATE_EXISTING  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |
 
 
 
@@ -82,7 +82,7 @@ Reactivate record with `id=3` by inserting it again into the current partition o
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_exported_at      |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
@@ -98,21 +98,20 @@ Reactivate record with `id=3` by inserting it again into the current partition o
 **Input to Merge**
 
 
-|   merge_key |   id | first_name   | last_name   | city   | email                    | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
-|-------------|------|--------------|-------------|--------|--------------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
-|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
+|   merge_key |   id | first_name   | last_name   | city   | email                    | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     |
+|-------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|
+|           3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| id                                   | first_name                               | last_name                                 | city                                     | email                                                       | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
-|--------------------------------------|------------------------------------------|-------------------------------------------|------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
-| 1                                    | Alice                                    | Meyer                                     | Zurich                                   | alice.meyer@example.com                                     | 2026-01-01 00:00:00                                    | 9999-12-31 23:59:59                                    | True                                    | True                                    | 2026-01-02 00:00:00                                    | 9999-12-31 23:59:59                                    |
-| 2                                    | Bob                                      | Keller                                    | Bern                                     | bob.keller@example.com                                      | 2026-01-01 00:00:00                                    | 9999-12-31 23:59:59                                    | True                                    | True                                    | 2026-01-02 00:00:00                                    | 9999-12-31 23:59:59                                    |
-| 3                                    | Clara                                    | Schmid                                    | Basel                                    | clara.schmid@example.com                                    | 2026-01-01 00:00:00                                    | 2026-01-04 23:59:59                                    | False                                   | True                                    | 2026-01-02 00:00:00                                    | 2026-01-06 00:00:00                                    |
-| <span style='color: green;'>3</span> | <span style='color: green;'>Clara</span> | <span style='color: green;'>Schmid</span> | <span style='color: green;'>Basel</span> | <span style='color: green;'>clara.schmid@example.com</span> | <span style='color: green;'>2026-01-05 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-11 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
+|   id | first_name   | last_name   | city   | email                    | dp_valid_from       | dp_valid_to         | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 

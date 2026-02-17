@@ -7,13 +7,13 @@ This test validates an INSERT operation of one new record
 **### Iceberg Metadata before OPTIMIZE**
 
 
-| file_path                                                                                                                                                                                     |   record_count |   file_size_in_bytes |
-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172556_01691_z9bbh-b65e2212-0419-481d-8300-ea52490c1e15.parquet |              3 |                 1241 |
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172556_01693_z9bbh-fdae4691-b589-4ed9-b91e-4fb761c2b067.parquet |              3 |                 1261 |
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172556_01694_z9bbh-8e140397-28a1-4018-9223-b2327e329b9a.parquet |              3 |                 1237 |
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172556_01692_z9bbh-b568e52e-18d9-45df-ae0a-afd16611662d.parquet |              3 |                 1251 |
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172557_01695_z9bbh-80574068-cfbc-420f-8d81-7cd03f4c28de.parquet |              3 |                 1249 |
+| file_path                                                                                                                                                                                   |   record_count |   file_size_in_bytes |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165727_00044_7kr8c-8c4c4d99-48b3-4f84-b340-65e68109c680.parquet |              3 |                 1245 |
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165726_00042_7kr8c-b1923664-1810-47d1-915d-2eed1393e7e1.parquet |              3 |                 1257 |
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165727_00043_7kr8c-d027237a-7159-404a-88b1-dffb2bab335e.parquet |              3 |                 1233 |
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165725_00040_7kr8c-375628d4-fe89-4f62-a4de-7726c3c144e5.parquet |              3 |                 1237 |
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165726_00041_7kr8c-732faa8c-4a21-4b6f-9dab-b898a346c766.parquet |              3 |                 1247 |
 
 Executing OPTIMIZE on the Iceberg table.
 
@@ -21,7 +21,7 @@ Executing OPTIMIZE on the Iceberg table.
 **### Iceberg Metadata after OPTIMIZE**
 
 
-| file_path                                                                                                                                                                                     |   record_count |   file_size_in_bytes |
-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://admin-bucket/warehouse/raw_person-d9b04d0745ee418aac9551558c00d42b/data/dp_exported_at=2026-01-01T00%3A00%3A00/20260204_172557_01697_z9bbh-f1486949-9454-4943-8c2a-1693a40afb55.parquet |             15 |                 1647 |
+| file_path                                                                                                                                                                                   |   record_count |   file_size_in_bytes |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
+| s3a://admin-bucket/warehouse/raw_person-f595c1e8d3894d78a6461c0e24631002/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260217_165728_00046_7kr8c-bd7cd64d-89bd-4569-a9ef-667a5dbcdf68.parquet |             15 |                 1648 |
 
