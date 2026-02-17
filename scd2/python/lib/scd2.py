@@ -72,6 +72,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 ELSE src.{pk_col}
             END AS {pk_col},
             {prefixed_val_columns_str},
+            TIMESTAMP '{load_ts_str}' AS    src_dp_valid_from,
             src.{load_ts_col} AS load_ts,
             src.status,
             CASE 
@@ -126,6 +127,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             {pk_col} AS merge_key,
             {pk_col},
             {val_columns_str},
+            src_dp_valid_from,
             load_ts,
             status,
             change_classification,
@@ -141,6 +143,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             NULL AS merge_key,
             {pk_col},
             {val_columns_str},
+            src_dp_valid_from,
             load_ts,
             status,
             change_classification,
@@ -183,14 +186,14 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     USING {trino_catalog}.{trino_schema}.{scd2_view_name} AS source
     ON target.{pk_col} = source.merge_key
     --AND ((target.dp_is_active = TRUE AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
-    AND  (TIMESTAMP '{load_ts_str}' BETWEEN dp_valid_from AND dp_valid_to)
+    AND  (src_dp_valid_from BETWEEN dp_valid_from AND dp_valid_to)
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
         --AND source.load_ts > target.dp_load_timestamp
     THEN UPDATE SET
         dp_valid_to = CASE 
                             WHEN source.change_classification = 'DELETED'
-                                THEN TIMESTAMP '{load_ts_str}' - INTERVAL '1' SECOND 
+                                THEN src_dp_valid_from - INTERVAL '1' SECOND 
                             ELSE 
                                 CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
                         END,
@@ -243,7 +246,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         )
     )
     """
-
+    print (stmt)
     return stmt
 
 def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name: str, s3_warehouse_bucket: str, s3_warehouse_prefix: str, pk_col_with_type: str, cols_with_type: list = None, partition_cols: list = None, sort_cols: list = None):

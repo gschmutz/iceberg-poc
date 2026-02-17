@@ -63,7 +63,3 @@ Each test file in `scd2/python/test/` follows this pattern:
 - `test_step_2()+` runs the specific scenario and asserts
 - Shared helpers in `commons.py`: `scd2_merge_as_test()`, `scd2_merge_as_preparation()`, `scd2_sel_as_test()`
 - Tests generate markdown reports in `scd2/python/test/reports/`
-
-### Benchmarks (`scd2/python/benchmark/`)
-
-Performance testing with synthetic data (Faker). T-shirt sizes (`xs`, `m`, `l`, `xl`) control dataset volume. Results stored in `iceberg_hive.default.benchmark` table, analyzed via `scd2/sql/benchmark_reporting.sql`.
