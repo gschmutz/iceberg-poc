@@ -36,9 +36,9 @@ def test_step_1():
     insert_sql = f"""
         INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
         VALUES
-            (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}'),
-            (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}'),
-            (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}')
+            (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+            (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+            (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
     conn.cursor().execute(insert_sql)
@@ -59,9 +59,9 @@ def test_step_1():
         """
     
     expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@newcorp.com", "ACTIVE", load_ts_1),
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1),
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1),
+        (1, "Alice", "Meyer", "Zurich", "alice.meyer@newcorp.com", "ACTIVE", load_ts_1, load_ts_1),
+        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1, load_ts_1),
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1, load_ts_1),
     ]
 
     # Run SELECT test
@@ -89,9 +89,9 @@ def test_step_2():
         """
     
     expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com", "ACTIVE", load_ts_1),
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1),
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1),
+        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com", "ACTIVE", load_ts_1, load_ts_1),
+        (2, "Bob", "Keller", "Bern", "bob.keller@example.com", "ACTIVE", load_ts_1, load_ts_1),
+        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "ACTIVE", load_ts_1, load_ts_1),
     ]
 
     test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."

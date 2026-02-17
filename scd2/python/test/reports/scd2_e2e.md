@@ -8,11 +8,11 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
-|------|--------------|-------------|--------|--------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 
 
 
@@ -48,16 +48,16 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
-|------|--------------|-------------|--------|--------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
 
 
 
@@ -98,21 +98,21 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
-|------|--------------|-------------|--------|--------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-01-15 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-15 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-15 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-15 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
 
 
 
@@ -153,26 +153,26 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_loaded_at        |
-|------|--------------|-------------|--------|--------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-01-15 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-15 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-15 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-15 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 |
-|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-02-10 00:00:00 |
-|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | INACTIVE | 2026-02-10 00:00:00 |
-|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-02-10 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | INACTIVE | 2026-02-10 00:00:00 |
-|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-02-10 00:00:00 |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    1 | Alice        | Meyer       | Bern   | alice.meyer@newmail.com  | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | INACTIVE | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | INACTIVE | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|   11 | Laura        | Graf        | Basel  | laura.graf@newmail.com   | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
 
 
 
@@ -211,32 +211,32 @@ _the following columns where excluded from the result: `record_hash, dp_load_tim
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city    | email                      | status   | dp_loaded_at        |
-|------|--------------|-------------|---------|----------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich  | alice.meyer@example.com    | ACTIVE   | 2026-01-01 00:00:00 |
-|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-01 00:00:00 |
-|    3 | Clara        | Schmid      | Basel   | clara.schmid@example.com   | ACTIVE   | 2026-01-01 00:00:00 |
-|    1 | Alice        | Meyer       | Bern    | alice.meyer@example.com    | ACTIVE   | 2026-01-05 00:00:00 |
-|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-05 00:00:00 |
-|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-01-05 00:00:00 |
-|   11 | Laura        | Graf        | Basel   | laura.graf@example.com     | ACTIVE   | 2026-01-05 00:00:00 |
-|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-01-15 00:00:00 |
-|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-15 00:00:00 |
-|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-01-15 00:00:00 |
-|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-01-15 00:00:00 |
-|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-02-10 00:00:00 |
-|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | INACTIVE | 2026-02-10 00:00:00 |
-|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-02-10 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | INACTIVE | 2026-02-10 00:00:00 |
-|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-02-10 00:00:00 |
-|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-02-20 00:00:00 |
-|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | INACTIVE | 2026-02-20 00:00:00 |
-|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-02-20 00:00:00 |
-|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-02-20 00:00:00 |
-|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-02-20 00:00:00 |
-|   12 | Markus       | Steiner     | Lucerne | markus.steiner@example.com | ACTIVE   | 2026-02-20 00:00:00 |
+|   id | first_name   | last_name   | city    | email                      | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|---------|----------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich  | alice.meyer@example.com    | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    3 | Clara        | Schmid      | Basel   | clara.schmid@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
+|    1 | Alice        | Meyer       | Bern    | alice.meyer@example.com    | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|   11 | Laura        | Graf        | Basel   | laura.graf@example.com     | ACTIVE   | 2026-01-05 00:00:00 | 2026-01-05 00:00:00 |
+|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-01-15 00:00:00 | 2026-01-15 00:00:00 |
+|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | INACTIVE | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | INACTIVE | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-02-10 00:00:00 | 2026-02-10 00:00:00 |
+|    1 | Alice        | Meyer       | Bern    | alice.meyer@newmail.com    | ACTIVE   | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
+|    2 | Bob          | Keller      | Bern    | bob.keller@example.com     | INACTIVE | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
+|    3 | Clara        | Schmid      | Basel   | clara.schmid@newmail.com   | ACTIVE   | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
+|   10 | Kevin        | Loosli      | Bern    | kevin.loosli@example.com   | ACTIVE   | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
+|   11 | Laura        | Graf        | Basel   | laura.graf@newmail.com     | ACTIVE   | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
+|   12 | Markus       | Steiner     | Lucerne | markus.steiner@example.com | ACTIVE   | 2026-02-20 00:00:00 | 2026-02-20 00:00:00 |
 
 
 

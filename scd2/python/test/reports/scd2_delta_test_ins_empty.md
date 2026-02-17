@@ -8,9 +8,9 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_loaded_at        |
-|------|--------------|-------------|--------|-------------------------|----------|---------------------|
-|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 |
+|   id | first_name   | last_name   | city   | email                   | status   | dp_valid_from       | dp_loaded_at        |
+|------|--------------|-------------|--------|-------------------------|----------|---------------------|---------------------|
+|    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 
 
 

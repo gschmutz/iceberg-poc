@@ -87,6 +87,7 @@ def create_raw_table(conn):
         city VARCHAR,
         email VARCHAR,
         status VARCHAR,
+        dp_valid_from TIMESTAMP,
         dp_loaded_at TIMESTAMP
     )
     WITH (
