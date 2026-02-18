@@ -167,8 +167,8 @@ def test_step_3():
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_3, current_ts_3, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        current_ts_1, current_ts_1, current_ts_3,
+        "SUPERSEDED", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
     ]
 
     # run test

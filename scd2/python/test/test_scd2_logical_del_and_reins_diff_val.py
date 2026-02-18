@@ -167,13 +167,13 @@ def test_step_3():
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
-        "DELETED", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        current_ts_1, current_ts_1, current_ts_3,
+        "SUPERSEDED", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
 
         (3, "Clara", "Schmid", "Geneva", "clara.schmid@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_3, current_ts_3, MAX_TS,
-        "NEW", "DBBDF95FFB7EECA59F747FA58285932F84B69A6C70FD3316E9EF2DFBC1319E8D"),
+        "SUPERSEDED_BY", "DBBDF95FFB7EECA59F747FA58285932F84B69A6C70FD3316E9EF2DFBC1319E8D"),
 
     ]
 

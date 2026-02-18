@@ -73,18 +73,22 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 ELSE src.{pk_col}
             END AS {pk_col},
             {prefixed_val_columns_str},
-            src.dp_valid_from   AS  src_dp_valid_from,
+            src.dp_valid_from   AS src_dp_valid_from,
             src.{load_ts_col}   AS load_ts,
             src.status,
             CASE 
                 WHEN tgt.{pk_col} IS NULL AND prev.{pk_col} IS NULL THEN 'NEW'
-                WHEN tgt.{pk_col} IS NULL AND src.row_hash <> prev.row_hash THEN 'NEW_WITH_PREV_DIFF'
-                WHEN tgt.{pk_col} IS NULL AND src.row_hash = prev.row_hash THEN 'NEW_WITH_PREV_SAME'
+                WHEN tgt.{pk_col} IS NULL AND src.row_hash <> prev.row_hash THEN 'CHANGED_WITH_PREV_DIFF'
+                WHEN tgt.{pk_col} IS NULL AND src.row_hash = prev.row_hash THEN 'CHANGED_WITH_PREV_SAME'
                 WHEN (src.{pk_col} IS NULL AND NOT {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification,
-            tgt.dp_key                                                       AS dp_key,
+            CASE
+                WHEN tgt.{pk_col} IS NULL AND src.row_hash = prev.row_hash THEN prev.dp_key
+                WHEN tgt.{pk_col} IS NULL AND src.row_hash <> prev.row_hash THEN prev.dp_key
+                ELSE tgt.dp_key
+            END AS dp_key,
             COALESCE(tgt.dp_valid_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_valid_from,         -- not sure if we need valid_from downstream
             COALESCE(tgt.dp_valid_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_valid_to,           -- set the valid_to to max if null (not found in dim table)
             prev.dp_valid_from											     AS prev_dp_valid_from,
@@ -124,6 +128,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
         ON src.{pk_col} = tgt.{pk_col}
         LEFT JOIN (
 	        SELECT 
+                dp_key,
                 {pk_col},
                 to_hex(
                     sha256(
@@ -143,7 +148,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
     records_to_process AS (
         SELECT *
         FROM changed_records
-        WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'CHANGED', 'DELETED')
+        WHERE change_classification IN ('NEW', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
     ),
     prepared_source AS (
         -- Original records for updates
@@ -181,7 +186,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             prev_dp_valid_from,
             prev_dp_valid_to                  
         FROM records_to_process
-        WHERE change_classification = 'CHANGED'
+        WHERE change_classification IN ('CHANGED', 'CHANGED_WITH_PREV_DIFF')
     )
     """
     return stmt
@@ -216,21 +221,34 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     USING {trino_catalog}.{trino_schema}.{scd2_view_name} AS source
     ON target.dp_key = source.merge_key
     --AND ((target.dp_is_active = TRUE AND target.dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
-    AND  (src_dp_valid_from BETWEEN dp_valid_from AND dp_valid_to)
+    --AND  (src_dp_valid_from BETWEEN dp_valid_from AND dp_valid_to)
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
         --AND source.load_ts > target.dp_load_timestamp
     THEN UPDATE SET
         dp_valid_to = CASE 
                             WHEN source.change_classification = 'DELETED'
-                                THEN src_dp_valid_from - INTERVAL '1' SECOND 
+                                THEN src_dp_valid_from - INTERVAL '1' SECOND
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
+                                THEN source.tgt_dp_valid_to     
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_DIFF'
+                                THEN target.dp_valid_to     
                             ELSE 
                                 CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
                         END,
-        dp_is_active = FALSE,
+        dp_is_active = CASE 
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
+                                THEN TRUE
+                            ELSE
+                                FALSE
+                        END,
         dp_is_latest = CASE 
                             WHEN source.change_classification = 'DELETED'
                                 THEN TRUE 
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
+                                THEN TRUE
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_DIFF'
+                                THEN FALSE
                             ELSE FALSE 
                         END,
         change_type = CASE WHEN source.change_classification = 'DELETED' 
@@ -257,7 +275,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         CAST( uuid() AS VARCHAR),
         source.{pk_col},
         {source_val_columns_str},
-        source.load_ts,
+        source.src_dp_valid_from,
         source.tgt_dp_valid_to,
         CASE WHEN source.tgt_dp_valid_to = TIMESTAMP '9999-12-31 23:59:59' THEN TRUE ELSE FALSE END,    -- set the is_active to true, if valid_to is max timestamp
         CASE WHEN source.tgt_dp_valid_to = TIMESTAMP '9999-12-31 23:59:59' THEN TRUE ELSE FALSE END,    -- set the is_active to true, if valid_to is max timestamp
