@@ -87,7 +87,10 @@ def test_step_1():
     test_description = f"Select data valid at {load_ts_2 - timedelta(days=2)}. As we are selecting back in time the old version of Alice is shown where she lived in Zurich."
 
     sel_stmt = f"""
-        SELECT * 
+        SELECT id, first_name, last_name, city, email,
+                dp_valid_from, dp_valid_to, dp_is_active, dp_is_latest,
+                dp_load_timestamp, dp_created_at, dp_replaced_at,
+                change_type, record_hash  
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_valid_from AND dp_valid_to
         ORDER BY id

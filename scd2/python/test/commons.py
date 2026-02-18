@@ -174,27 +174,28 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
         render_table(df_colored, title=f"Dimensional Table `{DIM_TABLE_NAME}`", decscription=test_after_description, exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)
 
-    expected_df = pd.DataFrame(expected, columns=df.columns)
+    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"], exclude_cols="dp_key")
+    expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
-    arr1 = df.to_numpy()
+    arr1 = actual_df.to_numpy()
     arr2 = expected_df.to_numpy()
     #print (arr1)
     np.testing.assert_array_equal(arr1, arr2)
 
 def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, display_result: bool = True, show_input_to_merge: bool = True):
         
-    df = pd.read_sql_query(sel_stmt, conn)
+    actual_df = pd.read_sql_query(sel_stmt, conn)
 
     if display_result:
         render_data(f"### Perform Test", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
         render_data(f"\n\n`{sel_stmt}`\n", output_file_name=output_file_name)
 
-        render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", output_file_name=output_file_name)
+        render_table(actual_df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)
 
-    expected_df = pd.DataFrame(expected, columns=df.columns)
+    expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
-    arr1 = df.to_numpy()
+    arr1 = actual_df.to_numpy()
     arr2 = expected_df.to_numpy()
     np.testing.assert_array_equal(arr1, arr2)

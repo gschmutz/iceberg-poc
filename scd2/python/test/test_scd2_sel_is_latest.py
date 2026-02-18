@@ -67,6 +67,7 @@ def test_step_1():
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Bern', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'INACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                 (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
             ) AS t (
             id,
@@ -88,7 +89,10 @@ def test_step_1():
 
     # Run SELECT test
     sel_stmt = f"""
-        SELECT * 
+        SELECT id, first_name, last_name, city, email,
+                dp_valid_from, dp_valid_to, dp_is_active, dp_is_latest,
+                dp_load_timestamp, dp_created_at, dp_replaced_at,
+                change_type, record_hash  
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE dp_is_latest = TRUE
         ORDER BY id
