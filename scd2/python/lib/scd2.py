@@ -254,7 +254,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         change_type,
         record_hash
     ) VALUES (
-        CAST(uuid() AS VARCHAR),
+        CAST( uuid() AS VARCHAR),
         source.{pk_col},
         {source_val_columns_str},
         source.load_ts,
