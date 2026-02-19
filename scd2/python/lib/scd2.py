@@ -106,7 +106,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             FROM {trino_catalog}.{trino_schema}.{raw_table_name}
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         ) src
-        FULL OUTER JOIN (
+        LEFT JOIN (
             SELECT 
                 {pk_col},
                 to_hex(
