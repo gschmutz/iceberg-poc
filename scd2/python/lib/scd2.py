@@ -143,7 +143,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        FROM {trino_catalog}.{trino_schema}.{dim_table_name}
 	        WHERE dp_valid_to = TIMESTAMP '2026-01-05 00:00:00' - INTERVAL '1' SECOND
   	    ) prev 
-  		ON (COALESCE(src.id, tgt.id) = prev.id)        
+  		ON (COALESCE(src.{pk_col}, tgt.{pk_col}) = prev.{pk_col})        
     ),
     records_to_process AS (
         SELECT *
