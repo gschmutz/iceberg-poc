@@ -1,6 +1,14 @@
  {
     "test_cases": [
         {
+            "case_id": 0,
+            "description": "no partitioning and no sorting",
+            "partition_cols": [],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        },
+        {
             "case_id": 1,
             "description": "Partition by day(dp_valid_from) and dp_is_active, no sorting",
             "partition_cols": ["day(dp_valid_from)", "dp_is_active"],
