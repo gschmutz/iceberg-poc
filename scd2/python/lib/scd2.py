@@ -67,6 +67,19 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 
     stmt = f"""
     WITH changed_records AS (
+        WITH src_records AS (
+            SELECT *,
+                to_hex(
+                    sha256(
+                        CAST(
+                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, status])
+                            AS VARBINARY
+                        )
+                    )
+                ) AS row_hash
+            FROM {trino_catalog}.{trino_schema}.{raw_table_name}
+            WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
+        )
         SELECT
             CASE 
                 WHEN src.{pk_col} IS NULL THEN tgt.{pk_col} 
@@ -93,20 +106,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             COALESCE(tgt.dp_valid_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_valid_to,           -- set the valid_to to max if null (not found in dim table)
             prev.dp_valid_from											     AS prev_dp_valid_from,
             prev.dp_valid_to											     AS prev_dp_valid_to            
-        FROM (
-            SELECT *,
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, status])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash
-            FROM {trino_catalog}.{trino_schema}.{raw_table_name}
-            WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
-        ) src
-        LEFT JOIN (
+        FROM src_records AS src
+        LEFT JOIN LATERAL (
             SELECT 
                 {pk_col},
                 to_hex(
@@ -123,10 +124,10 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 dp_valid_from         
             FROM {trino_catalog}.{trino_schema}.{dim_table_name}
             --WHERE (dp_is_active = TRUE AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR dp_is_latest = true
-            WHERE TIMESTAMP '{load_ts_str}' BETWEEN dp_valid_from AND dp_valid_to
+            WHERE src.dp_valid_from BETWEEN dp_valid_from AND dp_valid_to
         ) tgt
         ON src.{pk_col} = tgt.{pk_col}
-        LEFT JOIN (
+        LEFT JOIN LATERAL (
 	        SELECT 
                 dp_key,
                 {pk_col},
@@ -141,7 +142,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 dp_valid_from,
 	            dp_valid_to          
 	        FROM {trino_catalog}.{trino_schema}.{dim_table_name}
-	        WHERE dp_valid_to = TIMESTAMP '{load_ts_str}' - INTERVAL '1' SECOND
+	        WHERE dp_valid_to = src.dp_valid_from - INTERVAL '1' SECOND
   	    ) prev 
   		ON (COALESCE(src.{pk_col}, tgt.{pk_col}) = prev.{pk_col})        
     ),
