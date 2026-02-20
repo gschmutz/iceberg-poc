@@ -32,8 +32,8 @@ def test_step_1():
 
     create_raw_table(conn)
     create_dim_table_for_test(conn)
-    render_init("Testing Reactivating a logically deleted record with different values", FILE_NAME)
-    render_data("This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table with same id but some different values.", output_file_name=FILE_NAME)
+    render_init("Testing Reactivating a logically deleted record", FILE_NAME)
+    render_data("This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table.", output_file_name=FILE_NAME)
 
     test_description = "Insert 3 records into raw table and perform initial SCD2 merge."
 

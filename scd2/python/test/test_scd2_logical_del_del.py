@@ -84,7 +84,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table to INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, delete entity with `id=3` in raw table by setting it to INACTIVE (logical delete) and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -133,7 +133,7 @@ def test_step_3():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_3}, still have the entity with `id=3` in raw table as INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_3}, still have the entity with `id=3` in raw table as INACTIVE (logical delete) and perform SCD2 merge. Nothing should change for the record with `id=3` in dimension table."
 
     # --- Insert statement (batch 3) ---
     insert_sql_3 = f"""
@@ -175,5 +175,5 @@ def test_step_3():
 
     # run test
     scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
-                        output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=False)
+                        output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

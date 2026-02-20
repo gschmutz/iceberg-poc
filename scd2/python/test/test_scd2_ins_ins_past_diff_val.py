@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_ins_ins_past_same_val.md"
+FILE_NAME="reports/scd2_test_ins_ins_past_diff_val.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -33,9 +33,9 @@ def test_step_1():
     create_raw_table(conn)
     create_dim_table_for_test(conn)
     render_init("Testing Insert Operation followed by an Insert Operation in the past", FILE_NAME)
-    render_data("This test validates an INSERT operation in the past of a version for an entity which already exists and with the same value.", output_file_name=FILE_NAME)
+    render_data("This test validates an INSERT operation in the past of a version for an entity which already exists and with a different value.", output_file_name=FILE_NAME)
 
-    test_description = f"At {load_ts_2}, insert 3 entities into raw table and perform initial SCD2 merge."
+    test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -83,7 +83,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_1}, insert the entity with `id=1` into the new partitions of the raw table and perform SCD2 merge."
+    test_description = f"At {load_ts_1}, insert the entity with `id=1` with a different value for `city` into the new partitions of the raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -91,7 +91,7 @@ def test_step_2():
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_3}'),
+                (1, 'Alice', 'Meyer', 'Geneva', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_3}'),
                 (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_3}'),
                 (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_3}')
             ) AS t (
@@ -107,10 +107,15 @@ def test_step_2():
     """
 
     expected = [
+        (1, "Alice", "Meyer", "Geneva", "alice.meyer@example.com",
+        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
+        current_ts_3, current_ts_3, MAX_TS,
+        "SUPERSEDED_BY", "EC9BB36DE08DA5C37749E932E904217D44FDD050E468363399E4647829B569C8"),
+
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
-        load_ts_1, MAX_TS, True, True,
-        current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        load_ts_2, MAX_TS, True, True,
+        current_ts_2, current_ts_2, MAX_TS,
+        "NEW", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_2, MAX_TS, True, True,
@@ -124,7 +129,6 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, 
-                       expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
 
