@@ -66,17 +66,17 @@ def test_step_1():
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        "NEW", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
     ]
 
     # run test
@@ -114,22 +114,22 @@ def test_step_2():
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_3 - timedelta(seconds=1), False, False,
         current_ts_1, current_ts_1, current_ts_3,
-        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        "SUPERSEDED", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_3, MAX_TS, True, True,
         current_ts_3, current_ts_3, MAX_TS,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED_BY", "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
     ]
 
     # run test
@@ -166,24 +166,24 @@ def test_step_3():
 
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
-        load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_4,
-        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        load_ts_1, load_ts_3 - timedelta(seconds=1), False, False,
+        current_ts_1, current_ts_1, current_ts_3,
+        "SUPERSEDED", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_3, MAX_TS, True, True,
         current_ts_3, current_ts_3, MAX_TS,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED_BY", "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E"),
+        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
     ]
 
     # run test

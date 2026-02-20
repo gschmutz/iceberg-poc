@@ -100,12 +100,12 @@ def test_step_1():
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
         current_ts_1, current_ts_1, current_ts_2,
-        "SUPERSEDED", "FF118EED04F8A2D0133E79435F7BC3CEBC0011D256A07FE02953CD12B3E29E51"),
+        "SUPERSEDED", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE")
+        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
     ]
 
     scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)

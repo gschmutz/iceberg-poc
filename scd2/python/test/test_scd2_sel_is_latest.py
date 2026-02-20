@@ -102,17 +102,17 @@ def test_step_1():
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "SUPERSEDED_BY", "67B1EB7F635FBBC16C2FFA0EAD786E929C4D1F8E26B210ABFE37D0CFB73EDE39"),
+        "SUPERSEDED_BY", "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, True,
         current_ts_1, current_ts_1, current_ts_2,
-        "DELETED", "68844625A41E2D2540D4A17FBC7B51B3733C95FC58817DA05765F111F4F659CE"),
+        "DELETED", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "NEW", "67A87A1E14991AF623E8AC26518B9BB757E481E9B47AE9CBC728833FDDCEF86E")
+        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
     ]
 
     scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
