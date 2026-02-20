@@ -198,7 +198,7 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
     df = pd.read_sql_query(sql, conn)
     return df
 
-def diff_with_color(df1, df2, index_cols=None):
+def diff_with_color(df1, df2, index_cols=None, sort_cols=None):
     """
     df1 = old / expected
     df2 = new / actual
@@ -232,6 +232,9 @@ def diff_with_color(df1, df2, index_cols=None):
         suffixes=("_old", "_new"),
         indicator=True,
     )
+    # Add this line:
+    sort_cols = [f"{col}_new" for col in sort_cols] if sort_cols else sort_cols
+    merged = merged.sort_values(sort_cols) if sort_cols else merged
 
     rows = []
 

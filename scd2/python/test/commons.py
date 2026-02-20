@@ -169,7 +169,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     )
     if display_result:
         df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
-        df_colored = diff_with_color(df_dim_before, df, index_cols=["id", "dp_valid_from"])    
+        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=["id", "dp_valid_from"])    
 
         render_table(df_colored, title=f"Dimensional Table `{DIM_TABLE_NAME}`", decscription=test_after_description, exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)
