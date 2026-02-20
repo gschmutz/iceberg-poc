@@ -72,7 +72,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 to_hex(
                     sha256(
                         CAST(
-                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, status])
+                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}])
                             AS VARBINARY
                         )
                     )
@@ -122,7 +122,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 to_hex(
                     sha256(
                         CAST(
-                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, CASE WHEN dp_is_latest THEN 'ACTIVE' ELSE 'INACTIVE' END])
+                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}])
                             AS VARBINARY
                         )
                     )
@@ -143,7 +143,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 to_hex(
                     sha256(
                         CAST(
-                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, CASE WHEN dp_is_latest THEN 'ACTIVE' ELSE 'INACTIVE' END])
+                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}])
                             AS VARBINARY
                         )
                     )
@@ -162,7 +162,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 to_hex(
                     sha256(
                         CAST(
-                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}, CASE WHEN dp_is_latest THEN 'ACTIVE' ELSE 'INACTIVE' END])
+                            concat_ws('||', ARRAY[CAST({pk_col} AS VARCHAR), {cast_val_columns_str}])
                             AS VARBINARY
                         )
                     )
@@ -352,7 +352,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         to_hex(
             sha256(
                 CAST(
-                    concat_ws('||', ARRAY[CAST(source.{pk_col} AS VARCHAR), {cast_source_val_columns_str}, source.status])
+                    concat_ws('||', ARRAY[CAST(source.{pk_col} AS VARCHAR), {cast_source_val_columns_str}])
                     AS VARBINARY
                 )
             )
