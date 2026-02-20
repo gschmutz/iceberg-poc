@@ -93,6 +93,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 WHEN tgt.{pk_col} IS NULL AND prev.{pk_col} IS NULL AND active_succ.{pk_col} IS NULL THEN 'NEW'
                 WHEN tgt.{pk_col} IS NULL AND prev.dp_valid_to = src.dp_valid_from - INTERVAL '1' second AND src.row_hash <> prev.row_hash THEN 'CHANGED_WITH_PREV_DIFF'
                 WHEN tgt.{pk_col} IS NULL AND prev.dp_valid_to = src.dp_valid_from - INTERVAL '1' second AND src.row_hash = prev.row_hash THEN 'CHANGED_WITH_PREV_SAME'
+                WHEN tgt.{pk_col} IS NULL AND prev.dp_valid_to < src.dp_valid_from AND src.row_hash <> prev.row_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_DIFF'
+                WHEN tgt.{pk_col} IS NULL AND prev.dp_valid_to < src.dp_valid_from AND src.row_hash = prev.row_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
                 WHEN tgt.{pk_col} IS NULL AND src.row_hash <> active_succ.row_hash THEN 'NEW_WITH_SUCC_DIFF'
                 WHEN tgt.{pk_col} IS NULL AND src.row_hash = active_succ.row_hash THEN 'NEW_WITH_SUCC_SAME'
                 WHEN ((src.{pk_col} IS NULL AND NOT {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE') AND prev.dp_valid_to < src.dp_valid_from THEN 'DELETED_AGAIN_LATER_NOTHING_TO_DO'
@@ -176,7 +178,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
     records_to_process AS (
         SELECT *
         FROM changed_records
-        WHERE change_classification IN ('NEW', 'NEW_WITH_SUCC_DIFF', 'NEW_WITH_SUCC_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
+        WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_SUCC_DIFF', 'NEW_WITH_SUCC_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
     ),
     prepared_source AS (
         -- Original records for updates
@@ -219,7 +221,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             succ_dp_valid_from,
             succ_dp_valid_to                  
         FROM records_to_process
-        WHERE change_classification IN ('CHANGED', 'NEW_WITH_SUCC_DIFF', 'CHANGED_WITH_PREV_DIFF')
+        WHERE change_classification IN ('CHANGED', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_SUCC_DIFF', 'CHANGED_WITH_PREV_DIFF')
     )
     """
     return stmt
@@ -272,10 +274,10 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
                                 THEN source.tgt_dp_valid_to     
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
                                 THEN source.tgt_dp_valid_to     
-                            WHEN source.change_classification = 'CHANGED_WITH_PREV_DIFF'
-                                THEN target.dp_valid_to     
+                            WHEN source.change_classification = 'CHANGED'
+                                THEN CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
                             ELSE 
-                                CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
+                                target.dp_valid_to  
                         END,
         dp_is_active = CASE 
                             WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
@@ -292,7 +294,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
                                 THEN target.dp_is_latest
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
                                 THEN TRUE
-                            WHEN source.change_classification = 'CHANGED_WITH_PREV_DIFF'
+                            WHEN source.change_classification = 'CHANGED_WITH_PREV_DIFF' or source.change_classification = 'NEW_WITH_PREV_DIFF' or source.change_classification = 'NEW_WITH_PREV_SAME'
                                 THEN FALSE
                             ELSE FALSE 
                         END,
