@@ -97,8 +97,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                 WHEN tgt.{pk_col} IS NULL AND prev.dp_valid_to < src.dp_valid_from AND src.row_hash = prev.row_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
                 WHEN tgt.{pk_col} IS NULL AND src.row_hash <> active_succ.row_hash THEN 'NEW_WITH_SUCC_DIFF'
                 WHEN tgt.{pk_col} IS NULL AND src.row_hash = active_succ.row_hash THEN 'NEW_WITH_SUCC_SAME'
-                WHEN ((src.{pk_col} IS NULL AND NOT {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE') AND prev.dp_valid_to < src.dp_valid_from THEN 'DELETED_AGAIN_LATER_NOTHING_TO_DO'
-                WHEN (src.{pk_col} IS NULL AND NOT {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
+                WHEN (( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE') AND prev.dp_valid_to < src.dp_valid_from THEN 'DELETED_AGAIN_LATER_NOTHING_TO_DO'
+                WHEN ( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
                 WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification,
