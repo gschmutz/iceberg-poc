@@ -154,7 +154,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        WHERE dp_valid_to = src.dp_valid_from - INTERVAL '1' SECOND
             OR (dp_is_latest = TRUE AND dp_valid_to < src.dp_valid_from)
   	    ) prev 
-  		ON (COALESCE(src.{pk_col}, tgt.{pk_col}) = prev.{pk_col})
+  		ON (src.{pk_col} = prev.{pk_col})
         LEFT JOIN LATERAL (
 	        SELECT 
                 dp_key,
