@@ -58,7 +58,7 @@ def test_step_1():
         )
     """
 
-    scd2_merge_as_preparation(conn, ins_stmts=[insert_sql_1], load_ts=[load_ts_1], current_ts=[current_ts_1])
+    scd2_merge_as_preparation(conn, ins_stmts=[insert_sql_1], load_ts_list=[load_ts_1], current_ts_list=[current_ts_1])
 
         # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""

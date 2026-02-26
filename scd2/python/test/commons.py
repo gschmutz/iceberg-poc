@@ -4,6 +4,7 @@ import os
 import logging
 import trino
 import numpy as np
+np.set_printoptions(threshold=np.inf)
 
 from datetime import date, timedelta, datetime
 
@@ -102,13 +103,15 @@ def create_raw_table(conn):
 def create_dim_table_for_test(conn):
     create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
 
-def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None):
+def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
 
     for idx, ins_stmt in enumerate(ins_stmts):
         cursor.execute(ins_stmt)
+
+        print (load_ts_list[idx], current_ts_list[idx])
 
         # run dimensional merge
         merge_into_dim_table(
@@ -118,11 +121,11 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts: list, current_ts: 
             raw_table_name=RAW_TABLE_NAME,
             dim_table_name=DIM_TABLE_NAME,
             scd2_view_name=SCD2_VIEW_NAME,
-            load_ts=load_ts[idx],
+            load_ts=load_ts_list[idx],
             load_ts_col="dp_loaded_at",
             pk_col="id",
             cols_with_type=COLS_WITH_TYPE,
-            current_ts=current_ts[idx],
+            current_ts=current_ts_list[idx],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
             show_input_to_merge=False
@@ -177,10 +180,55 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"], exclude_cols="dp_key")
     expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
-    arr1 = actual_df.to_numpy()
-    arr2 = expected_df.to_numpy()
-    #print (arr1)
-    np.testing.assert_array_equal(arr1, arr2)
+    #arr1 = actual_df.to_numpy()
+    #arr2 = expected_df.to_numpy()
+    #np.testing.assert_array_equal(arr1, arr2, verbose=True)
+    pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
+
+def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: list, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True):
+    # --- Prepare raw data ---
+    cursor = conn.cursor()
+
+    render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
+    render_data(test_description, output_file_name=output_file_name)
+
+    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
+    df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at", "id"])
+    render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
+
+    for idx, load_ts in enumerate(load_ts_list):
+        merge_into_dim_table(
+            conn=conn,
+            trino_catalog=TRINO_CATALOG,
+            trino_schema=TRINO_SCHEMA,
+            raw_table_name=RAW_TABLE_NAME,
+            dim_table_name=DIM_TABLE_NAME,
+            scd2_view_name=SCD2_VIEW_NAME,
+            load_ts=load_ts_list[idx],
+            load_ts_col="dp_loaded_at",
+            pk_col="id",
+            cols_with_type=COLS_WITH_TYPE,
+            current_ts=current_ts_list[idx],
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            perform_merge_op=perform_merge_op,
+            show_input_to_merge=show_input_to_merge,
+            output_file_name=output_file_name
+        )
+
+    if display_result:
+        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"])
+        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=["id", "dp_valid_from"])    
+
+        render_table(df_colored, title=f"Dimensional Table `{DIM_TABLE_NAME}`", decscription=test_after_description, exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
+        render_data(test_after_description, output_file_name=output_file_name)
+
+    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=["id", "dp_valid_from"], exclude_cols="dp_key")
+    expected_df = pd.DataFrame(expected, columns=actual_df.columns)
+
+    #arr1 = actual_df.to_numpy()
+    #arr2 = expected_df.to_numpy()
+    #np.testing.assert_array_equal(arr1, arr2, verbose=True)
+    pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
 
 def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, display_result: bool = True, show_input_to_merge: bool = True):
         
@@ -196,6 +244,7 @@ def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=
 
     expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
-    arr1 = actual_df.to_numpy()
-    arr2 = expected_df.to_numpy()
-    np.testing.assert_array_equal(arr1, arr2)
+#    arr1 = actual_df.to_numpy()
+#    arr2 = expected_df.to_numpy()
+#    np.testing.assert_array_equal(arr1, arr2, verbose=True)
+    pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)

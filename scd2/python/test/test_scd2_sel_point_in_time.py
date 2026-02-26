@@ -80,7 +80,7 @@ def test_step_1():
         )
     """
     scd2_merge_as_preparation(conn, ins_stmts=[insert_sql_1,insert_sql_2]
-                              , load_ts=[load_ts_1, load_ts_2], current_ts=[current_ts_1, current_ts_2]
+                              , load_ts_list=[load_ts_1, load_ts_2], current_ts_list=[current_ts_1, current_ts_2]
                               , output_file_name=FILE_NAME)
 
     # Run SELECT test
