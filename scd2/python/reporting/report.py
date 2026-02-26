@@ -253,12 +253,11 @@ def report_query_op():
     for base, stats in query_stats.items():
         pd.DataFrame(stats).round(3).to_csv(f"query_summary_{base}.csv")
 
-
-    if UPLOAD_TO_S3:
-        # Upload the local parquet file to S3
-        s3_key = f"{S3_UPLOAD_PREFIX}/benchmark_reporting/query_summary_{base}.csv"
-        s3.upload_file(f"query_summary_{base}.csv", S3_UPLOAD_BUCKET, s3_key)
-        logger.info(f"Uploaded query_summary_{base}.csv to s3://{S3_UPLOAD_BUCKET}/{s3_key}")        
+        if UPLOAD_TO_S3:
+            # Upload the local parquet file to S3
+            s3_key = f"{S3_UPLOAD_PREFIX}/benchmark_reporting/query_summary_{base}.csv"
+            s3.upload_file(f"query_summary_{base}.csv", S3_UPLOAD_BUCKET, s3_key)
+            logger.info(f"Uploaded query_summary_{base}.csv to s3://{S3_UPLOAD_BUCKET}/{s3_key}")        
 
 def report_all():
     report_merge_op()
