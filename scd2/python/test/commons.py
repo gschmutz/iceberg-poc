@@ -71,7 +71,7 @@ def init_trino_connection():
     )
     return conn
 
-def create_raw_table(conn):
+def create_raw_table(conn, pk_columns_with_type: list = ["id INT"]):
     cursor = conn.cursor()
 
     drop_table_sql = f"DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}"
@@ -82,7 +82,7 @@ def create_raw_table(conn):
     # --- 1. Create Iceberg table ---
     create_table_sql = f"""
     CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
-        id INT,
+        {", ".join(pk_columns_with_type)},
         first_name VARCHAR,
         last_name VARCHAR,
         city VARCHAR,
