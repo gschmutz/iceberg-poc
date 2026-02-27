@@ -28,7 +28,7 @@ def test_step_1():
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
     create_raw_table(conn, pk_columns_with_type=["id1 INT, id2 INT"])
-    create_dim_table_for_test(conn)
+    create_dim_table_for_test(conn, pk_columns_with_type=["id1 INT, id2 INT"])
     render_init("Testing Insert Operation", FILE_NAME)
     render_data("This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.", output_file_name=FILE_NAME)
 
@@ -57,24 +57,24 @@ def test_step_1():
     """
 
     expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
+        (1, 1,"Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
+        "NEW", "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
+        (2, 2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
+        "NEW", "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
 
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
+        (3, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
+        "NEW", "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, pk_columns=["id1", "id2"], load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 def test_step_2():
     logger.info("-------------------------------- Test Step 2 --------------------------------")
@@ -94,7 +94,8 @@ def test_step_2():
                 (3, 3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                 (10, 10, 'Kevin', 'Loosli', 'Bern', 'kevin.loosli@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
             ) AS t (
-            id,
+            id1,
+            id2,
             first_name,
             last_name,
             city,
@@ -106,28 +107,28 @@ def test_step_2():
     """
 
     expected = [
-        (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
+        (1, 1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
+        "NEW", "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
-        (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
+        (2, 2,"Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
+        "NEW", "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
 
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
+        (3, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
+        "NEW", "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
 
-        (10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
+        (10, 10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "NEW", "F32E425B7483AA533A0DBD8DB41BBD3DEEDBD2FF6427D420A7130EC9B174787C"),
+        "NEW", "DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C"),
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, pk_columns=["id1", "id2"], load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
 

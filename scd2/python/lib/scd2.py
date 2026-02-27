@@ -25,8 +25,9 @@ def cast_to_varchar(values):
     """Cast column names to VARCHAR."""
     return [f"CAST({value} AS VARCHAR)" for value in values]
 
-def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: str, s3_warehouse_bucket: str, s3_warehouse_prefix: str, pk_col_with_type:str, cols_with_type:list, partitioning_cols: list, sort_cols: list):
+def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: str, s3_warehouse_bucket: str, s3_warehouse_prefix: str, pk_columns_with_type:list, cols_with_type:list, partitioning_cols: list, sort_cols: list):
 
+    pk_columns_with_type_str = ", ".join([f"{col}" for col in pk_columns_with_type]) if pk_columns_with_type else ""
     cols_with_type_str = ", ".join([f"{col}" for col in cols_with_type]) if cols_with_type else ""
     partitioning_str = ", ".join([f"'{col}'" for col in partitioning_cols]) if partitioning_cols else ""
     sorted_by_str = ", ".join([f"'{col}'" for col in sort_cols]) if sort_cols else ""
@@ -34,7 +35,7 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     ddl = f"""
     CREATE TABLE IF NOT EXISTS {trino_catalog}.{trino_schema}.{table_name} (
         dp_key VARCHAR,
-        {pk_col_with_type},
+        {pk_columns_with_type_str},
         {cols_with_type_str},
 
         -- SCD2 metadata columns
@@ -58,9 +59,13 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     """
     return ddl
 
+def format_join_condition(pk_columns: list, prefix_left: str, prefix_right: str):
+    join_conditions = [f"{prefix_left}.{col} = {prefix_right}.{col}" for col in pk_columns]
+    return " AND ".join(join_conditions)    
 
 def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, pk_columns: list, val_columns: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
     pk_columns_str = format_values(pk_columns)
+    pk_prefixed_columns_str = format_values(add_prefix(pk_columns, "src"))
     val_columns_str = format_values(val_columns)
     prefixed_val_columns_str = format_values(add_prefix(val_columns, "src"))
     cast_pk_columns_str = format_values(cast_to_varchar(pk_columns))
@@ -83,10 +88,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
-            CASE 
-                WHEN src.{pk_columns_str} IS NULL THEN tgt.{pk_columns_str} 
-                ELSE src.{pk_columns_str}
-            END AS {pk_columns_str},
+            {pk_prefixed_columns_str},
             {prefixed_val_columns_str},
             src.dp_valid_from   AS src_dp_valid_from,
             src.{load_ts_col}   AS load_ts,
@@ -137,7 +139,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             --WHERE (dp_is_active = TRUE AND dp_valid_to = TIMESTAMP '9999-12-31 23:59:59') OR dp_is_latest = true
             WHERE src.dp_valid_from BETWEEN dp_valid_from AND dp_valid_to
         ) tgt
-        ON src.{pk_columns_str} = tgt.{pk_columns_str}
+        ON {format_join_condition(pk_columns, "src", "tgt")}
         LEFT JOIN LATERAL (
 	        SELECT 
                 dp_key,
@@ -156,7 +158,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        WHERE dp_valid_to = src.dp_valid_from - INTERVAL '1' SECOND
             OR (dp_is_latest = TRUE AND dp_valid_to < src.dp_valid_from)
   	    ) prev 
-  		ON (src.{pk_columns_str} = prev.{pk_columns_str})
+  		ON ({format_join_condition(pk_columns, "src", "prev")})
         LEFT JOIN LATERAL (
 	        SELECT 
                 dp_key,
@@ -175,7 +177,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        WHERE src.dp_valid_from < succ.dp_valid_from + INTERVAL '1' second
             AND succ.dp_is_active = TRUE
   	    ) active_succ 
-  		ON (src.{pk_columns_str} = active_succ.{pk_columns_str})                     
+  		ON ({format_join_condition(pk_columns, "src", "active_succ")})                     
     ),
     records_to_process AS (
         SELECT *
@@ -228,11 +230,11 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
     """
     return stmt
 
-def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, cols_with_type: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
+def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_columns: list, cols_with_type: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
 
     val_columns = [col.split()[0] for col in cols_with_type]
 
-    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, load_ts_col=load_ts_col, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_columns=[pk_col], val_columns=val_columns, use_delta_mode_for_raw_table=use_delta_mode_for_raw_table)
+    cte = format_cte(trino_catalog=trino_catalog, trino_schema=trino_schema, load_ts=load_ts, load_ts_col=load_ts_col, raw_table_name=raw_table_name, dim_table_name=dim_table_name, pk_columns=pk_columns, val_columns=val_columns, use_delta_mode_for_raw_table=use_delta_mode_for_raw_table)
     
     stmt = f"""
     CREATE OR REPLACE VIEW {trino_catalog}.{trino_schema}.{scd2_view_name} AS
@@ -243,11 +245,13 @@ def format_view(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_
     
     return stmt
 
-def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, trino_schema: str, dim_table_name: str, scd2_view_name: str, pk_col: str, val_columns: list):
+def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, trino_schema: str, dim_table_name: str, scd2_view_name: str, pk_columns: list, val_columns: list):
     prefixed_val_columns = add_prefix(val_columns, "source")
 
+    pk_columns_str = format_values(pk_columns)
     val_columns_str = format_values(val_columns)
     source_val_columns_str = format_values(prefixed_val_columns)
+    cast_pk_columns_str = format_values(cast_to_varchar(add_prefix(pk_columns, "source")))
     cast_source_val_columns_str = format_values(cast_to_varchar(prefixed_val_columns))    
     load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
     current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
@@ -309,7 +313,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     WHEN NOT MATCHED 
     THEN INSERT (
         dp_key,
-        {pk_col},
+        {pk_columns_str},
         {val_columns_str},
         dp_valid_from,
         dp_valid_to,
@@ -322,7 +326,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         record_hash
     ) VALUES (
         CAST( uuid() AS VARCHAR),
-        source.{pk_col},
+        {format_values(add_prefix(pk_columns, "source"))},
         {source_val_columns_str},
         source.src_dp_valid_from,
         CASE 
@@ -354,7 +358,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         to_hex(
             sha256(
                 CAST(
-                    concat_ws('||', ARRAY[CAST(source.{pk_col} AS VARCHAR), {cast_source_val_columns_str}])
+                    concat_ws('||', ARRAY[{cast_pk_columns_str}, {cast_source_val_columns_str}])
                     AS VARBINARY
                 )
             )
@@ -364,13 +368,13 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     print (stmt)
     return stmt
 
-def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name: str, s3_warehouse_bucket: str, s3_warehouse_prefix: str, pk_col_with_type: str, cols_with_type: list = None, partition_cols: list = None, sort_cols: list = None):
+def create_dim_table(conn, trino_catalog: str, trino_schema: str, dim_table_name: str, s3_warehouse_bucket: str, s3_warehouse_prefix: str, pk_columns_with_type: list, cols_with_type: list = None, partition_cols: list = None, sort_cols: list = None):
 
     drop_table_stmt = f"""DROP TABLE IF EXISTS {trino_catalog}.{trino_schema}.{dim_table_name}"""
     print(drop_table_stmt)
     execute_with_metrics(conn.cursor(), drop_table_stmt)
 
-    create_table_stmt = format_create_dim_table(trino_catalog, trino_schema, dim_table_name, s3_warehouse_bucket, s3_warehouse_prefix, pk_col_with_type, cols_with_type, partition_cols, sort_cols)
+    create_table_stmt = format_create_dim_table(trino_catalog, trino_schema, dim_table_name, s3_warehouse_bucket, s3_warehouse_prefix, pk_columns_with_type, cols_with_type, partition_cols, sort_cols)
     print(create_table_stmt)
 
     cursor = conn.cursor()
@@ -419,7 +423,7 @@ def run_analyze_table(conn, table_name: str):
 
     logger.info(f"Analyze table for {table_name} executed successfully.")
 
-def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_col: str, 
+def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, scd2_view_name: str, pk_columns: list, 
                          cols_with_type: list, load_ts: datetime, load_ts_col: str = "load_ts", current_ts: datetime = None, use_delta_mode_for_raw_table: bool = False, 
                          perform_merge_op: bool = True, show_input_to_merge: bool = False, output_file_name: str = None):
 
@@ -429,7 +433,7 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
         raw_table_name=raw_table_name,
         dim_table_name=dim_table_name,
         scd2_view_name=scd2_view_name,
-        pk_col=pk_col,
+        pk_columns=pk_columns,
         cols_with_type=cols_with_type,
         load_ts=load_ts,
         load_ts_col=load_ts_col,
@@ -454,7 +458,7 @@ def merge_into_dim_table(conn, trino_catalog: str, trino_schema: str, raw_table_
             trino_schema=trino_schema,
             dim_table_name=dim_table_name,
             scd2_view_name=scd2_view_name,
-            pk_col=pk_col,
+            pk_columns=pk_columns,
             val_columns=val_columns
         )
 
