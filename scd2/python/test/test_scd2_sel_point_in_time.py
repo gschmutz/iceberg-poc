@@ -56,7 +56,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -75,7 +75,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -88,11 +88,11 @@ def test_step_1():
 
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
-                dp_valid_from, dp_valid_to, dp_is_active, dp_is_latest,
+                dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
                 dp_load_timestamp, dp_created_at, dp_replaced_at,
                 record_hash  
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
-        WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_valid_from AND dp_valid_to
+        WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_ts_from AND dp_ts_to
         ORDER BY id
         """
     

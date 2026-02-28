@@ -137,8 +137,8 @@ def format_create_raw_table(table_name: str) -> str:
         clientdocumentcrscarftype VARCHAR,
         dp_record_id VARCHAR,
         dp_load_timestamp TIMESTAMP(6),
-        dp_valid_from DATE,
-        dp_valid_to DATE,
+        dp_ts_from DATE,
+        dp_ts_to DATE,
         
         status VARCHAR,
         dp_exported_at TIMESTAMP(6)
@@ -190,12 +190,12 @@ def format_create_insert_table(source_table_name: str, target_table_name: str, d
         clientdocumentcrscarftype,
         dp_record_id,
         CAST(dp_load_timestamp AS TIMESTAMP(6)) AS dp_load_timestamp,
-        dp_valid_from,
-        dp_valid_to,
+        dp_ts_from,
+        dp_ts_to,
         'ACTIVE' AS status,
         CAST('{dp_exported_at}' AS TIMESTAMP) as dp_exported_at
     FROM hive.cur_zone.{source_table_name}
-    WHERE CAST('{dp_exported_at}' AS TIMESTAMP) BETWEEN dp_valid_from AND dp_valid_to - INTERVAL '1' DAY
+    WHERE CAST('{dp_exported_at}' AS TIMESTAMP) BETWEEN dp_ts_from AND dp_ts_to - INTERVAL '1' DAY
     """
     return ddl
 

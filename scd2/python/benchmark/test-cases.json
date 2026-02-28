@@ -10,32 +10,32 @@
         },
         {
             "case_id": 1,
-            "description": "Partition by day(dp_valid_from) and dp_is_active, no sorting",
-            "partition_cols": ["day(dp_valid_from)", "dp_is_active"],
+            "description": "Partition by day(dp_ts_from) and dp_is_active, no sorting",
+            "partition_cols": ["day(dp_ts_from)", "dp_is_active"],
             "sort_cols": [],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 2,
-            "description": "Partition by month(dp_valid_from) and dp_is_active, no sorting",
-            "partition_cols": ["month(dp_valid_from)", "dp_is_active"],
+            "description": "Partition by month(dp_ts_from) and dp_is_active, no sorting",
+            "partition_cols": ["month(dp_ts_from)", "dp_is_active"],
             "sort_cols": [],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 3,
-            "description": "Partition by day(dp_valid_from), sort by dp_is_active",
-            "partition_cols": ["day(dp_valid_from)"],
+            "description": "Partition by day(dp_ts_from), sort by dp_is_active",
+            "partition_cols": ["day(dp_ts_from)"],
             "sort_cols": ["dp_is_active"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },    
         {
             "case_id": 4,
-            "description": "Partition by month(dp_valid_from), sort by dp_is_active",
-            "partition_cols": ["month(dp_valid_from)"],
+            "description": "Partition by month(dp_ts_from), sort by dp_is_active",
+            "partition_cols": ["month(dp_ts_from)"],
             "sort_cols": ["dp_is_active"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
@@ -50,32 +50,32 @@
         },
         {
             "case_id": 6,
-            "description": "Partition by dp_is_active and day(dp_valid_from), no sorting",
-            "partition_cols": ["dp_is_active", "day(dp_valid_from)"],
+            "description": "Partition by dp_is_active and day(dp_ts_from), no sorting",
+            "partition_cols": ["dp_is_active", "day(dp_ts_from)"],
             "sort_cols": [],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 7,
-            "description": "Partition by dp_is_active and month(dp_valid_from), no sorting",
-            "partition_cols": ["dp_is_active", "month(dp_valid_from)"],
+            "description": "Partition by dp_is_active and month(dp_ts_from), no sorting",
+            "partition_cols": ["dp_is_active", "month(dp_ts_from)"],
             "sort_cols": [],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },        
         {
             "case_id": 8,
-            "description": "Partition by day(dp_valid_from), dp_is_active, sort by dp_is_latest",
-            "partition_cols": ["day(dp_valid_from)", "dp_is_active"],
+            "description": "Partition by day(dp_ts_from), dp_is_active, sort by dp_is_latest",
+            "partition_cols": ["day(dp_ts_from)", "dp_is_active"],
             "sort_cols": ["dp_is_latest"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 9,
-            "description": "Partition by month(dp_valid_from) and dp_is_active, sort by dp_is_latest",
-            "partition_cols": ["month(dp_valid_from)", "dp_is_active"],
+            "description": "Partition by month(dp_ts_from) and dp_is_active, sort by dp_is_latest",
+            "partition_cols": ["month(dp_ts_from)", "dp_is_active"],
             "sort_cols": ["dp_is_latest"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
@@ -90,50 +90,50 @@
         },
         {
             "case_id": 11,
-            "description": "Partition by bucket(16, {pk_col}), dp_is_active, sort by dp_valid_from",
+            "description": "Partition by bucket(16, {pk_col}), dp_is_active, sort by dp_ts_from",
             "partition_cols": ["bucket({pk_col}, 16)", "dp_is_active"],
-            "sort_cols": ["dp_valid_from"],
+            "sort_cols": ["dp_ts_from"],
             "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 12,
-            "description": "Partition by month(dp_valid_from) and month(dp_valid_to), sort by dp_is_active",
-            "partition_cols": ["month(dp_valid_from)", "month(dp_valid_to)"],
+            "description": "Partition by month(dp_ts_from) and month(dp_ts_to), sort by dp_is_active",
+            "partition_cols": ["month(dp_ts_from)", "month(dp_ts_to)"],
             "sort_cols": ["dp_is_active"],
-            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },       
         {
             "case_id": 13,
-            "description": "Partition by month(dp_valid_from), sort by dp_valid_to",
-            "partition_cols": ["month(dp_valid_from)"],
-            "sort_cols": ["dp_valid_to"],
-            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "description": "Partition by month(dp_ts_from), sort by dp_ts_to",
+            "partition_cols": ["month(dp_ts_from)"],
+            "sort_cols": ["dp_ts_to"],
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },
         {
             "case_id": 14,
-            "description": "Partition by day(dp_valid_to), no sorting",
-            "partition_cols": ["day(dp_valid_to)"],
+            "description": "Partition by day(dp_ts_to), no sorting",
+            "partition_cols": ["day(dp_ts_to)"],
             "sort_cols": [],
-            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },               
         {
             "case_id": 15,
-            "description": "Partition by month(dp_valid_to), no sorting",
-            "partition_cols": ["month(dp_valid_to)"],
+            "description": "Partition by month(dp_ts_to), no sorting",
+            "partition_cols": ["month(dp_ts_to)"],
             "sort_cols": [],
-            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },           
         {
             "case_id": 16,
-            "description": "Partition by month(dp_valid_to), no sorting",
-            "partition_cols": ["month(dp_valid_to)"],
+            "description": "Partition by month(dp_ts_to), no sorting",
+            "partition_cols": ["month(dp_ts_to)"],
             "sort_cols": [],
-            "restrict_active_expression": "dp_valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },           
         {

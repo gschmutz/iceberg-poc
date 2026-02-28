@@ -30,7 +30,7 @@ conn = init_trino_connection()
 #@pytest.fixture(autouse=True, scope="session")
 #def setup_data(request):
 #    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_valid_from"], sort_cols=[])
+#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_ts_from"], sort_cols=[])
 #    yield
 #    logger.info("Finished all tests")
 
@@ -61,7 +61,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -108,7 +108,7 @@ def test_step_2():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -156,7 +156,7 @@ def test_step_3():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """

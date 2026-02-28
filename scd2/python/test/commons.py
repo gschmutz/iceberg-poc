@@ -88,7 +88,7 @@ def create_raw_table(conn, pk_columns_with_type: list = ["id INT"]):
         city VARCHAR,
         email VARCHAR,
         status VARCHAR,
-        dp_valid_from TIMESTAMP,
+        dp_ts_from TIMESTAMP,
         dp_loaded_at TIMESTAMP
     )
     WITH (
@@ -101,7 +101,7 @@ def create_raw_table(conn, pk_columns_with_type: list = ["id INT"]):
     logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
 
 def create_dim_table_for_test(conn, pk_columns_with_type: list = ["id INT"]):
-    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_columns_with_type=pk_columns_with_type, cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_valid_from"], sort_cols=[])
+    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_columns_with_type=pk_columns_with_type, cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_ts_from"], sort_cols=[])
 
 def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None, pk_columns: list = ["id"]):
 
@@ -136,7 +136,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at"]+pk_columns)
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
-    df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"])
+    df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
     render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
 
 def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
@@ -148,7 +148,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
     render_data(test_description, output_file_name=output_file_name)
 
-    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"])
+    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at"]+pk_columns)
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
@@ -171,13 +171,13 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
         output_file_name=output_file_name
     )
     if display_result:
-        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"])
-        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=pk_columns+["dp_valid_from"])    
+        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
+        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=pk_columns+["dp_ts_from"])    
 
         render_table(df_colored, title=f"Dimensional Table `{DIM_TABLE_NAME}`", decscription=test_after_description, exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)
 
-    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"], exclude_cols="dp_key")
+    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"], exclude_cols="dp_key")
     expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
     #arr1 = actual_df.to_numpy()
@@ -192,7 +192,7 @@ def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: li
     render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
     render_data(test_description, output_file_name=output_file_name)
 
-    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"])
+    df_dim_before = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at"]+pk_columns)
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
@@ -216,13 +216,13 @@ def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: li
         )
 
     if display_result:
-        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"])
-        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=pk_columns+["dp_valid_from"])    
+        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
+        df_colored = diff_with_color(df_dim_before, df, index_cols=["dp_key"], sort_cols=pk_columns+["dp_ts_from"])    
 
         render_table(df_colored, title=f"Dimensional Table `{DIM_TABLE_NAME}`", decscription=test_after_description, exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
         render_data(test_after_description, output_file_name=output_file_name)
 
-    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_valid_from"], exclude_cols="dp_key")
+    actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"], exclude_cols="dp_key")
     expected_df = pd.DataFrame(expected, columns=actual_df.columns)
 
     #arr1 = actual_df.to_numpy()

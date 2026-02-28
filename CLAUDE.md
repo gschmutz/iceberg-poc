@@ -53,7 +53,7 @@ Python environment setup: `cd scd2/python && python3 -m venv venv && source venv
 
 ### SCD2 Dimension Metadata Columns
 
-`dp_valid_from`, `dp_valid_to`, `dp_is_active`, `dp_is_latest`, `dp_load_timestamp`, `dp_created_at`, `dp_replaced_at`, `change_type`, `record_hash`
+`dp_ts_from`, `dp_ts_to`, `dp_is_active`, `dp_is_latest`, `dp_load_timestamp`, `dp_created_at`, `dp_replaced_at`, `change_type`, `record_hash`
 
 ### Test Structure
 

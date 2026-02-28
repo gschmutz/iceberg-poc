@@ -56,7 +56,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -105,7 +105,7 @@ def test_step_2():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -154,7 +154,7 @@ def test_step_3():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """

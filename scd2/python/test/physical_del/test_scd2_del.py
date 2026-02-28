@@ -50,7 +50,7 @@ def test_step_1():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """
@@ -80,7 +80,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_2}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_valid_to` = current load timestamp - 1 second and `dp_is_active` = False."
+    test_description = f"At {load_ts_2}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = current load timestamp - 1 second and `dp_is_active` = False."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -97,7 +97,7 @@ def test_step_2():
             city,
             email,
             status,
-            dp_valid_from,
+            dp_ts_from,
             dp_loaded_at
         )
     """

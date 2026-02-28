@@ -300,7 +300,7 @@ def run_select_over_time(tshirt: str, run_id: str, case_id: int, restrict_active
         SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
-        WHERE dp_valid_from <= CAST('2025-10-25' as TIMESTAMP) and dp_valid_to >= CAST('2025-11-25' as TIMESTAMP)
+        WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -314,7 +314,7 @@ def run_select_over_time_and_active(tshirt: str, run_id: str, case_id: int, rest
         SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
-        WHERE dp_valid_from <= CAST('2025-10-25' as TIMESTAMP) and dp_valid_to >= CAST('2025-11-25' as TIMESTAMP)
+        WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
         AND {restrict_active_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -385,7 +385,7 @@ def run_select_nof_entities_in_grouping_at_5th_of_jan(tshirt: str, run_id: str, 
     query = f"""
         SELECT COUNT(*) AS entities_in_group, array_agg(clientdocumentid) AS enties
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
-        WHERE cast('2026-01-05' as TIMESTAMP) between dp_valid_from and dp_valid_to
+        WHERE cast('2026-01-05' as TIMESTAMP) between dp_ts_from and dp_ts_to
         AND {restrict_active_expression} 
         AND dp_is_active = TRUE
         AND clientdocumentpriorityenum = 'mediumn'
