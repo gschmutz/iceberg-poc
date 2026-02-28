@@ -59,17 +59,17 @@ def test_step_1():
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
     ]
 
@@ -107,27 +107,27 @@ def test_step_2():
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
+        current_ts_1, current_ts_2,
         "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        current_ts_2, MAX_TS,
         "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
+        current_ts_1, current_ts_2,
         "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@newmail.com",
         load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        current_ts_2, MAX_TS,
         "9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6"),
     ]
 

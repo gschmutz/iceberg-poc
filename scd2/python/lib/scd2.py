@@ -43,7 +43,6 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
         dp_ts_to TIMESTAMP,
         dp_is_active BOOLEAN,
         dp_is_latest BOOLEAN,
-        dp_load_timestamp TIMESTAMP,
         dp_created_at TIMESTAMP,
         dp_replaced_at TIMESTAMP,
         
@@ -131,7 +130,6 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                     )
                 ) AS row_hash,
                 dp_key,
-                dp_load_timestamp,
                 dp_ts_to,
                 dp_ts_from         
             FROM {trino_catalog}.{trino_schema}.{dim_table_name}
@@ -260,11 +258,8 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
     MERGE INTO {trino_catalog}.{trino_schema}.{dim_table_name} AS target
     USING {trino_catalog}.{trino_schema}.{scd2_view_name} AS source
     ON target.dp_key = source.merge_key
-    --AND ((target.dp_is_active = TRUE AND target.dp_ts_to = TIMESTAMP '9999-12-31 23:59:59') OR target.dp_is_latest = true)
-    --AND  (src_dp_ts_from BETWEEN dp_ts_from AND dp_ts_to)
     WHEN MATCHED 
         AND source.operation_type = 'UPDATE_EXISTING'
-        --AND source.load_ts > target.dp_load_timestamp
     THEN UPDATE SET
         dp_ts_from = CASE
                             WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
@@ -314,7 +309,6 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         dp_ts_to,
         dp_is_active,
         dp_is_latest,
-        dp_load_timestamp,
         dp_created_at,
         dp_replaced_at,
         record_hash
@@ -342,7 +336,6 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
                 THEN TRUE 
             ELSE FALSE 
         END,    -- set the is_active to true, if valid_to is max timestamp
-        TIMESTAMP '{current_ts_str}',
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
         to_hex(

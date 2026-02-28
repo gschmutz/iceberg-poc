@@ -59,17 +59,17 @@ def test_step_1():
     expected = [
         (1, 1,"Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
         (2, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1"),
 
         (2, None, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
     ]
@@ -110,22 +110,22 @@ def test_step_2():
     expected = [
         (1, 1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
         (2, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1"),
 
         (2, None,"Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40"),
 
         (10, 10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
         load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        current_ts_2, MAX_TS,
         "DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C"),
     ]
 

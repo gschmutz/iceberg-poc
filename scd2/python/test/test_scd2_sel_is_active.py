@@ -91,7 +91,7 @@ def test_step_1():
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
-                dp_load_timestamp, dp_created_at, dp_replaced_at,
+                dp_created_at, dp_replaced_at,
                 record_hash 
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE dp_is_active = TRUE
@@ -101,12 +101,12 @@ def test_step_1():
     expected = [
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        current_ts_2, MAX_TS,
         "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_2, MAX_TS, True, True,
-        current_ts_2, current_ts_2, MAX_TS,
+        current_ts_2, MAX_TS,
         "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
     ]
 

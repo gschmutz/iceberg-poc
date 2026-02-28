@@ -89,7 +89,7 @@ def test_step_1():
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
-                dp_load_timestamp, dp_created_at, dp_replaced_at,
+                dp_created_at, dp_replaced_at,
                 record_hash  
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_ts_from AND dp_ts_to
@@ -99,12 +99,12 @@ def test_step_1():
     expected = [
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
-        current_ts_1, current_ts_1, current_ts_2,
+        current_ts_1, current_ts_2,
         "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
-        current_ts_1, current_ts_1, MAX_TS,
+        current_ts_1, MAX_TS,
         "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
     ]
 
