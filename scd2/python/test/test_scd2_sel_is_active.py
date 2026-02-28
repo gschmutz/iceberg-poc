@@ -92,7 +92,7 @@ def test_step_1():
         SELECT id, first_name, last_name, city, email,
                 dp_valid_from, dp_valid_to, dp_is_active, dp_is_latest,
                 dp_load_timestamp, dp_created_at, dp_replaced_at,
-                change_type, record_hash 
+                record_hash 
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE dp_is_active = TRUE
         ORDER BY id
@@ -102,12 +102,12 @@ def test_step_1():
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "SUPERSEDED_BY", "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
+        "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "NEW", "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
+        "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
     ]
 
     scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)

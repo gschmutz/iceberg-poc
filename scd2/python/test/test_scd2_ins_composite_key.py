@@ -60,17 +60,17 @@ def test_step_1():
         (1, 1,"Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
+        "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
         (2, 2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
+        "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
 
         (3, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
+        "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
     ]
 
     # run test
@@ -110,22 +110,22 @@ def test_step_2():
         (1, 1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
+        "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A"),
 
         (2, 2,"Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
+        "BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986"),
 
         (3, 3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
+        "EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E"),
 
         (10, 10, "Kevin", "Loosli", "Bern", "kevin.loosli@example.com",
         load_ts_2, MAX_TS, True, True,
         current_ts_2, current_ts_2, MAX_TS,
-        "NEW", "DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C"),
+        "DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C"),
     ]
 
     # run test

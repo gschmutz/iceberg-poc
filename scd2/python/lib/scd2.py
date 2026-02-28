@@ -48,7 +48,6 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
         dp_replaced_at TIMESTAMP,
         
         -- Additional metadata
-        change_type VARCHAR,
         record_hash VARCHAR
     )
     WITH (
@@ -304,10 +303,6 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
                                 THEN FALSE
                             ELSE FALSE 
                         END,
-        change_type = CASE WHEN source.change_classification = 'DELETED' 
-                                THEN 'DELETED' 
-                            ELSE 'SUPERSEDED' 
-                        END,
         dp_replaced_at = TIMESTAMP '{current_ts_str}'    
 
     WHEN NOT MATCHED 
@@ -322,7 +317,6 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         dp_load_timestamp,
         dp_created_at,
         dp_replaced_at,
-        change_type,
         record_hash
     ) VALUES (
         CAST( uuid() AS VARCHAR),
@@ -351,10 +345,6 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
-        CASE 
-            WHEN source.operation_type = 'UPDATE_EXISTING' THEN 'NEW'
-            ELSE 'SUPERSEDED_BY'
-        END,
         to_hex(
             sha256(
                 CAST(

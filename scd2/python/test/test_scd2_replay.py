@@ -136,27 +136,27 @@ def test_step_4():
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
         current_ts_1, current_ts_1, current_ts_2,
-        "SUPERSEDED", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
+        "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
         load_ts_2, load_ts_3 - timedelta(seconds=1), False, False,
         current_ts_2, current_ts_2, current_ts_3,
-        "SUPERSEDED", "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
+        "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
         (1, "Alice", "Meyer", "Bern", "alice.meyer@newmail.com",
         load_ts_3, load_ts_4 - timedelta(seconds=1), False, False,
         current_ts_3, current_ts_3, current_ts_4,
-        "SUPERSEDED", "658A2A3D277000AE5C47A2B7CD098D22A6CC6CB17582E31856ABC52816413408"),
+        "658A2A3D277000AE5C47A2B7CD098D22A6CC6CB17582E31856ABC52816413408"),
 
         (1, "Alice", "Müller-Meyer", "Bern", "alice.meyer@newmail.com",
         load_ts_4, MAX_TS, True, True,
         current_ts_4, current_ts_4, MAX_TS,
-        "SUPERSEDED_BY", "A69C37D41D4DF8E73BBE9CDEFBDA2EFFA89FB91D271E656B3020F83F0F13E7B8"),
+        "A69C37D41D4DF8E73BBE9CDEFBDA2EFFA89FB91D271E656B3020F83F0F13E7B8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
+        "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
     ]
 
     # run test

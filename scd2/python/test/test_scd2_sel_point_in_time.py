@@ -90,7 +90,7 @@ def test_step_1():
         SELECT id, first_name, last_name, city, email,
                 dp_valid_from, dp_valid_to, dp_is_active, dp_is_latest,
                 dp_load_timestamp, dp_created_at, dp_replaced_at,
-                change_type, record_hash  
+                record_hash  
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}
         WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_valid_from AND dp_valid_to
         ORDER BY id
@@ -100,12 +100,12 @@ def test_step_1():
         (1, "Alice", "Meyer", "Zurich", "alice.meyer@example.com",
         load_ts_1, load_ts_2 - timedelta(seconds=1), False, False,
         current_ts_1, current_ts_1, current_ts_2,
-        "SUPERSEDED", "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
+        "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8"),
 
         (2, "Bob", "Keller", "Bern", "bob.keller@example.com",
         load_ts_1, MAX_TS, True, True,
         current_ts_1, current_ts_1, MAX_TS,
-        "NEW", "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
+        "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40")
     ]
 
     scd2_sel_as_test(conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)

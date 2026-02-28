@@ -320,7 +320,7 @@ changed_records_df = raw_person_df.filter(F.col("load_date") == F.lit("2025-01-0
 
 # Step 2: Filter only NEW or CHANGED records
 records_to_process_df = changed_records_df.filter(
-    F.col("change_classification").isin("NEW", "CHANGED")
+    F.col("change_classification").isin("CHANGED")
 )
 
 # Step 3: Prepare source DataFrame for merge
