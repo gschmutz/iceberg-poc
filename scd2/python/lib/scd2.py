@@ -60,7 +60,7 @@ def format_create_dim_table(trino_catalog: str, trino_schema: str, table_name: s
     return ddl
 
 def format_join_condition(pk_columns: list, prefix_left: str, prefix_right: str):
-    join_conditions = [f"{prefix_left}.{col} = {prefix_right}.{col}" for col in pk_columns]
+    join_conditions = [f"{prefix_left}.{col} IS NOT DISTINCT FROM {prefix_right}.{col}" for col in pk_columns]
     return " AND ".join(join_conditions)    
 
 def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_table_name: str, pk_columns: list, val_columns: list, load_ts: datetime, load_ts_col: str, use_delta_mode_for_raw_table: bool = False):
