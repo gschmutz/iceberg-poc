@@ -17,7 +17,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 **Dimensional Table `dim_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@newcorp.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
@@ -30,7 +30,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 `
         SELECT * 
         FROM iceberg_hive.default.raw_person
-        FOR VERSION AS OF 4519038354701423478
+        FOR VERSION AS OF 5116658555262202923
         ORDER BY id
         `
 
@@ -39,7 +39,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 **Dimensional Table `dim_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_valid_from       | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |

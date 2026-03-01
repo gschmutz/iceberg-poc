@@ -8,7 +8,7 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                   | status   | dp_valid_from       | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                   | status   | dp_ts_from          | dp_loaded_at        |
 |------|--------------|-------------|--------|-------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 
@@ -17,18 +17,18 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 **Input to Merge**
 
 
-| merge_key   | dp_key   |   id | first_name   | last_name   | city   | email                   | src_dp_valid_from   | load_ts             | status   | change_classification   | operation_type   | tgt_dp_valid_from   | tgt_dp_valid_to     | prev_dp_valid_from   | prev_dp_valid_to   |
-|-------------|----------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|----------------------|--------------------|
-|             |          |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |                      |                    |
+| merge_key   | dp_key   |   id | first_name   | last_name   | city   | email                   | src_dp_ts_from      | load_ts             | status   | change_classification   | operation_type   | tgt_dp_ts_from      | tgt_dp_ts_to        | prev_dp_ts_from   | prev_dp_ts_to   | succ_dp_ts_from   | succ_dp_ts_to   |
+|-------------|----------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------|-------------------------|------------------|---------------------|---------------------|-------------------|-----------------|-------------------|-----------------|
+|             |          |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 | ACTIVE   | NEW                     | UPDATE_EXISTING  | 9999-12-31 23:59:59 | 9999-12-31 23:59:59 |                   |                 |                   |                 |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_key                                                                  | id                                   | first_name                               | last_name                                | city                                      | email                                                      | dp_valid_from                                          | dp_valid_to                                            | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
+| dp_key                                                                  | id                                   | first_name                               | last_name                                | city                                      | email                                                      | dp_ts_from                                             | dp_ts_to                                               | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |-------------------------------------------------------------------------|--------------------------------------|------------------------------------------|------------------------------------------|-------------------------------------------|------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
-| <span style='color: green;'>325adee9-bb66-4191-b2eb-6c2093b7c044</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
+| <span style='color: green;'>994c77c5-c2d5-492a-8705-4b94ab92fff2</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 

@@ -9,11 +9,11 @@ This test validates an INSERT operation of one new record
 
 | file_path                                                                                                                                                                                   |   record_count |   file_size_in_bytes |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035307_03409_7kr8c-088a1008-fb9c-4bee-a9aa-879da1cc0649.parquet |              3 |                 1449 |
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035308_03411_7kr8c-249ce4dd-412d-43a1-a425-9f5609900eee.parquet |              3 |                 1435 |
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035307_03410_7kr8c-72b104c7-ef54-498c-b749-f601ad4d8cc4.parquet |              3 |                 1459 |
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035306_03408_7kr8c-afc38a4a-0481-4070-b8a9-31057ff0eee6.parquet |              3 |                 1439 |
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035308_03412_7kr8c-dec87e94-5324-4fcf-9dcb-c4ec1de2fa28.parquet |              3 |                 1447 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235316_05800_fhb2g-a2c5a4c2-38c9-4ddb-b514-e99dc935f384.parquet |              3 |                 1453 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235316_05799_fhb2g-31a0eb8c-1f8a-4202-b7fe-5b0bbd70762e.parquet |              3 |                 1443 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235317_05801_fhb2g-2530c786-d879-42cd-a2fb-adfc479535fa.parquet |              3 |                 1429 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235316_05798_fhb2g-4215a515-f62e-4c45-9e56-aa6514bb233d.parquet |              3 |                 1433 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235317_05802_fhb2g-12539f7b-4a0d-47a6-a0d3-493cf76b77b3.parquet |              3 |                 1441 |
 
 Executing OPTIMIZE on the Iceberg table.
 
@@ -23,5 +23,5 @@ Executing OPTIMIZE on the Iceberg table.
 
 | file_path                                                                                                                                                                                   |   record_count |   file_size_in_bytes |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://admin-bucket/warehouse/raw_person-e4c770b2172e4fa083894ab553ff34ba/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260218_035308_03414_7kr8c-75b872a6-8a9b-4164-804b-adfe017826c0.parquet |             15 |                 1849 |
+| s3a://admin-bucket/warehouse/raw_person-bc24e037c017488d971920f318cd1e74/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260228_235317_05804_fhb2g-3b87e86b-7d3a-4b39-8de5-0c4aa75852c1.parquet |             15 |                 1842 |
 
