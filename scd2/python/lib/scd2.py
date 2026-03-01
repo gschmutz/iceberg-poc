@@ -81,7 +81,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
                             AS VARBINARY
                         )
                     )
-                ) AS row_hash
+                ) AS record_hash
             FROM {trino_catalog}.{trino_schema}.{raw_table_name}
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
@@ -93,42 +93,35 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             src.status,
             CASE 
                 WHEN tgt.dp_key IS NULL AND prev.dp_key IS NULL AND active_succ.dp_key IS NULL THEN 'NEW'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.row_hash <> prev.row_hash THEN 'CHANGED_WITH_PREV_DIFF'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.row_hash = prev.row_hash THEN 'CHANGED_WITH_PREV_SAME'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.row_hash <> prev.row_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_DIFF'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.row_hash = prev.row_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
-                WHEN tgt.dp_key IS NULL AND src.row_hash <> active_succ.row_hash THEN 'NEW_WITH_SUCC_DIFF'
-                WHEN tgt.dp_key IS NULL AND src.row_hash = active_succ.row_hash THEN 'NEW_WITH_SUCC_SAME'
+                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash <> prev.record_hash THEN 'CHANGED_WITH_PREV_DIFF'
+                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash = prev.record_hash THEN 'CHANGED_WITH_PREV_SAME'
+                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash <> prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_DIFF'
+                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash = prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
+                WHEN tgt.dp_key IS NULL AND src.record_hash <> active_succ.record_hash THEN 'NEW_WITH_SUCC_DIFF'
+                WHEN tgt.dp_key IS NULL AND src.record_hash = active_succ.record_hash THEN 'NEW_WITH_SUCC_SAME'
+                WHEN src.record_hash != tgt.record_hash and src.status != 'INACTIVE' THEN 'CHANGED'
                 WHEN (( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE') AND prev.dp_ts_to < src.dp_ts_from THEN 'DELETED_AGAIN_LATER_NOTHING_TO_DO'
                 WHEN ( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
-                WHEN src.row_hash != tgt.row_hash THEN 'CHANGED'
                 ELSE 'UNCHANGED'
             END AS change_classification,
             CASE
-                WHEN tgt.dp_key IS NULL AND src.row_hash = prev.row_hash THEN prev.dp_key
-                WHEN tgt.dp_key IS NULL AND src.row_hash <> prev.row_hash THEN prev.dp_key
-                WHEN tgt.dp_key IS NULL AND src.row_hash = active_succ.row_hash THEN active_succ.dp_key
-                WHEN tgt.dp_key IS NULL AND src.row_hash <> active_succ.row_hash THEN active_succ.dp_key
+                WHEN tgt.dp_key IS NULL AND src.record_hash = prev.record_hash THEN prev.dp_key
+                WHEN tgt.dp_key IS NULL AND src.record_hash <> prev.record_hash THEN prev.dp_key
+                WHEN tgt.dp_key IS NULL AND src.record_hash = active_succ.record_hash THEN active_succ.dp_key
+                WHEN tgt.dp_key IS NULL AND src.record_hash <> active_succ.record_hash THEN active_succ.dp_key
                 ELSE tgt.dp_key
             END AS dp_key,
             COALESCE(tgt.dp_ts_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_ts_from,         -- not sure if we need valid_from downstream
             COALESCE(tgt.dp_ts_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_ts_to,           -- set the valid_to to max if null (not found in dim table)
-            prev.dp_ts_from											     AS prev_dp_ts_from,
-            prev.dp_ts_to											     AS prev_dp_ts_to,            
-            active_succ.dp_ts_from									     AS succ_dp_ts_from,
-            active_succ.dp_ts_to											 AS succ_dp_ts_to            
+            prev.dp_ts_from											      AS prev_dp_ts_from,
+            prev.dp_ts_to											      AS prev_dp_ts_to,            
+            active_succ.dp_ts_from									      AS succ_dp_ts_from,
+            active_succ.dp_ts_to									      AS succ_dp_ts_to            
         FROM src_records AS src
         LEFT JOIN LATERAL (
             SELECT 
                 {pk_columns_str},
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[{cast_pk_columns_str}, {cast_val_columns_str}])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash,
+                record_hash,
                 dp_key,
                 dp_ts_to,
                 dp_ts_from         
@@ -141,14 +134,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        SELECT 
                 dp_key,
                 {pk_columns_str},
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[{cast_pk_columns_str}, {cast_val_columns_str}])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash,
+                record_hash,
                 dp_ts_from,
 	            dp_ts_to          
 	        FROM {trino_catalog}.{trino_schema}.{dim_table_name}
@@ -160,14 +146,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
 	        SELECT 
                 dp_key,
                 {pk_columns_str},
-                to_hex(
-                    sha256(
-                        CAST(
-                            concat_ws('||', ARRAY[{cast_pk_columns_str}, {cast_val_columns_str}])
-                            AS VARBINARY
-                        )
-                    )
-                ) AS row_hash,
+                record_hash,
                 dp_ts_from,
 	            dp_ts_to          
 	        FROM {trino_catalog}.{trino_schema}.{dim_table_name} AS succ
@@ -275,7 +254,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
                                 THEN source.tgt_dp_ts_to     
                             WHEN source.change_classification = 'CHANGED'
-                                THEN CAST(source.load_ts AS TIMESTAMP) - INTERVAL '1' SECOND 
+                                THEN CAST(source.src_dp_ts_from AS TIMESTAMP) - INTERVAL '1' SECOND 
                             ELSE 
                                 target.dp_ts_to  
                         END,
