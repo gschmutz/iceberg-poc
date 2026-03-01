@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_del_with_many_versions.md"
+FILE_NAME="reports/scd2_test_logical_del_with_many_versions.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -32,8 +32,8 @@ def test_step_1():
 
     create_raw_table(conn)
     create_dim_table_for_test(conn)
-    render_init("Testing Physical Delete Operation with many versions", FILE_NAME)
-    render_data("This test validates a DELETE operation of a single entity with many versions. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.", output_file_name=FILE_NAME)
+    render_init("Testing Logical Delete Operation with many versions", FILE_NAME)
+    render_data("This test validates a DELETE operation of a single entity with many versions. The delete is created by a logical delete in the raw table, i.e., the entity's status is set to 'INACTIVE'.", output_file_name=FILE_NAME)
 
     test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge. At {load_ts_2}, update email address of entity with `id=3` and perform SCD2 merge."
 
@@ -111,7 +111,7 @@ def test_step_2():
 
     cursor = conn.cursor()
 
-    test_description = f"At {load_ts_3}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = current load timestamp - 1 second and `dp_is_active` = False."
+    test_description = f"At {load_ts_3}, delete entity with `id=3` from raw table (logical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = {load_ts_3} - 1 second and `dp_is_active` = False."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -121,7 +121,7 @@ def test_step_2():
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}', TIMESTAMP '{load_ts_3}'),
                 (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}', TIMESTAMP '{load_ts_3}'),
-                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'INACTIVE', TIMESTAMP '{load_ts_3}', TIMESTAMP '{load_ts_3}')
+                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@newmail.com', 'INACTIVE', TIMESTAMP '{load_ts_3}', TIMESTAMP '{load_ts_3}')
         ) AS t (
             id,
             first_name,

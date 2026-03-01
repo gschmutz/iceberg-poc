@@ -14,7 +14,7 @@ from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOU
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_ins_composite_null_key.md"
+FILE_NAME="reports/scd2_compnull_test_ins.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -29,7 +29,7 @@ def test_step_1():
 
     create_raw_table(conn, pk_columns_with_type=["id1 INT, id2 INT"])
     create_dim_table_for_test(conn, pk_columns_with_type=["id1 INT, id2 INT"])
-    render_init("Testing Insert Operation", FILE_NAME)
+    render_init("Testing Insert Operation with a Composite Key (with NULL values)", FILE_NAME)
     render_data("This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.", output_file_name=FILE_NAME)
 
     test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
@@ -41,7 +41,7 @@ def test_step_1():
         FROM (
             VALUES
                 (1, 1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (2, null, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                (2, NULL, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
                 (2, 3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
         ) AS t (
             id1,
@@ -91,7 +91,7 @@ def test_step_2():
         FROM (
             VALUES
                 (1, 1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (2, null, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (2, NULL, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                 (2, 3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                 (10, 10, 'Kevin', 'Loosli', 'Bern', 'kevin.loosli@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
             ) AS t (
