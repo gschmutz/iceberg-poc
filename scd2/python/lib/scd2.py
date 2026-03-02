@@ -88,7 +88,8 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
         SELECT
             {pk_prefixed_columns_str},
             {prefixed_val_columns_str},
-            src.dp_ts_from   AS src_dp_ts_from,
+            src.dp_ts_from      AS src_dp_ts_from,
+            src.record_hash     AS src_record_hash,
             src.{load_ts_col}   AS load_ts,
             src.status,
             CASE 
@@ -168,6 +169,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             {pk_columns_str},
             {val_columns_str},
             src_dp_ts_from,
+            src_record_hash as record_hash,
             load_ts,
             status,
             change_classification,
@@ -190,6 +192,7 @@ def format_cte(trino_catalog: str, trino_schema: str, raw_table_name: str, dim_t
             {pk_columns_str},
             {val_columns_str},
             src_dp_ts_from,
+            src_record_hash as record_hash,
             load_ts,
             status,
             change_classification,
@@ -317,14 +320,7 @@ def format_merge(load_ts: datetime, current_ts: datetime, trino_catalog: str, tr
         END,    -- set the is_active to true, if valid_to is max timestamp
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
-        to_hex(
-            sha256(
-                CAST(
-                    concat_ws('||', ARRAY[{cast_pk_columns_str}, {cast_source_val_columns_str}])
-                    AS VARBINARY
-                )
-            )
-        )
+        source.record_hash
     ) 
     """
     print (stmt)
