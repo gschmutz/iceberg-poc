@@ -9,7 +9,7 @@ from util import get_param, get_credential, replace_vars_in_string, render_init,
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from scd2 import merge_into_dim_table, optimize_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, init_trino_connection
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,8 +19,6 @@ FILE_NAME="reports/test_iceberg_optimize.md"
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
-
 #@pytest.fixture(autouse=True, scope="session")
 #def setup_data(request):
 #    create_raw_table()
@@ -29,10 +27,10 @@ conn = init_trino_connection()
 #    logger.info("Finished all tests")
 
 
-def test_step_1():
+def test_step_1(trino_conn):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
+    create_raw_table(trino_conn)
     render_init("Testing Insert Operation", FILE_NAME)
     render_data("This test validates an INSERT operation of one new record", output_file_name=FILE_NAME)
 
@@ -79,21 +77,21 @@ def test_step_1():
             (43, 'Paula', 'Gerber', 'Fribourg', 'paula.gerber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    conn.cursor().execute(insert_sql_1)
-    conn.cursor().execute(insert_sql_2)
-    conn.cursor().execute(insert_sql_3)
-    conn.cursor().execute(insert_sql_4)
-    conn.cursor().execute(insert_sql_5)
+    trino_conn.cursor().execute(insert_sql_1)
+    trino_conn.cursor().execute(insert_sql_2)
+    trino_conn.cursor().execute(insert_sql_3)
+    trino_conn.cursor().execute(insert_sql_4)
+    trino_conn.cursor().execute(insert_sql_5)
 
-    df = get_table_data(conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata before OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(conn, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
+    optimize_table(trino_conn, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
 
     # Verify and Visualize results
-    df = get_table_data(conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata after OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     assert len(df) == 1, f"Expected 1 file after OPTIMIZE, but found {len(df)}"

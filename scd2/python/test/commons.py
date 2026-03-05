@@ -11,7 +11,7 @@ from datetime import date, timedelta, datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table, create_dim_table
+from scd2 import TrinoSCD2Strategy
 from constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
@@ -54,24 +54,11 @@ COLS_WITH_TYPE = [
 EXCLUDE_COLS = ["record_hash","dp_load_timestamp", "change_type"]
 LOAD_TS_COL="dp_loaded_at"
 
-def init_trino_connection():
-    if TRINO_USE_SSL:
-        http_scheme = "https"
-    else:
-        http_scheme = "http"
+def _make_strategy(conn, spark) -> TrinoSCD2Strategy:
+    #return SparkSCD2Strategy(spark, database="default")
+    return TrinoSCD2Strategy(conn, catalog=TRINO_CATALOG, schema=TRINO_SCHEMA)
 
-    # Construct connection URLs
-    conn = trino.dbapi.connect(
-        host=f"{TRINO_HOST}",
-        port=int(TRINO_PORT),
-        user=f"{TRINO_USER}",
-        catalog=f"{TRINO_CATALOG}",
-        schema=f"{TRINO_SCHEMA}",
-        http_scheme=http_scheme,
-    )
-    return conn
-
-def create_raw_table(conn, pk_columns_with_type: list = ["id INT"]):
+def create_raw_table(conn,  pk_columns_with_type: list = ["id INT"]):
     cursor = conn.cursor()
 
     drop_table_sql = f"DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}"
@@ -100,10 +87,10 @@ def create_raw_table(conn, pk_columns_with_type: list = ["id INT"]):
     cursor.execute(create_table_sql)
     logger.debug(f"Table {RAW_TABLE_NAME} created successfully (or already exists).")
 
-def create_dim_table_for_test(conn, pk_columns_with_type: list = ["id INT"]):
-    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_columns_with_type=pk_columns_with_type, cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_ts_from"], sort_cols=[])
+def create_dim_table_for_test(conn, spark, pk_columns_with_type: list = ["id INT"]):
+    _make_strategy(conn, spark).create_dim_table(DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_columns_with_type=pk_columns_with_type, cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_ts_from"], sort_cols=[])
 
-def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None, pk_columns: list = ["id"]):
+def scd2_merge_as_preparation(conn, spark, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None, pk_columns: list = ["id"]):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
@@ -114,10 +101,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current
         print (load_ts_list[idx], current_ts_list[idx])
 
         # run dimensional merge
-        merge_into_dim_table(
-            conn=conn,
-            trino_catalog=TRINO_CATALOG,
-            trino_schema=TRINO_SCHEMA,
+        _make_strategy(conn, spark).merge_into_dim_table(
             raw_table_name=RAW_TABLE_NAME,
             dim_table_name=DIM_TABLE_NAME,
             scd2_view_name=SCD2_VIEW_NAME,
@@ -128,7 +112,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current
             current_ts=current_ts_list[idx],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            show_input_to_merge=False
+            show_input_to_merge=False,
         )
     
     render_data(f"### Perform Preparation", output_file_name=output_file_name)
@@ -139,7 +123,7 @@ def scd2_merge_as_preparation(conn, ins_stmts: list, load_ts_list: list, current
     df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
     render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
 
-def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
+def scd2_merge_as_test(conn, spark, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
@@ -153,10 +137,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
     # run dimensional merge
-    merge_into_dim_table(
-        conn=conn,
-        trino_catalog=TRINO_CATALOG,
-        trino_schema=TRINO_SCHEMA,
+    _make_strategy(conn, spark).merge_into_dim_table(
         raw_table_name=RAW_TABLE_NAME,
         dim_table_name=DIM_TABLE_NAME,
         scd2_view_name=SCD2_VIEW_NAME,
@@ -168,7 +149,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         perform_merge_op=perform_merge_op,
         show_input_to_merge=show_input_to_merge,
-        output_file_name=output_file_name
+        output_file_name=output_file_name,
     )
     if display_result:
         df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
@@ -185,9 +166,7 @@ def scd2_merge_as_test(conn, test_step: int, ins_stmt: str, load_ts: datetime, c
     #np.testing.assert_array_equal(arr1, arr2, verbose=True)
     pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
 
-def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: list, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
-    # --- Prepare raw data ---
-    cursor = conn.cursor()
+def scd2_merge_as_test2(conn, spark,test_step, load_ts_list: list, current_ts_list: list, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
 
     render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
     render_data(test_description, output_file_name=output_file_name)
@@ -196,11 +175,9 @@ def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: li
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at"]+pk_columns)
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
+    strategy = _make_strategy(conn, spark)
     for idx, load_ts in enumerate(load_ts_list):
-        merge_into_dim_table(
-            conn=conn,
-            trino_catalog=TRINO_CATALOG,
-            trino_schema=TRINO_SCHEMA,
+        strategy.merge_into_dim_table(
             raw_table_name=RAW_TABLE_NAME,
             dim_table_name=DIM_TABLE_NAME,
             scd2_view_name=SCD2_VIEW_NAME,
@@ -212,7 +189,7 @@ def scd2_merge_as_test2(conn, test_step, load_ts_list: list, current_ts_list: li
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
             show_input_to_merge=show_input_to_merge,
-            output_file_name=output_file_name
+            output_file_name=output_file_name,
         )
 
     if display_result:

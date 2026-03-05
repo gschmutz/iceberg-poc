@@ -9,7 +9,7 @@ from util import get_param, get_credential, replace_vars_in_string, render_init,
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from scd2 import merge_into_dim_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test,scd2_merge_as_preparation, create_raw_table, init_trino_connection
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test,scd2_merge_as_preparation, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,13 +28,11 @@ current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_4 = datetime.strptime('2026-01-15 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_4 = datetime.strptime('2026-01-16 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
-
-def test_step_1():
+def test_step_1(trino_conn, spark):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
-    create_dim_table_for_test(conn)
+    create_raw_table(trino_conn)
+    create_dim_table_for_test(trino_conn, spark)
     
     render_init("Testing Update Operation with correction (same value) in the past", FILE_NAME)
     render_data("This test validates an UPDATE operation of one entity (with a new version with same values) on a set of existing entities.", output_file_name=FILE_NAME)
@@ -80,12 +78,10 @@ def test_step_1():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(trino_conn, spark, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2():
+def test_step_2(trino_conn, spark):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
-
-    cursor = conn.cursor()
 
     test_description = f"At {load_ts_3}, update entity with `id=1` by setting `city` to `Bern` and perform SCD2 merge."
 
@@ -133,13 +129,11 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(trino_conn, spark, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
-def test_step_3():
+def test_step_3(trino_conn, spark):
     logger.info("-------------------------------- Test Step 3 --------------------------------")
-
-    cursor = conn.cursor()
 
     test_description = f"At {load_ts_2}, update entity with `id=1` in raw table by setting `city` to `Zurich` (value which is already set for {load_ts_2}) and perform SCD2 merge."
     
@@ -187,6 +181,6 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_4, 
+    scd2_merge_as_test(trino_conn, spark, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_4, 
                        expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
