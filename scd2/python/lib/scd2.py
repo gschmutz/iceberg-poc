@@ -108,9 +108,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cast_val_columns_str = fv(cv(val_columns))
         load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
 
-        join_src_tgt = self._format_join_condition(pk_columns, "src", "tgt")
+        join_src_overlap = self._format_join_condition(pk_columns, "src", "overlap")
         join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
-        join_src_succ = self._format_join_condition(pk_columns, "src", "active_succ")
+        join_src_next = self._format_join_condition(pk_columns, "src", "next")
 
         raw_fqn = self._fqn(raw_table_name)
         dim_fqn = self._fqn(dim_table_name)
@@ -138,31 +138,31 @@ class TrinoSCD2Strategy(SCD2Strategy):
             src.{load_ts_col}   AS load_ts,
             src.status,
             CASE
-                WHEN tgt.dp_key IS NULL AND prev.dp_key IS NULL AND active_succ.dp_key IS NULL THEN 'NEW'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash <> prev.record_hash THEN 'CHANGED_WITH_PREV_DIFF'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash = prev.record_hash THEN 'CHANGED_WITH_PREV_SAME'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash <> prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_DIFF'
-                WHEN tgt.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash = prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
-                WHEN tgt.dp_key IS NULL AND src.record_hash <> active_succ.record_hash THEN 'NEW_WITH_SUCC_DIFF'
-                WHEN tgt.dp_key IS NULL AND src.record_hash = active_succ.record_hash THEN 'NEW_WITH_SUCC_SAME'
-                WHEN src.record_hash != tgt.record_hash and src.status != 'INACTIVE' THEN 'CHANGED'
+                WHEN overlap.dp_key IS NULL AND prev.dp_key IS NULL AND next.dp_key IS NULL THEN 'NEW'
+                WHEN overlap.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash <> prev.record_hash THEN 'CHANGED_WITH_PREV_DIFF'
+                WHEN overlap.dp_key IS NULL AND prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' second AND src.record_hash = prev.record_hash THEN 'CHANGED_WITH_PREV_SAME'
+                WHEN overlap.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash <> prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_DIFF'
+                WHEN overlap.dp_key IS NULL AND prev.dp_ts_to < src.dp_ts_from AND src.record_hash = prev.record_hash AND src.status = 'ACTIVE' THEN 'NEW_WITH_PREV_SAME'
+                WHEN overlap.dp_key IS NULL AND src.record_hash <> next.record_hash THEN 'NEW_WITH_NEXT_DIFF'
+                WHEN overlap.dp_key IS NULL AND src.record_hash = next.record_hash THEN 'NEW_WITH_NEXT_SAME'
+                WHEN src.record_hash != overlap.record_hash and src.status != 'INACTIVE' THEN 'CHANGED'
                 WHEN (( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE') AND prev.dp_ts_to < src.dp_ts_from THEN 'DELETED_AGAIN_LATER_NOTHING_TO_DO'
                 WHEN ( {use_delta_mode_for_raw_table}) OR src.status = 'INACTIVE' THEN 'DELETED'
                 ELSE 'UNCHANGED'
             END AS change_classification,
             CASE
-                WHEN tgt.dp_key IS NULL AND src.record_hash = prev.record_hash THEN prev.dp_key
-                WHEN tgt.dp_key IS NULL AND src.record_hash <> prev.record_hash THEN prev.dp_key
-                WHEN tgt.dp_key IS NULL AND src.record_hash = active_succ.record_hash THEN active_succ.dp_key
-                WHEN tgt.dp_key IS NULL AND src.record_hash <> active_succ.record_hash THEN active_succ.dp_key
-                ELSE tgt.dp_key
+                WHEN overlap.dp_key IS NULL AND src.record_hash = prev.record_hash THEN prev.dp_key
+                WHEN overlap.dp_key IS NULL AND src.record_hash <> prev.record_hash THEN prev.dp_key
+                WHEN overlap.dp_key IS NULL AND src.record_hash = next.record_hash THEN next.dp_key
+                WHEN overlap.dp_key IS NULL AND src.record_hash <> next.record_hash THEN next.dp_key
+                ELSE overlap.dp_key
             END AS dp_key,
-            COALESCE(tgt.dp_ts_from, TIMESTAMP '9999-12-31 23:59:59')     AS tgt_dp_ts_from,
-            COALESCE(tgt.dp_ts_to, TIMESTAMP '9999-12-31 23:59:59')       AS tgt_dp_ts_to,
+            COALESCE(overlap.dp_ts_from, TIMESTAMP '9999-12-31 23:59:59') AS overlap_dp_ts_from,
+            COALESCE(overlap.dp_ts_to, TIMESTAMP '9999-12-31 23:59:59')   AS overlap_dp_ts_to,
             prev.dp_ts_from                                               AS prev_dp_ts_from,
             prev.dp_ts_to                                                 AS prev_dp_ts_to,
-            active_succ.dp_ts_from                                        AS succ_dp_ts_from,
-            active_succ.dp_ts_to                                          AS succ_dp_ts_to
+            next.dp_ts_from                                               AS next_dp_ts_from,
+            next.dp_ts_to                                                 AS next_dp_ts_to
         FROM src_records AS src
         LEFT JOIN LATERAL (
             SELECT
@@ -170,21 +170,27 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 record_hash,
                 dp_key,
                 dp_ts_to,
-                dp_ts_from
+                dp_ts_from,
+                dp_is_active,
+                CASE WHEN src.record_hash = record_hash THEN TRUE ELSE FALSE END AS is_same_as_src,
+                CASE WHEN record_hash IS NULL THEN 'NON_MATCHING_VERSION' ELSE 'MATCHING_VERSION' END AS match_classification
             FROM {dim_fqn}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
-        ) tgt
-        ON {join_src_tgt}
+        ) overlap
+        ON {join_src_overlap}
         LEFT JOIN LATERAL (
             SELECT
                 dp_key,
                 {pk_columns_str},
                 record_hash,
                 dp_ts_from,
-                dp_ts_to
+                dp_ts_to,
+                dp_is_active,
+                CASE WHEN src.record_hash = record_hash THEN TRUE ELSE FALSE END AS is_same_as_src,
+                CASE WHEN dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND THEN 'PREV_ENDS_WHEN_SRC_STARTS' ELSE 'PREV_HAS_GAP_WITH SRC_START' END AS prev_overlap_classification
             FROM {dim_fqn}
-            WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND
-            OR (dp_is_latest = TRUE AND dp_ts_to < src.dp_ts_from)
+            WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
+            OR (dp_ts_to < src.dp_ts_from AND dp_is_latest = TRUE)      -- we are interested in previous version even if it is not ending exactly at the new version, if it is the latest version
         ) prev
         ON ({join_src_prev})
         LEFT JOIN LATERAL (
@@ -193,17 +199,19 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 {pk_columns_str},
                 record_hash,
                 dp_ts_from,
-                dp_ts_to
-            FROM {dim_fqn} AS succ
-            WHERE src.dp_ts_from < succ.dp_ts_from + INTERVAL '1' second
-            AND succ.dp_is_active = TRUE
-        ) active_succ
-        ON ({join_src_succ})
+                dp_ts_to,
+                dp_is_active,
+                CASE WHEN src.record_hash = record_hash THEN TRUE ELSE FALSE END AS is_same_as_src
+            FROM {dim_fqn} AS next
+            WHERE src.dp_ts_from < next.dp_ts_from
+            AND next.dp_is_active = TRUE
+        ) next
+        ON ({join_src_next})
     ),
     records_to_process AS (
         SELECT *
         FROM changed_records
-        WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_SUCC_DIFF', 'NEW_WITH_SUCC_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
+        WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_NEXT_DIFF', 'NEW_WITH_NEXT_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
     ),
     prepared_source AS (
         -- Original records for updates
@@ -218,14 +226,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
             status,
             change_classification,
             'UPDATE_EXISTING' AS operation_type,
-            tgt_dp_ts_from,
-            tgt_dp_ts_to,
+            overlap_dp_ts_from,
+            overlap_dp_ts_to,
             prev_dp_ts_from,
             prev_dp_ts_to,
-            succ_dp_ts_from,
-            succ_dp_ts_to
+            next_dp_ts_from,
+            next_dp_ts_to
         FROM records_to_process
-        WHERE change_classification NOT IN ('NEW_WITH_SUCC_DIFF')
+        WHERE change_classification NOT IN ('NEW_WITH_NEXT_DIFF')
 
         UNION ALL
 
@@ -241,14 +249,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
             status,
             change_classification,
             'INSERT_NEW_VERSION' AS operation_type,
-            tgt_dp_ts_from,
-            tgt_dp_ts_to,
+            overlap_dp_ts_from,
+            overlap_dp_ts_to,
             prev_dp_ts_from,
             prev_dp_ts_to,
-            succ_dp_ts_from,
-            succ_dp_ts_to
+            next_dp_ts_from,
+            next_dp_ts_to
         FROM records_to_process
-        WHERE change_classification IN ('CHANGED', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_SUCC_DIFF', 'CHANGED_WITH_PREV_DIFF')
+        WHERE change_classification IN ('CHANGED', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_NEXT_DIFF', 'CHANGED_WITH_PREV_DIFF')
     )
     """
 
@@ -307,7 +315,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         AND source.operation_type = 'UPDATE_EXISTING'
     THEN UPDATE SET
         dp_ts_from = CASE
-                            WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
+                            WHEN source.change_classification = 'NEW_WITH_NEXT_SAME'
                                 THEN source.src_dp_ts_from
                             ELSE
                                 target.dp_ts_from
@@ -315,17 +323,17 @@ class TrinoSCD2Strategy(SCD2Strategy):
         dp_ts_to = CASE
                             WHEN source.change_classification = 'DELETED'
                                 THEN src_dp_ts_from - INTERVAL '1' SECOND
-                            WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
-                                THEN source.tgt_dp_ts_to
+                            WHEN source.change_classification = 'NEW_WITH_NEXT_SAME'
+                                THEN source.overlap_dp_ts_to
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
-                                THEN source.tgt_dp_ts_to
+                                THEN source.overlap_dp_ts_to
                             WHEN source.change_classification = 'CHANGED'
                                 THEN CAST(source.src_dp_ts_from AS TIMESTAMP) - INTERVAL '1' SECOND
                             ELSE
                                 target.dp_ts_to
                         END,
         dp_is_active = CASE
-                            WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
+                            WHEN source.change_classification = 'NEW_WITH_NEXT_SAME'
                                 THEN target.dp_is_active
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
                                 THEN TRUE
@@ -335,7 +343,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         dp_is_latest = CASE
                             WHEN source.change_classification = 'DELETED'
                                 THEN TRUE
-                            WHEN source.change_classification = 'NEW_WITH_SUCC_SAME'
+                            WHEN source.change_classification = 'NEW_WITH_NEXT_SAME'
                                 THEN target.dp_is_latest
                             WHEN source.change_classification = 'CHANGED_WITH_PREV_SAME'
                                 THEN TRUE
@@ -363,21 +371,21 @@ class TrinoSCD2Strategy(SCD2Strategy):
         {source_val_columns_str},
         source.src_dp_ts_from,
         CASE
-            WHEN source.change_classification = 'NEW_WITH_SUCC_DIFF'
-                THEN source.succ_dp_ts_from - INTERVAL '1' SECOND
-            ELSE source.tgt_dp_ts_to
+            WHEN source.change_classification = 'NEW_WITH_NEXT_DIFF'
+                THEN source.next_dp_ts_from - INTERVAL '1' SECOND
+            ELSE source.overlap_dp_ts_to
         END,
         CASE
-            WHEN change_classification = 'NEW_WITH_SUCC_DIFF'
+            WHEN change_classification = 'NEW_WITH_NEXT_DIFF'
                 THEN FALSE
-            WHEN source.tgt_dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'
+            WHEN source.overlap_dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'
                 THEN TRUE
             ELSE FALSE
         END,
         CASE
-            WHEN change_classification = 'NEW_WITH_SUCC_DIFF'
+            WHEN change_classification = 'NEW_WITH_NEXT_DIFF'
                 THEN FALSE
-            WHEN source.tgt_dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'
+            WHEN source.overlap_dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'
                 THEN TRUE
             ELSE FALSE
         END,
