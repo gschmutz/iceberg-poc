@@ -90,11 +90,13 @@ def create_raw_table(conn,  pk_columns_with_type: list = ["id INT"]):
 def create_dim_table_for_test(conn, spark, pk_columns_with_type: list = ["id INT"]):
     _make_strategy(conn, spark).create_dim_table(DIM_TABLE_NAME, s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_columns_with_type=pk_columns_with_type, cols_with_type=COLS_WITH_TYPE, partition_cols=["dp_ts_from"], sort_cols=[])
 
-def scd2_merge_as_preparation(conn, spark, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, output_file_name:str=None, pk_columns: list = ["id"]):
+def scd2_merge_as_preparation(conn, spark, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, expected = None, output_file_name:str=None, test_description:str=None, pk_columns: list = ["id"]):
 
     # --- Prepare raw data ---
     cursor = conn.cursor()
-
+    
+    render_data(test_description, output_file_name=output_file_name)
+    
     for idx, ins_stmt in enumerate(ins_stmts):
         cursor.execute(ins_stmt)
 
@@ -120,8 +122,19 @@ def scd2_merge_as_preparation(conn, spark, ins_stmts: list, load_ts_list: list, 
     df_raw = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=["dp_loaded_at"]+pk_columns)
     render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
-    df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
-    render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
+    if display_result:
+        df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"])
+        render_table(df, title=f"Dimensional Table `{DIM_TABLE_NAME}`", exclude_cols=EXCLUDE_COLS, output_file_name=output_file_name)
+
+    if (expected is not None):
+        actual_df = get_table_data(conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{DIM_TABLE_NAME}", order_by_cols=pk_columns+["dp_ts_from"], exclude_cols="dp_key")
+        expected_df = pd.DataFrame(expected, columns=actual_df.columns)
+        try:
+            pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
+        except AssertionError as e:
+            error_msg = f"### Assertion Error\n\n```\n{str(e)}\n```\n"
+            render_data(error_msg, output_file_name=output_file_name)
+            raise
 
 def scd2_merge_as_test(conn, spark, test_step: int, ins_stmt: str, load_ts: datetime, current_ts: datetime, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
 
@@ -164,7 +177,12 @@ def scd2_merge_as_test(conn, spark, test_step: int, ins_stmt: str, load_ts: date
     #arr1 = actual_df.to_numpy()
     #arr2 = expected_df.to_numpy()
     #np.testing.assert_array_equal(arr1, arr2, verbose=True)
-    pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
+    try:
+        pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
+    except AssertionError as e:
+        error_msg = f"### Assertion Error\n\n```\n{str(e)}\n```\n"
+        render_data(error_msg, output_file_name=output_file_name)
+        raise
 
 def scd2_merge_as_test2(conn, spark,test_step, load_ts_list: list, current_ts_list: list, expected = None, output_file_name:str=None, test_description:str=None, test_after_description:str=None, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False,display_result: bool = True, show_input_to_merge: bool = True, pk_columns: list = ["id"]):
 
