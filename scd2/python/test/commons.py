@@ -11,7 +11,7 @@ from datetime import date, timedelta, datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import TrinoSCD2Strategy
+from scd2_trino import TrinoSCD2Strategy
 from constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
@@ -243,3 +243,14 @@ def scd2_sel_as_test(conn, sel_stmt: str, expected = None, output_file_name:str=
 #    arr2 = expected_df.to_numpy()
 #    np.testing.assert_array_equal(arr1, arr2, verbose=True)
     pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_like=False)
+
+
+def optimize_table(conn, spark, table_name: str) -> None:
+    strategy = _make_strategy(conn, spark)
+
+    strategy.optimize_table(table_name)
+
+def analyze_table(conn, spark, table_name: str) -> None:
+    strategy = _make_strategy(conn, spark)
+
+    strategy.analyze_table(table_name)    

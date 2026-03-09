@@ -7,7 +7,6 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_data
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table
 from constants import MAX_TS
 from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, create_raw_table
 

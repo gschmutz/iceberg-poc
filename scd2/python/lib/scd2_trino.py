@@ -626,7 +626,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         execute_with_metrics(self.conn.cursor(), stmt)
         logger.info(f"Optimize table for {table_name} executed successfully.")
 
-    def run_analyze_table(self, table_name: str) -> None:
+    def analyze_table(self, table_name: str) -> None:
         stmt = f"ANALYZE {table_name}"
         print(stmt)
         execute_with_metrics(self.conn.cursor(), stmt)

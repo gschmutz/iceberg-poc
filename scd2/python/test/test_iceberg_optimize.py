@@ -7,9 +7,8 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from scd2 import merge_into_dim_table, optimize_table
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table
+from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 #    logger.info("Finished all tests")
 
 
-def test_step_1(trino_conn):
+def test_step_1(trino_conn, spark):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
     create_raw_table(trino_conn)
@@ -88,7 +87,7 @@ def test_step_1(trino_conn):
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(trino_conn, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
+    optimize_table(trino_conn, spark, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
 
     # Verify and Visualize results
     df = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])

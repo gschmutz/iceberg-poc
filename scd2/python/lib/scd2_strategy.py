@@ -89,3 +89,19 @@ class SCD2Strategy(ABC):
         Returns:
             (result, iceberg_metadata) – both may be None when perform_merge_op=False.
         """
+
+    @abstractmethod
+    def optimize_table(self, table_name: str) -> None:
+        """Optimize the specified table.
+
+        Returns:
+           None
+        """
+
+    @abstractmethod
+    def analyze_table(self, table_name: str) -> None:
+        """Analyze the specified table.
+
+        Returns:
+           None
+        """
