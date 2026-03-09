@@ -52,19 +52,19 @@ class TrinoSCD2Strategy(SCD2Strategy):
         upd_key: Optional[str] = None,
         upd_dp_ts_from: Optional[str] = None,
         upd_dp_ts_to: Optional[str] = None,
-        upd_dp_is_active: Optional[bool] = None,
-        upd_dp_is_latest: Optional[bool] = None,
+        upd_dp_is_active: Optional[str] = None,
+        upd_dp_is_latest: Optional[str] = None,
         is_upd_2: bool = False,
         upd_key_2: Optional[str] = None,
         upd_dp_ts_from_2: Optional[str] = None,
         upd_dp_ts_to_2: Optional[str] = None,
-        upd_dp_is_active_2: Optional[bool] = None,
-        upd_dp_is_latest_2: Optional[bool] = None,
+        upd_dp_is_active_2: Optional[str] = None,
+        upd_dp_is_latest_2: Optional[str] = None,
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
-        ins_dp_is_active: bool = True,
-        ins_dp_is_latest: bool = True,
+        ins_dp_is_active: str = 'True',
+        ins_dp_is_latest: str = 'True',
         is_del: bool = False,
         del_key: Optional[str] = None,
         is_del_2: bool = False,
@@ -172,11 +172,15 @@ class TrinoSCD2Strategy(SCD2Strategy):
             prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
             prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
             prev.dp_key                                                                                                             AS prev_dp_key,
+            prev.dp_is_active                                                                                                       AS prev_dp_is_active,
+            prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
             CASE WHEN prev.record_hash IS NULL THEN NULL WHEN src.record_hash = prev.record_hash THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
             prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,      
             next.dp_ts_from                                                                                                         AS next_dp_ts_from,
             next.dp_ts_to                                                                                                           AS next_dp_ts_to,
             next.dp_key                                                                                                             AS next_dp_key,
+            next.dp_is_active                                                                                                       AS next_dp_is_active,
+            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
             CASE WHEN next.record_hash IS NULL THEN NULL WHEN src.record_hash = next.record_hash THEN TRUE ELSE FALSE END           AS next_is_same_as_src
         FROM src_records AS src
         LEFT JOIN LATERAL (
@@ -187,6 +191,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_ts_from,
                 dp_is_active,
+                dp_is_latest,
                 CASE WHEN record_hash IS NULL THEN 'NON_MATCHING_VERSION' ELSE 'MATCHING_VERSION' END AS match_classification
             FROM {dim_fqn}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
@@ -200,6 +205,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
+                dp_is_latest,
                 CASE WHEN dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND THEN 'PREV_ENDS_WHEN_SRC_STARTS' ELSE 'PREV_HAS_GAP_WITH SRC_START' END AS prev_overlap_classification
             FROM {dim_fqn}
             WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
@@ -214,6 +220,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
+                dp_is_latest,
                 CASE WHEN src.record_hash = record_hash THEN TRUE ELSE FALSE END AS is_same_as_src
             FROM {dim_fqn} AS next
             WHERE src.dp_ts_from < next.dp_ts_from
@@ -235,13 +242,19 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = TRUE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_10')}
+                    THEN {self._format_case_object('CASE_9')}
+                WHEN prev_is_same_as_src IS NULL
+                    AND overlap_is_same_as_src = TRUE
+                    AND next_is_same_as_src IS NULL
+                    AND overlap_dp_is_active = FALSE
+                    AND status = 'ACTIVE'
+                    THEN {self._format_case_object('CASE_10', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', upd_dp_is_active='True', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src IS NULL
-                    AND overlap_dp_is_active = TRUE
+                    AND (overlap_dp_is_active = TRUE OR overlap_dp_is_active = FALSE)
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_11', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=False, is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'')}
+                    THEN {self._format_case_object('CASE_11', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src = FALSE
@@ -253,13 +266,13 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active = FALSE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_13', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=False, is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active=False, ins_dp_is_latest=False)}
+                    THEN {self._format_case_object('CASE_13', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active='False', ins_dp_is_latest='False')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src = TRUE
                     AND overlap_dp_is_active = FALSE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_14', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=False, is_upd_2=True, upd_key_2='next_dp_key', upd_dp_ts_from_2='src_dp_ts_from', upd_dp_ts_to_2='next_dp_ts_to')}
+                    THEN {self._format_case_object('CASE_14', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_upd_2=True, upd_key_2='next_dp_key', upd_dp_ts_from_2='src_dp_ts_from', upd_dp_ts_to_2='next_dp_ts_to')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src = FALSE
@@ -271,7 +284,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active = FALSE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_16', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active=False, upd_dp_is_latest=False)}                    
+                    THEN {self._format_case_object('CASE_16', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src = TRUE
@@ -289,35 +302,35 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_19', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active=False, ins_dp_is_latest=False)}                    
+                    THEN {self._format_case_object('CASE_19', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active='False', ins_dp_is_latest='False')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = FALSE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_20', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', upd_dp_is_active=True, upd_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_20', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', upd_dp_is_active='True', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = FALSE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_21', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active=False, upd_dp_is_latest=False, is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active=True, ins_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_21', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = TRUE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_22', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active=False, upd_dp_is_latest=False, is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active=True, ins_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_22', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = TRUE
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_23', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active=False, upd_dp_is_latest=False, is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active=True, ins_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_23', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src = TRUE
@@ -335,37 +348,37 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = TRUE
                     AND overlap_dp_is_active IS NULL
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_26', is_upd=True, upd_key='next_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='next_dp_ts_to', is_del=True, del_key='prev_dp_key')}           
+                    THEN {self._format_case_object('CASE_26', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='next_dp_ts_to', upd_dp_is_active='next_dp_is_active', upd_dp_is_latest='next_dp_is_latest', is_del=True, del_key='next_dp_key')}           
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND status = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active=False, ins_dp_is_latest=False)}           
+                    THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active='False', ins_dp_is_latest='False')}           
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = TRUE
                     AND status = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_30', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_30', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = FALSE
                     AND status = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_31', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_31', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = TRUE
                     AND status = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_32', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active=False, upd_dp_is_latest=True)}                    
+                    THEN {self._format_case_object('CASE_32', is_upd=True, upd_key='overlap_dp_key', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active = TRUE
                     AND status = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_33', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active=False, upd_dp_is_latest=True, is_del=True, del_key='overlap_dp_key')}                    
+                    THEN {self._format_case_object('CASE_33', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='True', is_del=True, del_key='overlap_dp_key')}                    
             END AS situation                
         FROM changed_records
         --WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_NEXT_DIFF', 'NEW_WITH_NEXT_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
