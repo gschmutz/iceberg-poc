@@ -26,10 +26,10 @@ current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 #    logger.info("Finished all tests")
 
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
+    create_raw_table(ctx)
     render_init("Testing Insert Operation", FILE_NAME)
     render_data("This test validates an INSERT operation of one new record", output_file_name=FILE_NAME)
 
@@ -76,21 +76,21 @@ def test_step_1(trino_conn, spark):
             (43, 'Paula', 'Gerber', 'Fribourg', 'paula.gerber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    trino_conn.cursor().execute(insert_sql_1)
-    trino_conn.cursor().execute(insert_sql_2)
-    trino_conn.cursor().execute(insert_sql_3)
-    trino_conn.cursor().execute(insert_sql_4)
-    trino_conn.cursor().execute(insert_sql_5)
+    ctx.conn.cursor().execute(insert_sql_1)
+    ctx.conn.cursor().execute(insert_sql_2)
+    ctx.conn.cursor().execute(insert_sql_3)
+    ctx.conn.cursor().execute(insert_sql_4)
+    ctx.conn.cursor().execute(insert_sql_5)
 
-    df = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata before OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(trino_conn, spark, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
+    optimize_table(ctx, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
 
     # Verify and Visualize results
-    df = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata after OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     assert len(df) == 1, f"Expected 1 file after OPTIMIZE, but found {len(df)}"

@@ -24,7 +24,6 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
 
 #@pytest.fixture(autouse=True, scope="session")
 #def setup_data(request):
@@ -34,11 +33,11 @@ conn = init_trino_connection()
 #    logger.info("Finished all tests")
 
 
-def test_step_1():
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
-    create_dim_table_for_test(conn)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Physical Delete Operation over multiple partitions", FILE_NAME)
     render_data("This test validates a DELETE operation of a single record. The delete is created by a physical delete in the raw table, i.e., the record is removed from the raw table partition.", output_file_name=FILE_NAME)
 
@@ -83,12 +82,12 @@ def test_step_1():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2():
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge."
 
@@ -130,13 +129,13 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
-def test_step_3():
+def test_step_3(ctx):
     logger.info("-------------------------------- Test Step 3 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "Keep record with `id=3` from raw table deleted in the next partition as well and perform SCD2 merge."
 
@@ -178,7 +177,7 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=3, ins_stmt=insert_sql, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
 

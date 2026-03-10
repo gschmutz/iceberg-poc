@@ -27,11 +27,11 @@ current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_4 = datetime.strptime('2026-01-20 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_4 = datetime.strptime('2026-01-21 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     
     render_init("Testing Multiple Operations with a replay", FILE_NAME)
     render_data("This test validates multiple operations on one entity over time producing many versions followed by a replay of these operations. This proves that the SCD2 operations are idempotent, so that the exact same result as before the replay is still in place.", output_file_name=FILE_NAME)
@@ -117,11 +117,11 @@ def test_step_1(trino_conn, spark):
             dp_loaded_at
         )
     """    
-    scd2_merge_as_preparation(trino_conn, spark, ins_stmts=[insert_sql_1,insert_sql_2, insert_sql_3, insert_sql_4]
+    scd2_merge_as_preparation(ctx, ins_stmts=[insert_sql_1,insert_sql_2, insert_sql_3, insert_sql_4]
                               , load_ts_list=[load_ts_1, load_ts_2, load_ts_3, load_ts_4], current_ts_list=[current_ts_1, current_ts_2, current_ts_3, current_ts_4]
                               , output_file_name=FILE_NAME)
 
-def test_step_4(trino_conn, spark):
+def test_step_4(ctx):
     logger.info("-------------------------------- Test Step 4 --------------------------------")
 
     test_description = f"At {load_ts_4}, update `last_name` of entity with `id=1` and perform SCD2 merge."
@@ -154,7 +154,7 @@ def test_step_4(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test2(trino_conn, spark, test_step=4,
+    scd2_merge_as_test2(ctx, test_step=4,
                         load_ts_list=[load_ts_1, load_ts_2, load_ts_3, load_ts_4], current_ts_list=[current_ts_1, current_ts_2, current_ts_3, current_ts_4], 
                         expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

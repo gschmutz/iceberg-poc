@@ -27,11 +27,11 @@ current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_4 = datetime.strptime('2026-01-15 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_4 = datetime.strptime('2026-01-16 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Logical Delete Operation followed by a Delete Operation in the past", FILE_NAME)
     render_data("This test validates a DELETE operation of a single entity. The delete is created by a logical delete in the raw table, i.e., the record status is set to INACTIVE. This test ensures that another DELETE earlier to the previous DELETE will shorten the already deleted version.", output_file_name=FILE_NAME)
 
@@ -76,10 +76,10 @@ def test_step_1(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, 
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, 
                         output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2(trino_conn, spark):
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
     test_description = f"At {load_ts_3}, delete entity with `id=3` in raw table by setting it to INACTIVE (logical delete) and perform SCD2 merge."
@@ -123,10 +123,10 @@ def test_step_2(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
                         output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_3(trino_conn, spark):
+def test_step_3(ctx):
     logger.info("-------------------------------- Test Step 3 --------------------------------")
 
     test_description = f"At {load_ts_2}, still have the entity with `id=3` in raw table as INACTIVE (logical delete) and perform SCD2 merge. Because the valid_from is earlier than before, the already deleted version is terminated earlier (at {load_ts_2 - timedelta(seconds=1)})."
@@ -170,6 +170,6 @@ def test_step_3(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, 
+    scd2_merge_as_test(ctx, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, 
                         output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

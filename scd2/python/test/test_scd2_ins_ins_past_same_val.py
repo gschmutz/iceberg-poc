@@ -24,11 +24,11 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Insert Operation followed by an Insert Operation in the past", FILE_NAME)
     render_data("This test validates an INSERT operation in the past of a version for an entity which already exists and with the same value.", output_file_name=FILE_NAME)
 
@@ -73,9 +73,9 @@ def test_step_1(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2(trino_conn, spark):
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
     test_description = f"At {load_ts_1}, insert the entity with `id=1` into the new partitions of the raw table and perform SCD2 merge."
@@ -119,7 +119,7 @@ def test_step_2(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, 
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, 
                        expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
 

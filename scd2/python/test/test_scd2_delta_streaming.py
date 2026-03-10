@@ -29,11 +29,11 @@ event_ts_4 = datetime.strptime('2026-01-01 09:25:00', '%Y-%m-%d %H:%M:%S')
 load_ts_4 = datetime.strptime('2026-01-01 09:30:00', '%Y-%m-%d %H:%M:%S')
 current_ts_4 = datetime.strptime('2026-01-01 09:35:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Delta Streaming Operation", FILE_NAME)
     render_data("This test validates an INSERT operation of one new entity (with a 1st version) and an UPDATE of an existing entity.", output_file_name=FILE_NAME)
 
@@ -78,9 +78,9 @@ def test_step_1(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, use_delta_mode_for_raw_table=True)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, use_delta_mode_for_raw_table=True)
 
-def test_step_2(trino_conn, spark):
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
     test_description = f"At {load_ts_4}, insert the new entity with `id=10` and update `email` of entity with `id=1` and perform SCD2 merge."
@@ -133,6 +133,6 @@ def test_step_2(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, use_delta_mode_for_raw_table=True, perform_merge_op=True)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description, use_delta_mode_for_raw_table=True, perform_merge_op=True)
 
 

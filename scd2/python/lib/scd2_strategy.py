@@ -1,7 +1,13 @@
 from abc import ABC, abstractmethod
+import logging
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
+if TYPE_CHECKING:
+    import pandas as pd
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SCD2Strategy(ABC):
     """Abstract base class defining the SCD2 merge strategy interface.
@@ -25,6 +31,20 @@ class SCD2Strategy(ABC):
     def format_values(values: list) -> str:
         """Join a list of column expressions into a comma-separated string."""
         return ", ".join(str(v) for v in values)
+
+    @staticmethod
+    def delete_s3_location(s3_client, bucket: str, path: str) -> None:
+        """Delete all objects under the specified S3 location."""
+        try:
+            paginator = s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=bucket, Prefix=path)
+            for page in pages:
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        s3_client.delete_object(Bucket=bucket, Key=obj['Key'])
+            logger.info(f"S3 folder s3a://{bucket}/{path} deleted successfully.")
+        except Exception as e:
+            logger.warning(f"Failed to delete S3 folder: {e}")
 
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
@@ -88,6 +108,25 @@ class SCD2Strategy(ABC):
 
         Returns:
             (result, iceberg_metadata) – both may be None when perform_merge_op=False.
+        """
+
+    @abstractmethod
+    def get_table_data(
+        self,
+        table_name: str,
+        exclude_cols: list = [],
+        order_by_cols: list = [],
+        for_version: str = None,
+    ) -> "pd.DataFrame":
+        """Read table data and return as a pandas DataFrame.
+
+        Args:
+            table_name: Short (unqualified) table name; the strategy applies its
+                own namespace prefix via ``_fqn()``.
+            exclude_cols: Column names to omit from the result.
+            order_by_cols: Columns to sort by.
+            for_version: Optional snapshot identifier (Trino: ``FOR VERSION AS OF``,
+                Spark: ``VERSION AS OF``).
         """
 
     @abstractmethod

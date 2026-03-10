@@ -20,10 +20,10 @@ FILE_NAME="reports/test_iceberg_table_as_of.md"
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
+    create_raw_table(ctx)
 
     render_init("Testing Timetravel", FILE_NAME)
     render_data("This test validates an SELECT ... FOR VERSION AS OF operation on an existing Iceberg table.", output_file_name=FILE_NAME)
@@ -39,7 +39,7 @@ def test_step_1(trino_conn, spark):
             (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    trino_conn.cursor().execute(insert_sql)
+    ctx.conn.cursor().execute(insert_sql)
 
     # Prepare --- Update statement to add value to new_col ---
     update_sql = f"""
@@ -47,7 +47,7 @@ def test_step_1(trino_conn, spark):
         SET email = 'alice.meyer@newcorp.com'
         WHERE id = 1
     """
-    trino_conn.cursor().execute(update_sql)
+    ctx.conn.cursor().execute(update_sql)
 
     # Run SELECT test
     sel_stmt = f"""
@@ -64,9 +64,9 @@ def test_step_1(trino_conn, spark):
 
     # Run SELECT test
     test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
-    scd2_sel_as_test(trino_conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_sel_as_test(ctx, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2(trino_conn, spark):
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
     sel_snapshot_id = f'''
@@ -76,7 +76,7 @@ def test_step_2(trino_conn, spark):
         ORDER BY committed_at 
         LIMIT 1
         ''' 
-    snapshot_id = trino_conn.cursor().execute(sel_snapshot_id).fetchone()[0]
+    snapshot_id = ctx.conn.cursor().execute(sel_snapshot_id).fetchone()[0]
 
     # Run SELECT test
     sel_stmt = f"""
@@ -93,5 +93,5 @@ def test_step_2(trino_conn, spark):
     ]
 
     test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
-    scd2_sel_as_test(trino_conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_sel_as_test(ctx, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 

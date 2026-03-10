@@ -174,7 +174,8 @@ def normalize_row(row):
     )
 
 def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[], order_by_cols: list=[], for_version:str=None, output_file=None):
-    cursor = conn.cursor()
+    if conn is not None:
+        cursor = conn.cursor()
     # Build the column list, excluding columns in exclude_cols
     if exclude_cols:
         cursor.execute(f"SELECT * FROM {fully_qualified_table_name} LIMIT 0")

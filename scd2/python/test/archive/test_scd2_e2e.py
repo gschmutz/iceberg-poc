@@ -30,7 +30,6 @@ current_ts_4 = datetime.strptime('2026-02-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_5 = datetime.strptime('2026-02-20 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_5 = datetime.strptime('2026-02-21 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
 
 #@pytest.fixture(autouse=True, scope="session")
 #def setup_data(request):
@@ -40,11 +39,11 @@ conn = init_trino_connection()
 #    logger.info("Finished all tests")
 
 
-def test_step_1():
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
-    create_dim_table_for_test(conn)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("End-to-End SCD2 Test Case over multiple days", FILE_NAME)
     render_data("This test performs SCD2 operations over 5 days.", output_file_name=FILE_NAME)
 
@@ -89,12 +88,12 @@ def test_step_1():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2():
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "* update City for Alice\n* update Email for Clara\n* Insert Kevin\n*  Insert Laura"
 
@@ -139,12 +138,12 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_3():
+def test_step_3(ctx):
     logger.info("-------------------------------- Test Step 3 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "* update Email for Alice\n* update Email for Laura"
 
@@ -189,12 +188,12 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_4():
+def test_step_4(ctx):
     logger.info("-------------------------------- Test Step 4 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "* delete Bob\n* delete Kevin"
 
@@ -239,13 +238,13 @@ def test_step_4():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=4, ins_stmt=insert_sql_4, load_ts=load_ts_4, current_ts=current_ts_4, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
-def test_step_5():
+def test_step_5(ctx):
     logger.info("-------------------------------- Test Step 5 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "* reactivate Kevin\n* delete Markus"
 
@@ -291,7 +290,7 @@ def test_step_5():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=5, ins_stmt=insert_sql_5, load_ts=load_ts_5, current_ts=current_ts_5, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=5, ins_stmt=insert_sql_5, load_ts=load_ts_5, current_ts=current_ts_5, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 
 

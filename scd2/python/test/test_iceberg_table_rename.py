@@ -20,11 +20,11 @@ FILE_NAME="reports/test_iceberg_table_rename.md"
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    trino_conn.cursor().execute(f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed""")
+    create_raw_table(ctx)
+    ctx.conn.cursor().execute(f"""DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed""")
 
     render_init("Testing Insert Operation", FILE_NAME)
     render_data("This test validates an INSERT operation of one new record", output_file_name=FILE_NAME)
@@ -40,9 +40,9 @@ def test_step_1(trino_conn):
             (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    trino_conn.cursor().execute(insert_sql)
+    ctx.conn.cursor().execute(insert_sql)
 
-    df_before = get_table_data(trino_conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
+    df_before = get_table_data(ctx.conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
     render_table(df_before, title=f"### Table {RAW_TABLE_NAME}", output_file_name=FILE_NAME)
 
     rename_stmt = f"""
@@ -51,9 +51,9 @@ def test_step_1(trino_conn):
                     """
     print(rename_stmt)
     render_data(f"Executing RENAME of `{RAW_TABLE_NAME}` to `{RAW_TABLE_NAME}_renamed`", output_file_name=FILE_NAME)
-    trino_conn.cursor().execute(rename_stmt)
+    ctx.conn.cursor().execute(rename_stmt)
 
-    df_after = get_table_data(trino_conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed')
+    df_after = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed')
     render_table(df_after, title=f"### Table {RAW_TABLE_NAME}_renamed", output_file_name=FILE_NAME)
 
     arr1 = df_after.to_numpy()

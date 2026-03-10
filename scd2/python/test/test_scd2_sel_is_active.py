@@ -29,11 +29,11 @@ current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_4 = datetime.strptime('2026-01-20 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_4 = datetime.strptime('2026-01-21 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     
     render_init("Testing for valid data at a given at a given timestamp", FILE_NAME)
     render_data(f"This test validates a single SELECT operation for data valid at a timestamp {load_ts_2 - timedelta(days=2)}", output_file_name=FILE_NAME)
@@ -77,9 +77,9 @@ def test_step_1(trino_conn, spark):
             dp_loaded_at
         )
     """
-    scd2_merge_as_preparation(trino_conn, spark, ins_stmts=[insert_sql_1,insert_sql_2]
+    scd2_merge_as_preparation(ctx, ins_stmts=[insert_sql_1,insert_sql_2]
                               , load_ts_list=[load_ts_1, load_ts_2], current_ts_list=[current_ts_1, current_ts_2]
-                              , output_file_name=FILE_NAME)
+                              , output_file_name=FILE_NAME, display_result=True, test_description=f"Performing two batch inserts with load timestamps {load_ts_1} and {load_ts_2} and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara."    )
 
     # Run SELECT test
     test_description = f"Select all the active data. Because Bob has been deleted at {load_ts_2} it will no longer be shown when selecting only ACTIVE records as of today."
@@ -107,6 +107,6 @@ def test_step_1(trino_conn, spark):
         "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
     ]
 
-    scd2_sel_as_test(trino_conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_sel_as_test(ctx, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
 

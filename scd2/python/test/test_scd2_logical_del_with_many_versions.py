@@ -24,11 +24,11 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn, spark):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
-    create_dim_table_for_test(trino_conn, spark)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Logical Delete Operation with many versions", FILE_NAME)
     render_data("This test validates a DELETE operation of a single entity with many versions. The delete is created by a logical delete in the raw table, i.e., the entity's status is set to 'INACTIVE'.", output_file_name=FILE_NAME)
 
@@ -55,7 +55,7 @@ def test_step_1(trino_conn, spark):
         )
     """
 
-    scd2_merge_as_preparation(trino_conn, spark, ins_stmts=[insert_sql_1], load_ts_list=[load_ts_1], current_ts_list=[current_ts_1])
+    scd2_merge_as_preparation(ctx, ins_stmts=[insert_sql_1], load_ts_list=[load_ts_1], current_ts_list=[current_ts_1])
 
         # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -101,9 +101,9 @@ def test_step_1(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2(trino_conn, spark):
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
     test_description = f"At {load_ts_3}, delete entity with `id=3` from raw table (logical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = {load_ts_3} - 1 second and `dp_is_active` = False."
@@ -152,5 +152,5 @@ def test_step_2(trino_conn, spark):
     ]
 
     # run test
-    scd2_merge_as_test(trino_conn, spark, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

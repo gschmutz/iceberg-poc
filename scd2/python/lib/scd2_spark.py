@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Optional
 
+import pandas as pd
+from pyspark.sql.types import TimestampType, TimestampNTZType
 from scd2_strategy import SCD2Strategy
+from util import render_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,9 +28,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         result, _ = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, spark, database: str):
+    def __init__(self, spark, database: str, s3_client, trino_conn=None):
         self.spark = spark
         self.database = database
+        self.s3_client = s3_client
+        self.trino_conn = trino_conn
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -578,9 +583,17 @@ class SparkSCD2Strategy(SCD2Strategy):
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
+        
+        #self.spark.sql(f"CALL hiverest.system.expire_snapshots(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00', retain_last => 0)")
+        #self.spark.sql(f"CALL hiverest.system.remove_orphan_files(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00')")
+
         drop_stmt = f"DROP TABLE IF EXISTS {self._fqn(dim_table_name)}"
         print(drop_stmt)
         self.spark.sql(drop_stmt)
+
+        # Drop the S3 folder for the dimension table
+        s3_path = f"{s3_warehouse_prefix}/{self.database}/{dim_table_name}"
+        self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
 
         create_stmt = self._format_create_dim_table(
             table_name=dim_table_name,
@@ -614,6 +627,11 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         stmt = f"DROP TABLE IF EXISTS {self._fqn(view_name)}_mv"
         self.spark.sql(stmt)
+
+        # Drop the S3 folder for the dimension table
+        s3_path = f"warehouse/{view_name}_mv"
+        self.delete_s3_location(s3_client=self.s3_client, bucket="admin-bucket", path=s3_path)
+
         stmt = f"CREATE TABLE {self._fqn(view_name)}_mv AS SELECT * FROM {self._fqn(view_name)}"
         self.spark.sql(stmt)
         return f"{view_name}_mv"
@@ -644,8 +662,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
 
-        #materialized_view_name = self.materialize_view(scd2_view_name)
-
         logger.info(view_stmt)
         df = self.spark.sql(view_stmt)
         df.show(truncate=False)
@@ -653,6 +669,10 @@ class SparkSCD2Strategy(SCD2Strategy):
         logger.info(f"SCD2 view {scd2_view_name} created successfully.")
 
         scd2_view_name = self.materialize_view(scd2_view_name)
+
+        if show_input_to_merge:
+            df = self.get_table_data(scd2_view_name, order_by_cols=["merge_key"])
+            render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if perform_merge_op:
             val_columns = [col.split()[0] for col in cols_with_type]
@@ -676,6 +696,30 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         return None, None
 
+    def get_table_data(
+        self,
+        table_name: str,
+        exclude_cols: list = [],
+        order_by_cols: list = [],
+        for_version: str = None,
+    ) -> pd.DataFrame:
+        table_fqn = self._fqn(table_name)
+
+        if for_version is not None:
+            table_ref = f"{table_fqn} VERSION AS OF {for_version}"
+        else:
+            table_ref = table_fqn
+
+        if exclude_cols:
+            columns = self.spark.table(table_fqn).columns
+            column_list = ", ".join(col for col in columns if col not in exclude_cols)
+        else:
+            column_list = "*"
+
+        order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+
+        sql = f"SELECT {column_list} FROM {table_ref} {order_by_clause}"
+        return self.spark.sql(sql).toPandas()
 
 # ── Backward-compatible module-level functions ──────────────────────────────
 # New code should instantiate SparkSCD2Strategy directly.

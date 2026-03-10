@@ -12,3 +12,5 @@ numpy
 tabulate
 pytest
 scipy
+pyspark
+setuptools

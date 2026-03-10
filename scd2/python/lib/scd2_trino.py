@@ -2,8 +2,9 @@ from datetime import datetime
 import logging
 from typing import Optional
 
+import pandas as pd
 from scd2_strategy import SCD2Strategy
-from util import execute_with_metrics, get_table_data, render_table
+from util import execute_with_metrics, render_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,10 +24,11 @@ class TrinoSCD2Strategy(SCD2Strategy):
         result, metadata = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, conn, catalog: str, schema: str):
+    def __init__(self, conn, catalog: str, schema: str, s3_client):
         self.conn = conn
         self.catalog = catalog
         self.schema = schema
+        self.s3_client = s3_client
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -44,6 +46,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
             f"{prefix_left}.{col} IS NOT DISTINCT FROM {prefix_right}.{col}"
             for col in pk_columns
         )
+
+    # ── Private SQL builders ────────────────────────────────────────────────
 
     @staticmethod
     def _format_case_object(
@@ -71,8 +75,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         del_key_2: Optional[str] = None
     ) -> str:
         return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, is_del_2 BOOLEAN, del_key_2 VARCHAR))"
-
-    # ── Private SQL builders ────────────────────────────────────────────────
 
     def _format_create_dim_table(
         self,
@@ -191,8 +193,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_ts_from,
                 dp_is_active,
-                dp_is_latest,
-                CASE WHEN record_hash IS NULL THEN 'NON_MATCHING_VERSION' ELSE 'MATCHING_VERSION' END AS match_classification
+                dp_is_latest
             FROM {dim_fqn}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
         ) overlap
@@ -205,8 +206,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
-                dp_is_latest,
-                CASE WHEN dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND THEN 'PREV_ENDS_WHEN_SRC_STARTS' ELSE 'PREV_HAS_GAP_WITH SRC_START' END AS prev_overlap_classification
+                dp_is_latest
             FROM {dim_fqn}
             WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
             OR (dp_ts_to < src.dp_ts_from AND dp_is_latest = TRUE)      -- we are interested in previous version even if it is not ending exactly at the new version, if it is the latest version (so we can update it)
@@ -220,8 +220,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
-                dp_is_latest,
-                CASE WHEN src.record_hash = record_hash THEN TRUE ELSE FALSE END AS is_same_as_src
+                dp_is_latest
             FROM {dim_fqn} AS next
             WHERE src.dp_ts_from < next.dp_ts_from
             AND next.dp_is_active = TRUE
@@ -381,7 +380,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     THEN {self._format_case_object('CASE_33', is_upd=True, upd_key='prev_dp_key', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='True', is_del=True, del_key='overlap_dp_key')}                    
             END AS situation                
         FROM changed_records
-        --WHERE change_classification IN ('NEW', 'NEW_WITH_PREV_DIFF', 'NEW_WITH_PREV_SAME', 'NEW_WITH_NEXT_DIFF', 'NEW_WITH_NEXT_SAME', 'CHANGED_WITH_PREV_DIFF', 'CHANGED_WITH_PREV_SAME', 'CHANGED', 'DELETED')
     ),
     prepared_source AS (
         -- Original records for updates
@@ -587,6 +585,10 @@ class TrinoSCD2Strategy(SCD2Strategy):
         print(drop_stmt)
         execute_with_metrics(self.conn.cursor(), drop_stmt)
 
+        # Drop the S3 folder for the dimension table
+        s3_path = f"{s3_warehouse_prefix}/{self.schema}/{dim_table_name}"
+        self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
+
         create_stmt = self._format_create_dim_table(
             table_name=dim_table_name,
             s3_warehouse_bucket=s3_warehouse_bucket,
@@ -616,6 +618,31 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cursor = self.conn.cursor()
         cursor.execute(query)
         return cursor.fetchone()
+
+    def get_table_data(
+        self,
+        table_name: str,
+        exclude_cols: list = [],
+        order_by_cols: list = [],
+        for_version: str = None,
+    ) -> pd.DataFrame:
+        table_fqn = self._fqn(table_name)
+        cursor = self.conn.cursor()
+
+        if exclude_cols:
+            cursor.execute(f"SELECT * FROM {table_fqn} LIMIT 0")
+            columns = [desc[0] for desc in cursor.description]
+            column_list = ", ".join(col for col in columns if col not in exclude_cols)
+        else:
+            column_list = "*"
+
+        order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+
+        if for_version is not None:
+            table_fqn = f"{table_fqn} FOR VERSION AS OF {for_version}"
+
+        sql = f"SELECT {column_list} FROM {table_fqn} {order_by_clause}"
+        return pd.read_sql_query(sql, self.conn)
 
     def optimize_table(self, table_name: str) -> None:
         stmt = f"""
@@ -663,11 +690,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         logger.info("View created successfully.")
 
         if show_input_to_merge:
-            df = get_table_data(
-                self.conn,
-                self._fqn(scd2_view_name),
-                order_by_cols=["merge_key"],
-            )
+            df = self.get_table_data(scd2_view_name, order_by_cols=["merge_key"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if perform_merge_op:

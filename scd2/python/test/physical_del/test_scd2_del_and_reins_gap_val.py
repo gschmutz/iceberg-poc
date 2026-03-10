@@ -24,13 +24,12 @@ current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
 
-def test_step_1():
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
-    create_dim_table_for_test(conn)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Reactivating a physically deleted record with different values", FILE_NAME)
     render_data("This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table with same id but some different values.", output_file_name=FILE_NAME)
 
@@ -75,12 +74,12 @@ def test_step_1():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2():
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "Delete record with `id=3` from raw table (physical delete) and perform SCD2 merge."
 
@@ -122,12 +121,12 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_3():
+def test_step_3(ctx):
     logger.info("-------------------------------- Test Step 3 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = "Reactivate record with `id=3` by inserting it again but with a different value for `city` into the current partition of the raw table and perform SCD2 merge."
 
@@ -176,6 +175,6 @@ def test_step_3():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
+    scd2_merge_as_test(ctx, test_step=3, ins_stmt=insert_sql_3, load_ts=load_ts_3, current_ts=current_ts_3, expected=expected, 
                         output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 

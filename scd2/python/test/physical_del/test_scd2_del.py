@@ -21,13 +21,12 @@ current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 load_ts_2 = datetime.strptime('2026-01-05 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-conn = init_trino_connection()
 
-def test_step_1():
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(conn)
-    create_dim_table_for_test(conn)
+    create_raw_table(ctx)
+    create_dim_table_for_test(ctx)
     render_init("Testing Physical Delete Operation", FILE_NAME)
     render_data("This test validates a DELETE operation of a single entity. The delete is created by a physical delete in the raw table, i.e., the entity is removed from the raw table partition.", output_file_name=FILE_NAME)
 
@@ -72,12 +71,12 @@ def test_step_1():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_merge_as_test(ctx, test_step=1, ins_stmt=insert_sql_1, load_ts=load_ts_1, current_ts=current_ts_1, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
-def test_step_2():
+def test_step_2(ctx):
     logger.info("-------------------------------- Test Step 2 --------------------------------")
 
-    cursor = conn.cursor()
+    cursor = ctx.conn.cursor()
 
     test_description = f"At {load_ts_2}, delete entity with `id=3` from raw table (physical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = current load timestamp - 1 second and `dp_is_active` = False."
 
@@ -119,6 +118,6 @@ def test_step_2():
     ]
 
     # run test
-    scd2_merge_as_test(conn, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
+    scd2_merge_as_test(ctx, test_step=2, ins_stmt=insert_sql_2, load_ts=load_ts_2, current_ts=current_ts_2, expected=expected, output_file_name=FILE_NAME, test_description=test_description, perform_merge_op=True)
 
 

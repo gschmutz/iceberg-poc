@@ -20,10 +20,10 @@ FILE_NAME="reports/test_iceberg_table_add_col.md"
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
-def test_step_1(trino_conn):
+def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
 
-    create_raw_table(trino_conn)
+    create_raw_table(ctx)
 
     render_init("Testing Add Column to existing Iceberg table", FILE_NAME)
     render_data("This test validates an ALTER TABLE ADD COLUMN operation on an existing Iceberg table.", output_file_name=FILE_NAME)
@@ -39,9 +39,9 @@ def test_step_1(trino_conn):
             (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    trino_conn.cursor().execute(insert_sql)
+    ctx.conn.cursor().execute(insert_sql)
 
-    df_before = get_table_data(trino_conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
+    df_before = get_table_data(ctx.conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
     render_table(df_before, title=f"Table {RAW_TABLE_NAME} before ADD COLUMN", output_file_name=FILE_NAME)
 
     rename_stmt = f"""
@@ -50,13 +50,13 @@ def test_step_1(trino_conn):
                     """
     print(rename_stmt)
     render_data(f"Executing ADD COLUMN", output_file_name=FILE_NAME)
-    trino_conn.cursor().execute(rename_stmt)
+    ctx.conn.cursor().execute(rename_stmt)
 
     update_sql = f"""
         UPDATE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
         SET new_col = 'New Value'
     """
-    trino_conn.cursor().execute(update_sql)
+    ctx.conn.cursor().execute(update_sql)
 
     # Run SELECT test
     test_description = f"Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today."
@@ -74,5 +74,5 @@ def test_step_1(trino_conn):
         (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com", "New Value", "ACTIVE", load_ts_1, load_ts_1),
     ]
 
-    scd2_sel_as_test(trino_conn, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
+    scd2_sel_as_test(ctx, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
 
