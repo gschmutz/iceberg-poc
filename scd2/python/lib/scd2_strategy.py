@@ -18,6 +18,10 @@ class SCD2Strategy(ABC):
     database) so callers do not have to repeat those arguments on every call.
     """
 
+    def __init__(self, raw_table_name: str, scd2_table_name: str):
+        self.raw_table_name = raw_table_name
+        self.scd2_table_name = scd2_table_name
+
     # ── Shared utility methods ──────────────────────────────────────────────
 
     @staticmethod
@@ -46,7 +50,32 @@ class SCD2Strategy(ABC):
         except Exception as e:
             logger.warning(f"Failed to delete S3 folder: {e}")
 
+    def raw_table_fqn(
+        self
+    ) -> str:
+        """Return the fully qualified name for the raw table."""
+        return self._fqn(self.raw_table_name)
+
+    def scd2_table_fqn(
+        self
+    ) -> str:
+        """Return the fully qualified name for the SCD2 table."""
+        return self._fqn(self.scd2_table_name)
+
+    def scd2_intermediary_table_fqn(
+        self
+    ) -> str:
+        """Return the fully qualified name for the SCD2 intermediate table."""
+        return self._fqn(f"{self.scd2_table_name}_intermediary")            
+
     # ── Abstract SQL formatters ─────────────────────────────────────────────
+
+    @abstractmethod
+    def _fqn(
+        self,
+        object_name: str
+    ) -> str:
+        """Return the fully qualified name for the given object."""
 
     @abstractmethod
     def format_view(

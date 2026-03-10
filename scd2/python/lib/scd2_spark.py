@@ -28,17 +28,17 @@ class SparkSCD2Strategy(SCD2Strategy):
         result, _ = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, spark, database: str, s3_client, trino_conn=None):
+    def __init__(self, spark, s3_client, database: str, raw_table_name: str, scd2_table_name: str):
+        super().__init__(raw_table_name, scd2_table_name)
         self.spark = spark
         self.database = database
         self.s3_client = s3_client
-        self.trino_conn = trino_conn
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
-    def _fqn(self, table_name: str) -> str:
+    def _fqn(self, object_name: str) -> str:
         """Return the fully-qualified Spark table name ``database.table``."""
-        return f"{self.database}.{table_name}"
+        return f"{self.database}.{object_name}"
 
     @staticmethod
     def _cast_to_string(values: list) -> list:
@@ -96,7 +96,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
 
         return f"""
-    CREATE TABLE IF NOT EXISTS {self._fqn(table_name)} (
+    CREATE TABLE IF NOT EXISTS {self.scd2_table_fqn()} (
         dp_key STRING,
         {pk_str},
         {cols_str},

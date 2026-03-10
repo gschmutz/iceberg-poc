@@ -24,7 +24,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         result, metadata = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, conn, catalog: str, schema: str, s3_client):
+    def __init__(self, conn, s3_client, catalog: str, schema: str, raw_table_name: str, scd2_table_name: str):
+        super().__init__(raw_table_name, scd2_table_name)
         self.conn = conn
         self.catalog = catalog
         self.schema = schema
@@ -32,9 +33,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
-    def _fqn(self, table_name: str) -> str:
+    def _fqn(self, object_name: str) -> str:
         """Return the fully-qualified Trino table name ``catalog.schema.table``."""
-        return f"{self.catalog}.{self.schema}.{table_name}"
+        return f"{self.catalog}.{self.schema}.{object_name}"
 
     @staticmethod
     def _cast_to_varchar(values: list) -> list:
