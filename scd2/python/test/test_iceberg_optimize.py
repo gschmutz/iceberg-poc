@@ -5,10 +5,10 @@ from datetime import date, timedelta, datetime
 import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, get_table_data, diff_with_color
+from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table
+from commons import raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table, insert_as_preparation, get_table_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,14 +17,6 @@ FILE_NAME="reports/test_iceberg_optimize.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
-
-#@pytest.fixture(autouse=True, scope="session")
-#def setup_data(request):
-#    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_ts_from"], sort_cols=[])
-#    yield
-#    logger.info("Finished all tests")
-
 
 def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
@@ -37,7 +29,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql_1 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -45,7 +37,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_2 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (10, 'David', 'Fischer', 'Lucerne', 'david.fischer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (12, 'Emma', 'Weber', 'Geneva', 'emma.weber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -53,7 +45,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_3 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (21, 'Hannah', 'Roth', 'St. Gallen', 'hannah.roth@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (22, 'Ivan', 'Baumann', 'Winterthur', 'ivan.baumann@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -61,7 +53,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_4 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (31, 'Klaus', 'Vogel', 'Zug', 'klaus.vogel@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (32, 'Laura', 'Meier', 'Schaffhausen', 'laura.meier@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -69,28 +61,24 @@ def test_step_1(ctx):
     """
 
     insert_sql_5 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (41, 'Nina', 'Steiner', 'Chur', 'nina.steiner@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (42, 'Oliver', 'Brunner', 'Sion', 'oliver.brunner@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (43, 'Paula', 'Gerber', 'Fribourg', 'paula.gerber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    ctx.conn.cursor().execute(insert_sql_1)
-    ctx.conn.cursor().execute(insert_sql_2)
-    ctx.conn.cursor().execute(insert_sql_3)
-    ctx.conn.cursor().execute(insert_sql_4)
-    ctx.conn.cursor().execute(insert_sql_5)
+    insert_as_preparation(ctx=ctx, ins_stmts=[insert_sql_1, insert_sql_2, insert_sql_3, insert_sql_4, insert_sql_5])
 
-    df = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(ctx, f'{raw_table_name}.files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata before OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(ctx, table_name=f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}")
+    optimize_table(ctx, table_name=raw_table_fqn(ctx))
 
     # Verify and Visualize results
-    df = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}."{RAW_TABLE_NAME}$files"', order_by_cols=[])
+    df = get_table_data(ctx.conn, f'{raw_table_fqn(ctx)}.files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata after OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     assert len(df) == 1, f"Expected 1 file after OPTIMIZE, but found {len(df)}"

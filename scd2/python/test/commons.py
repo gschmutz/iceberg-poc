@@ -86,7 +86,6 @@ class TestCommonsBase:
 
     def create_dim_table_for_test(self, ctx, pk_columns_with_type: list = ["id INT"]):
         self._make_strategy(ctx).create_dim_table(
-            self.scd2_table_fqn(ctx),
             s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
             s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
             pk_columns_with_type=pk_columns_with_type,
@@ -118,18 +117,17 @@ class TestCommonsBase:
             render_data(error_msg, output_file_name=output_file_name)
             raise
 
+    def insert_as_preparation(self, ctx, ins_stmts: list):
+        for idx, ins_stmt in enumerate(ins_stmts):
+            self._execute_insert(ins_stmt, ctx)    
+
     def scd2_merge_as_preparation(self, ctx, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, expected=None, output_file_name: str = None, test_description: str = None, pk_columns: list = ["id"]):
         render_data(test_description, output_file_name=output_file_name)
 
         for idx, ins_stmt in enumerate(ins_stmts):
             self._execute_insert(ins_stmt, ctx)
 
-            print(load_ts_list[idx], current_ts_list[idx])
-
             self._make_strategy(ctx).merge_into_dim_table(
-                raw_table_name=RAW_TABLE_NAME,
-                dim_table_name=SCD2_TABLE_NAME,
-                scd2_view_name=SCD2_VIEW_NAME,
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
                 pk_columns=pk_columns,
@@ -166,9 +164,6 @@ class TestCommonsBase:
         render_table(df_raw, title=f"Raw Table `{RAW_TABLE_NAME}`", output_file_name=output_file_name)
 
         self._make_strategy(ctx).merge_into_dim_table(
-            raw_table_name=RAW_TABLE_NAME,
-            dim_table_name=SCD2_TABLE_NAME,
-            scd2_view_name=SCD2_VIEW_NAME,
             load_ts=load_ts,
             load_ts_col="dp_loaded_at",
             pk_columns=pk_columns,
@@ -202,9 +197,6 @@ class TestCommonsBase:
         strategy = self._make_strategy(ctx)
         for idx, load_ts in enumerate(load_ts_list):
             strategy.merge_into_dim_table(
-                raw_table_name=RAW_TABLE_NAME,
-                dim_table_name=SCD2_TABLE_NAME,
-                scd2_view_name=SCD2_VIEW_NAME,
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
                 pk_columns=pk_columns,
@@ -345,7 +337,7 @@ class SparkTestCommons(TestCommonsBase):
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
 
-_impl: TestCommonsBase = SparkTestCommons()
+_impl: TestCommonsBase = TrinoTestCommons()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
@@ -355,11 +347,26 @@ COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
 # Module-level wrappers — kept for backward compatibility with test imports
 # ---------------------------------------------------------------------------
 
+def get_table_data(ctx, table_name: str, exclude_cols: list = [], order_by_cols: list = [], for_version: str = None):
+    return _impl.get_table_data(ctx, table_name=table_name, exclude_cols=exclude_cols, order_by_cols=order_by_cols, for_version=for_version)
+
+def raw_table_fqn(ctx):
+    return _impl.raw_table_fqn(ctx)
+
+def scd2_table_fqn(ctx):
+    return _impl.scd2_table_fqn(ctx)
+
+def scd2_intermediary_table_fqn(ctx):
+    return _impl.scd2_intermediary_table_fqn(ctx)
+
 def create_raw_table(ctx, pk_columns_with_type: list = ["id INT"]):
     return _impl.create_raw_table(ctx, pk_columns_with_type=pk_columns_with_type)
 
 def create_dim_table_for_test(ctx, pk_columns_with_type: list = ["id INT"]):
     return _impl.create_dim_table_for_test(ctx, pk_columns_with_type=pk_columns_with_type)
+
+def insert_as_preparation(ctx, ins_stmts: list):
+    return _impl.insert_as_preparation(ctx, ins_stmts=ins_stmts)
 
 def scd2_merge_as_preparation(ctx, ins_stmts: list, load_ts_list: list, current_ts_list: list, perform_merge_op: bool = True, use_delta_mode_for_raw_table: bool = False, display_result: bool = True, expected=None, output_file_name: str = None, test_description: str = None, pk_columns: list = ["id"]):
     return _impl.scd2_merge_as_preparation(ctx, ins_stmts=ins_stmts, load_ts_list=load_ts_list, current_ts_list=current_ts_list, perform_merge_op=perform_merge_op, use_delta_mode_for_raw_table=use_delta_mode_for_raw_table, display_result=display_result, expected=expected, output_file_name=output_file_name, test_description=test_description, pk_columns=pk_columns)

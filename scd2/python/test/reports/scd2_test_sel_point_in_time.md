@@ -21,9 +21,9 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 | dp_key                               |   id | first_name   | last_name   | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| dc1d1108-359d-4cc6-91a8-5b012e558132 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| e8f1c067-eaab-4d49-a58c-51a388090203 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
-| 5d280a03-1187-4842-a0df-a1b6c9d0437c |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| 79c85602-4b9b-4bed-8616-bf6f172653b6 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| d1ed1dcd-6bc9-43a8-8716-694c0dc38415 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| 0a5b7b75-317f-4971-9709-118478151e95 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
@@ -36,7 +36,7 @@ Select data valid at 2026-01-03 00:00:00. As we are selecting back in time the o
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
                 dp_created_at, dp_replaced_at,
                 record_hash  
-        FROM iceberg_hive.default.dim_person
+        FROM default.dim_person
         WHERE TIMESTAMP '2026-01-05 00:00:00' - INTERVAL '2' DAY BETWEEN dp_ts_from AND dp_ts_to
         ORDER BY id
         `

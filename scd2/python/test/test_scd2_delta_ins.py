@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib'
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_data
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, DIM_TABLE_NAME, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, create_raw_table
+from commons import raw_table_fqn, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,14 +20,6 @@ current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
 
 load_ts_2 = datetime.strptime('2026-01-05 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
-
-#@pytest.fixture(autouse=True, scope="session")
-#def setup_data(request):
-#    create_raw_table()
-#    create_dim_table(conn, TRINO_CATALOG, TRINO_SCHEMA, "{DIM_TABLE_NAME}", s3_warehouse_bucket=S3_WAREHOUSE_BUCKET, s3_warehouse_prefix=S3_WAREHOUSE_PREFIX, pk_col_with_type="id INT", cols_with_type=cols_with_type, partition_cols=["dp_ts_from"], sort_cols=[])
-#    yield
-#    logger.info("Finished all tests")
-
 
 def test_step_1(ctx):
     logger.info("-------------------------------- Test Step 1 --------------------------------")
@@ -41,7 +33,7 @@ def test_step_1(ctx):
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         SELECT *
         FROM (
             VALUES
@@ -87,7 +79,7 @@ def test_step_2(ctx):
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         SELECT *
         FROM (
             VALUES

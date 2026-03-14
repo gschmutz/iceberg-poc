@@ -28,8 +28,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         result, _ = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, spark, s3_client, database: str, raw_table_name: str, scd2_table_name: str):
-        super().__init__(raw_table_name, scd2_table_name)
+    def __init__(self, spark, s3_client, database: str, raw_table_name: str, scd2_table_name: str, scd2_intermediary_table_name: str = None):
+        super().__init__(raw_table_name, scd2_table_name, scd2_intermediary_table_name)
         self.spark = spark
         self.database = database
         self.s3_client = s3_client
@@ -82,7 +82,6 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def _format_create_dim_table(
         self,
-        table_name: str,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
         pk_columns_with_type: list,
@@ -114,13 +113,11 @@ class SparkSCD2Strategy(SCD2Strategy):
     )
     USING ICEBERG
     PARTITIONED BY ({partitioning_str})
-    LOCATION 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.database}/{table_name}'
+    LOCATION 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.database}/{self.scd2_table_name}'
     """
 
     def _format_cte(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
         pk_columns: list,
         val_columns: list,
         load_ts: datetime,
@@ -142,10 +139,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         join_src_overlap = self._format_join_condition(pk_columns, "src", "overlap")
         join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
         join_src_next = self._format_join_condition(pk_columns, "src", "next")
-
-        raw_fqn = self._fqn(raw_table_name)
-        dim_fqn = self._fqn(dim_table_name)
-
+        
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
@@ -156,7 +150,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                         ), 256
                     )
                 ) AS record_hash
-            FROM {raw_fqn} AS t
+            FROM {self.raw_table_fqn()} AS t
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
@@ -194,7 +188,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn}
+            FROM {self.scd2_table_fqn()}
         ) overlap
         ON {join_src_overlap}
         AND src.dp_ts_from BETWEEN overlap.dp_ts_from AND overlap.dp_ts_to
@@ -207,7 +201,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn}
+            FROM {self.scd2_table_fqn()}
         ) prev
         ON ({join_src_prev})
         AND (prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND
@@ -221,7 +215,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn}
+            FROM {self.scd2_table_fqn()}
             WHERE dp_is_active = TRUE
         ) next
         ON ({join_src_next})
@@ -424,7 +418,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         -- Duplicate records for inserts
         SELECT
             NULL AS merge_key,
-            NULL AS dp_key,
+            uuid() AS dp_key,
             {pk_columns_str},
             {val_columns_str},
             src_record_hash                     AS record_hash,
@@ -484,9 +478,6 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def format_view(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         cols_with_type: list,
         load_ts: datetime,
@@ -497,8 +488,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         as a temp view with ``createOrReplaceTempView(scd2_view_name)``."""
         val_columns = [col.split()[0] for col in cols_with_type]
         cte = self._format_cte(
-            raw_table_name=raw_table_name,
-            dim_table_name=dim_table_name,
             pk_columns=pk_columns,
             val_columns=val_columns,
             load_ts=load_ts,
@@ -506,7 +495,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
         return f"""
-    CREATE OR REPLACE VIEW {self._fqn(scd2_view_name)} AS
+    CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
     {cte}
     SELECT *
     FROM prepared_source
@@ -515,8 +504,6 @@ class SparkSCD2Strategy(SCD2Strategy):
     def format_merge(
         self,
         current_ts: datetime,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         val_columns: list,
     ) -> str:
@@ -530,8 +517,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
 
         return f"""
-    MERGE INTO {self._fqn(dim_table_name)} AS target
-    USING {self._fqn(scd2_view_name)} AS source
+    MERGE INTO {self.scd2_table_fqn()} AS target
+    USING {self.scd2_intermediary_table_fqn()}_mv AS source
     ON target.dp_key = source.merge_key
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
@@ -558,7 +545,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         dp_replaced_at,
         record_hash
     ) VALUES (
-        source.record_hash,
+        source.dp_key,
         {fv(ap(pk_columns, "source"))},
         {source_val_columns_str},
         source.dp_ts_from,
@@ -575,7 +562,6 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def create_dim_table(
         self,
-        dim_table_name: str,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
         pk_columns_with_type: list,
@@ -587,16 +573,15 @@ class SparkSCD2Strategy(SCD2Strategy):
         #self.spark.sql(f"CALL hiverest.system.expire_snapshots(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00', retain_last => 0)")
         #self.spark.sql(f"CALL hiverest.system.remove_orphan_files(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00')")
 
-        drop_stmt = f"DROP TABLE IF EXISTS {self._fqn(dim_table_name)}"
+        drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
         print(drop_stmt)
         self.spark.sql(drop_stmt)
 
         # Drop the S3 folder for the dimension table
-        s3_path = f"{s3_warehouse_prefix}/{self.database}/{dim_table_name}"
+        s3_path = f"{s3_warehouse_prefix}/{self.database}/{self.scd2_table_name}"
         self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
 
         create_stmt = self._format_create_dim_table(
-            table_name=dim_table_name,
             s3_warehouse_bucket=s3_warehouse_bucket,
             s3_warehouse_prefix=s3_warehouse_prefix,
             pk_columns_with_type=pk_columns_with_type,
@@ -606,7 +591,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         )
         print(create_stmt)
         self.spark.sql(create_stmt)
-        logger.info(f"Dimension table {dim_table_name} created successfully.")
+        logger.info(f"Dimension table {self.scd2_table_fqn()} created successfully.")
 
     def optimize_table(self, table_name: str) -> None:
         stmt = f"""
@@ -623,24 +608,23 @@ class SparkSCD2Strategy(SCD2Strategy):
         #execute_with_metrics(self.conn.cursor(), stmt)
         logger.info(f"Analyze table for {table_name} executed successfully.")
 
-    def materialize_view(self, view_name: str) -> str:
+    def materialize_view(self, scd2_intermediary_table_name: str) -> str:
 
-        stmt = f"DROP TABLE IF EXISTS {self._fqn(view_name)}_mv"
+        stmt = f"DROP TABLE IF EXISTS {self._fqn(scd2_intermediary_table_name)}_mv"
         self.spark.sql(stmt)
 
         # Drop the S3 folder for the dimension table
-        s3_path = f"warehouse/{view_name}_mv"
+        s3_path = f"warehouse/{scd2_intermediary_table_name}_mv"
         self.delete_s3_location(s3_client=self.s3_client, bucket="admin-bucket", path=s3_path)
 
-        stmt = f"CREATE TABLE {self._fqn(view_name)}_mv AS SELECT * FROM {self._fqn(view_name)}"
+        stmt = f"CREATE TABLE {self._fqn(scd2_intermediary_table_name)}_mv AS SELECT * FROM {self._fqn(scd2_intermediary_table_name)}"
+
+        logger.info(f"{stmt}")
         self.spark.sql(stmt)
-        return f"{view_name}_mv"
+        return f"{scd2_intermediary_table_name}_mv"
 
     def merge_into_dim_table(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         cols_with_type: list,
         load_ts: datetime,
@@ -652,9 +636,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         output_file_name: Optional[str] = None,
     ) -> tuple:
         view_stmt = self.format_view(
-            raw_table_name=raw_table_name,
-            dim_table_name=dim_table_name,
-            scd2_view_name=scd2_view_name,
             pk_columns=pk_columns,
             cols_with_type=cols_with_type,
             load_ts=load_ts,
@@ -662,13 +643,14 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
 
-        logger.info(view_stmt)
+        logger.info(f"Creating SCD2 view: {view_stmt}...")
+
         df = self.spark.sql(view_stmt)
         df.show(truncate=False)
-        df.createOrReplaceTempView(scd2_view_name)
-        logger.info(f"SCD2 view {scd2_view_name} created successfully.")
+        df.createOrReplaceTempView(self.scd2_intermediary_table_name)
+        logger.info(f"SCD2 view {self.scd2_intermediary_table_name} created successfully.")
 
-        scd2_view_name = self.materialize_view(scd2_view_name)
+        scd2_view_name = self.materialize_view(self.scd2_intermediary_table_name)
 
         if show_input_to_merge:
             df = self.get_table_data(scd2_view_name, order_by_cols=["merge_key"])
@@ -678,8 +660,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             val_columns = [col.split()[0] for col in cols_with_type]
             merge_stmt = self.format_merge(
                 current_ts=current_ts,
-                dim_table_name=dim_table_name,
-                scd2_view_name=scd2_view_name,
                 pk_columns=pk_columns,
                 val_columns=val_columns,
             )
@@ -716,49 +696,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         else:
             column_list = "*"
 
-        order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+        order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
 
         sql = f"SELECT {column_list} FROM {table_ref} {order_by_clause}"
         return self.spark.sql(sql).toPandas()
 
-# ── Backward-compatible module-level functions ──────────────────────────────
-# New code should instantiate SparkSCD2Strategy directly.
-
-def create_dim_table(
-    spark,
-    database: str,
-    dim_table_name: str,
-    s3_warehouse_bucket: str,
-    s3_warehouse_prefix: str,
-    pk_columns_with_type: list,
-    cols_with_type: list = None,
-    partition_cols: list = None,
-    sort_cols: list = None,
-) -> None:
-    SparkSCD2Strategy(spark, database).create_dim_table(
-        dim_table_name, s3_warehouse_bucket, s3_warehouse_prefix,
-        pk_columns_with_type, cols_with_type, partition_cols, sort_cols,
-    )
-
-
-def merge_into_dim_table(
-    spark,
-    database: str,
-    raw_table_name: str,
-    dim_table_name: str,
-    scd2_view_name: str,
-    pk_columns: list,
-    cols_with_type: list,
-    load_ts: datetime,
-    load_ts_col: str = "load_ts",
-    current_ts: datetime = None,
-    use_delta_mode_for_raw_table: bool = False,
-    perform_merge_op: bool = True,
-    show_input_to_merge: bool = False,
-    output_file_name: str = None,
-) -> tuple:
-    return SparkSCD2Strategy(spark, database).merge_into_dim_table(
-        raw_table_name, dim_table_name, scd2_view_name,
-        pk_columns, cols_with_type, load_ts, load_ts_col, current_ts,
-        use_delta_mode_for_raw_table, perform_merge_op, show_input_to_merge, output_file_name,
-    )

@@ -186,7 +186,7 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
         column_list = "*"
 
     # Build ORDER BY clause only if order_by_cols is not empty
-    order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+    order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
 
     if for_version is not None:
         fully_qualified_table_name = f"{fully_qualified_table_name} FOR VERSION AS OF {for_version}"

@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib'
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table
+from commons import raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -46,15 +46,15 @@ def test_step_1(ctx):
     render_table(df_before, title=f"### Table {RAW_TABLE_NAME}", output_file_name=FILE_NAME)
 
     rename_stmt = f"""
-                    ALTER TABLE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
-                    RENAME TO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed
+                    ALTER TABLE {raw_table_fqn(ctx)}
+                    RENAME TO {raw_table_fqn(ctx)}_renamed
                     """
     print(rename_stmt)
     render_data(f"Executing RENAME of `{RAW_TABLE_NAME}` to `{RAW_TABLE_NAME}_renamed`", output_file_name=FILE_NAME)
     ctx.conn.cursor().execute(rename_stmt)
 
-    df_after = get_table_data(ctx.conn, f'{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}_renamed')
-    render_table(df_after, title=f"### Table {RAW_TABLE_NAME}_renamed", output_file_name=FILE_NAME)
+    df_after = get_table_data(ctx.conn, f'{raw_table_fqn(ctx)}_renamed')
+    render_table(df_after, title=f"### Table {raw_table_fqn(ctx)}_renamed", output_file_name=FILE_NAME)
 
     arr1 = df_after.to_numpy()
     arr2 = df_before.to_numpy()

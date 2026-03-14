@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib'
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, get_table_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, scd2_sel_as_test
+from commons import raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, scd2_sel_as_test
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        INSERT INTO {raw_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -41,11 +41,11 @@ def test_step_1(ctx):
 
     ctx.conn.cursor().execute(insert_sql)
 
-    df_before = get_table_data(ctx.conn, f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}", order_by_cols=[])
+    df_before = get_table_data(ctx.conn, f"{raw_table_fqn(ctx)}", order_by_cols=[])
     render_table(df_before, title=f"Table {RAW_TABLE_NAME} before ADD COLUMN", output_file_name=FILE_NAME)
 
     rename_stmt = f"""
-                    ALTER TABLE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+                    ALTER TABLE {raw_table_fqn(ctx)}
                     ADD COLUMN new_col VARCHAR AFTER email
                     """
     print(rename_stmt)
@@ -53,7 +53,7 @@ def test_step_1(ctx):
     ctx.conn.cursor().execute(rename_stmt)
 
     update_sql = f"""
-        UPDATE {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        UPDATE {raw_table_fqn(ctx)}
         SET new_col = 'New Value'
     """
     ctx.conn.cursor().execute(update_sql)
@@ -64,7 +64,7 @@ def test_step_1(ctx):
     # Run SELECT test
     sel_stmt = f"""
         SELECT * 
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}
+        FROM {raw_table_fqn(ctx)}
         ORDER BY id
         """
     

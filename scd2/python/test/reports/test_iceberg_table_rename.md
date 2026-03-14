@@ -16,7 +16,7 @@ This test validates an INSERT operation of one new record
 Executing RENAME of `raw_person` to `raw_person_renamed`
 
 
-**### Table raw_person_renamed**
+**### Table iceberg_hive.default.raw_person_renamed**
 
 
 |   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |

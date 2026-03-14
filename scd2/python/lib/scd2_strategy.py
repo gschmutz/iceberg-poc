@@ -18,9 +18,10 @@ class SCD2Strategy(ABC):
     database) so callers do not have to repeat those arguments on every call.
     """
 
-    def __init__(self, raw_table_name: str, scd2_table_name: str):
+    def __init__(self, raw_table_name: str, scd2_table_name: str, scd2_intermediary_table_name: str = None):
         self.raw_table_name = raw_table_name
         self.scd2_table_name = scd2_table_name
+        self.scd2_intermediary_table_name = scd2_intermediary_table_name or f"{scd2_table_name}_temp"
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ class SCD2Strategy(ABC):
         self
     ) -> str:
         """Return the fully qualified name for the SCD2 intermediate table."""
-        return self._fqn(f"{self.scd2_table_name}_intermediary")            
+        return self._fqn(f"{self.scd2_intermediary_table_name}")            
 
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
@@ -80,9 +81,6 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def format_view(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         cols_with_type: list,
         load_ts: datetime,
@@ -95,8 +93,6 @@ class SCD2Strategy(ABC):
     def format_merge(
         self,
         current_ts: datetime,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         val_columns: list,
     ) -> str:
@@ -107,7 +103,6 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def create_dim_table(
         self,
-        dim_table_name: str,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
         pk_columns_with_type: list,
@@ -120,9 +115,6 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def merge_into_dim_table(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         cols_with_type: list,
         load_ts: datetime,

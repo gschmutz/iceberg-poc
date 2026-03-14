@@ -24,8 +24,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         result, metadata = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, conn, s3_client, catalog: str, schema: str, raw_table_name: str, scd2_table_name: str):
-        super().__init__(raw_table_name, scd2_table_name)
+    def __init__(self, conn, s3_client, catalog: str, schema: str, raw_table_name: str, scd2_table_name: str, scd2_intermediary_table_name: str = None):
+        super().__init__(raw_table_name, scd2_table_name, scd2_intermediary_table_name)
         self.conn = conn
         self.catalog = catalog
         self.schema = schema
@@ -79,7 +79,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def _format_create_dim_table(
         self,
-        table_name: str,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
         pk_columns_with_type: list,
@@ -93,7 +92,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
 
         return f"""
-    CREATE TABLE IF NOT EXISTS {self._fqn(table_name)} (
+    CREATE TABLE IF NOT EXISTS {self.scd2_table_fqn()} (
         dp_key VARCHAR,
         {pk_str},
         {cols_str},
@@ -118,8 +117,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def _format_cte(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
         pk_columns: list,
         val_columns: list,
         load_ts: datetime,
@@ -485,9 +482,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def format_view(
         self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         cols_with_type: list,
         load_ts: datetime,
@@ -591,7 +585,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
 
         create_stmt = self._format_create_dim_table(
-            table_name=dim_table_name,
             s3_warehouse_bucket=s3_warehouse_bucket,
             s3_warehouse_prefix=s3_warehouse_prefix,
             pk_columns_with_type=pk_columns_with_type,
@@ -637,7 +630,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         else:
             column_list = "*"
 
-        order_by_clause = f"ORDER BY {', '.join(order_by_cols)}" if order_by_cols else ""
+        order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
 
         if for_version is not None:
             table_fqn = f"{table_fqn} FOR VERSION AS OF {for_version}"
