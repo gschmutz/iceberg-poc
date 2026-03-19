@@ -8,12 +8,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib'
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_data
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import raw_table_fqn, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test,scd2_merge_as_preparation, create_raw_table
+from commons import get_strategy_name, raw_table_fqn, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, SCD2_VIEW_NAME, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, scd2_merge_as_preparation, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/scd2_test_logical_del_and_ins_same_val.md"
+FILE_NAME=f"reports/{get_strategy_name().lower()}/scd2_test_logical_del_and_ins_same_val.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')

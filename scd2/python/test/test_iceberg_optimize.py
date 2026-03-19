@@ -8,12 +8,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib'
 from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, diff_with_color
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
 from constants import MAX_TS
-from commons import raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table, insert_as_preparation, get_table_data
+from commons import get_strategy_name, raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table, insert_as_preparation, get_table_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME="reports/test_iceberg_optimize.md"
+FILE_NAME=f"reports/{get_strategy_name().lower()}/test_iceberg_optimize.md"
 
 load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
@@ -70,7 +70,7 @@ def test_step_1(ctx):
 
     insert_as_preparation(ctx=ctx, ins_stmts=[insert_sql_1, insert_sql_2, insert_sql_3, insert_sql_4, insert_sql_5])
 
-    df = get_table_data(ctx, f'{raw_table_name}.files"', order_by_cols=[])
+    df = get_table_data(ctx, raw_table_fqn(ctx, iceberg_meta_tablename="files"), order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata before OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     # Run system under test
@@ -78,7 +78,7 @@ def test_step_1(ctx):
     optimize_table(ctx, table_name=raw_table_fqn(ctx))
 
     # Verify and Visualize results
-    df = get_table_data(ctx.conn, f'{raw_table_fqn(ctx)}.files"', order_by_cols=[])
+    df = get_table_data(ctx.conn, f'{raw_table_fqn(ctx)}$files"', order_by_cols=[])
     render_table(df, title=f"### Iceberg Metadata after OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
 
     assert len(df) == 1, f"Expected 1 file after OPTIMIZE, but found {len(df)}"
