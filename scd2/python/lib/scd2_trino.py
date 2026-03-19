@@ -111,7 +111,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
     WITH (
         partitioning = ARRAY[{partitioning_str}],
         sorted_by = ARRAY[{sorted_by_str}],
-        location = 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.schema}/{table_name}'
+        location = 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.schema}/{self.scd2_table_name}'
     )
     """
 
@@ -139,9 +139,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
         join_src_next = self._format_join_condition(pk_columns, "src", "next")
 
-        raw_fqn = self._fqn(raw_table_name)
-        dim_fqn = self._fqn(dim_table_name)
-
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
@@ -154,7 +151,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                         )
                     )
                 ) AS record_hash
-            FROM {raw_fqn}
+            FROM {self.raw_table_fqn()}
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
@@ -192,7 +189,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_from,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn}
+            FROM {self.scd2_table_fqn()}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
         ) overlap
         ON {join_src_overlap}
@@ -205,7 +202,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn}
+            FROM {self.scd2_table_fqn()}
             WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
             OR (dp_ts_to < src.dp_ts_from AND dp_is_latest = TRUE)      -- we are interested in previous version even if it is not ending exactly at the new version, if it is the latest version (so we can update it)
         ) prev
@@ -219,7 +216,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_ts_to,
                 dp_is_active,
                 dp_is_latest
-            FROM {dim_fqn} AS next
+            FROM {self.scd2_table_fqn()} AS next
             WHERE src.dp_ts_from < next.dp_ts_from
             AND next.dp_is_active = TRUE
         ) next
@@ -490,8 +487,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         val_columns = [col.split()[0] for col in cols_with_type]
         cte = self._format_cte(
-            raw_table_name=raw_table_name,
-            dim_table_name=dim_table_name,
             pk_columns=pk_columns,
             val_columns=val_columns,
             load_ts=load_ts,
@@ -499,7 +494,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
         return f"""
-    CREATE OR REPLACE VIEW {self._fqn(scd2_view_name)} AS
+    CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
         {cte}
     SELECT *
     FROM prepared_source
@@ -508,8 +503,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
     def format_merge(
         self,
         current_ts: datetime,
-        dim_table_name: str,
-        scd2_view_name: str,
         pk_columns: list,
         val_columns: list,
     ) -> str:
@@ -523,8 +516,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
 
         return f"""
-    MERGE INTO {self._fqn(dim_table_name)} AS target
-    USING {self._fqn(scd2_view_name)} AS source
+    MERGE INTO {self.scd2_table_fqn()} AS target
+    USING {self.scd2_intermediary_table_fqn()} AS source
     ON target.dp_key = source.merge_key
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
@@ -568,7 +561,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def create_dim_table(
         self,
-        dim_table_name: str,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
         pk_columns_with_type: list,
@@ -576,12 +568,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
-        drop_stmt = f"DROP TABLE IF EXISTS {self._fqn(dim_table_name)}"
+        drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
         print(drop_stmt)
         execute_with_metrics(self.conn.cursor(), drop_stmt)
 
         # Drop the S3 folder for the dimension table
-        s3_path = f"{s3_warehouse_prefix}/{self.schema}/{dim_table_name}"
+        s3_path = f"{s3_warehouse_prefix}/{self.schema}/{self.scd2_table_name}"
         self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
 
         create_stmt = self._format_create_dim_table(
@@ -594,7 +586,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         )
         print(create_stmt)
         self.conn.cursor().execute(create_stmt)
-        logger.info(f"Dimension table {dim_table_name} created successfully.")
+        logger.info(f"Dimension table {self.scd2_table_fqn()} created successfully.")
 
     def retrieve_iceberg_metadata(self, dim_table_name: str):
         query = f"""
@@ -612,6 +604,65 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cursor = self.conn.cursor()
         cursor.execute(query)
         return cursor.fetchone()
+
+    def optimize_table(self, table_name: str) -> None:
+        stmt = f"""
+            ALTER TABLE {table_name}
+            EXECUTE optimize (file_size_threshold => '256MB')
+        """
+        print(stmt)
+        execute_with_metrics(self.conn.cursor(), stmt)
+        logger.info(f"Optimize table for {table_name} executed successfully.")
+
+    def analyze_table(self, table_name: str) -> None:
+        stmt = f"ANALYZE {table_name}"
+        print(stmt)
+        execute_with_metrics(self.conn.cursor(), stmt)
+        logger.info(f"Analyze table for {table_name} executed successfully.")
+
+    def merge_into_dim_table(
+        self,
+        pk_columns: list,
+        cols_with_type: list,
+        load_ts: datetime,
+        load_ts_col: str = "load_ts",
+        current_ts: Optional[datetime] = None,
+        use_delta_mode_for_raw_table: bool = False,
+        perform_merge_op: bool = True,
+        show_input_to_merge: bool = False,
+        output_file_name: Optional[str] = None,
+    ) -> tuple:
+        view_stmt = self.format_view(
+            pk_columns=pk_columns,
+            cols_with_type=cols_with_type,
+            load_ts=load_ts,
+            load_ts_col=load_ts_col,
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+        )
+
+        logger.info(view_stmt)
+        self.conn.cursor().execute(view_stmt)
+        logger.info("View created successfully.")
+
+        if show_input_to_merge:
+            df = self.get_table_data(self.scd2_intermediary_table_name, order_by_cols=["merge_key"])
+            render_table(df, output_file_name=output_file_name, title="Input to Merge")
+
+        if perform_merge_op:
+            val_columns = [col.split()[0] for col in cols_with_type]
+            merge_stmt = self.format_merge(
+                current_ts=current_ts,
+                pk_columns=pk_columns,
+                val_columns=val_columns,
+            )
+
+            logger.info(merge_stmt)
+            result = execute_with_metrics(self.conn.cursor(), merge_stmt)
+            logger.info(f"Merge result: {result}")
+            #iceberg_metadata = self.retrieve_iceberg_metadata(dim_table_name)
+            return result, None
+
+        return None, None
 
     def get_table_data(
         self,
@@ -637,226 +688,3 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         sql = f"SELECT {column_list} FROM {table_fqn} {order_by_clause}"
         return pd.read_sql_query(sql, self.conn)
-
-    def optimize_table(self, table_name: str) -> None:
-        stmt = f"""
-            ALTER TABLE {table_name}
-            EXECUTE optimize (file_size_threshold => '256MB')
-        """
-        print(stmt)
-        execute_with_metrics(self.conn.cursor(), stmt)
-        logger.info(f"Optimize table for {table_name} executed successfully.")
-
-    def analyze_table(self, table_name: str) -> None:
-        stmt = f"ANALYZE {table_name}"
-        print(stmt)
-        execute_with_metrics(self.conn.cursor(), stmt)
-        logger.info(f"Analyze table for {table_name} executed successfully.")
-
-    def merge_into_dim_table(
-        self,
-        raw_table_name: str,
-        dim_table_name: str,
-        scd2_view_name: str,
-        pk_columns: list,
-        cols_with_type: list,
-        load_ts: datetime,
-        load_ts_col: str = "load_ts",
-        current_ts: Optional[datetime] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        perform_merge_op: bool = True,
-        show_input_to_merge: bool = False,
-        output_file_name: Optional[str] = None,
-    ) -> tuple:
-        view_stmt = self.format_view(
-            raw_table_name=raw_table_name,
-            dim_table_name=dim_table_name,
-            scd2_view_name=scd2_view_name,
-            pk_columns=pk_columns,
-            cols_with_type=cols_with_type,
-            load_ts=load_ts,
-            load_ts_col=load_ts_col,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        )
-
-        logger.info(view_stmt)
-        self.conn.cursor().execute(view_stmt)
-        logger.info("View created successfully.")
-
-        if show_input_to_merge:
-            df = self.get_table_data(scd2_view_name, order_by_cols=["merge_key"])
-            render_table(df, output_file_name=output_file_name, title="Input to Merge")
-
-        if perform_merge_op:
-            val_columns = [col.split()[0] for col in cols_with_type]
-            merge_stmt = self.format_merge(
-                current_ts=current_ts,
-                dim_table_name=dim_table_name,
-                scd2_view_name=scd2_view_name,
-                pk_columns=pk_columns,
-                val_columns=val_columns,
-            )
-
-            logger.info(merge_stmt)
-            result = execute_with_metrics(self.conn.cursor(), merge_stmt)
-            logger.info(f"Merge result: {result}")
-            iceberg_metadata = self.retrieve_iceberg_metadata(dim_table_name)
-            return result, iceberg_metadata
-
-        return None, None
-
-
-# ── Backward-compatible module-level functions ──────────────────────────────
-# These preserve the original call signatures so existing callers do not need
-# to be updated.  New code should instantiate TrinoSCD2Strategy directly.
-
-def add_prefix(values: list, prefix: str) -> list:
-    return SCD2Strategy.add_prefix(values, prefix)
-
-
-def format_values(values: list) -> str:
-    return SCD2Strategy.format_values(values)
-
-
-def cast_to_varchar(values: list) -> list:
-    return TrinoSCD2Strategy._cast_to_varchar(values)
-
-
-def format_join_condition(pk_columns: list, prefix_left: str, prefix_right: str) -> str:
-    return TrinoSCD2Strategy._format_join_condition(pk_columns, prefix_left, prefix_right)
-
-
-def format_create_dim_table(
-    trino_catalog: str,
-    trino_schema: str,
-    table_name: str,
-    s3_warehouse_bucket: str,
-    s3_warehouse_prefix: str,
-    pk_columns_with_type: list,
-    cols_with_type: list,
-    partitioning_cols: list,
-    sort_cols: list,
-) -> str:
-    return TrinoSCD2Strategy(None, trino_catalog, trino_schema)._format_create_dim_table(
-        table_name, s3_warehouse_bucket, s3_warehouse_prefix,
-        pk_columns_with_type, cols_with_type, partitioning_cols, sort_cols,
-    )
-
-
-def format_cte(
-    trino_catalog: str,
-    trino_schema: str,
-    raw_table_name: str,
-    dim_table_name: str,
-    pk_columns: list,
-    val_columns: list,
-    load_ts: datetime,
-    load_ts_col: str,
-    use_delta_mode_for_raw_table: bool = False,
-) -> str:
-    return TrinoSCD2Strategy(None, trino_catalog, trino_schema)._format_cte(
-        raw_table_name, dim_table_name, pk_columns, val_columns,
-        load_ts, load_ts_col, use_delta_mode_for_raw_table,
-    )
-
-
-def format_view(
-    trino_catalog: str,
-    trino_schema: str,
-    raw_table_name: str,
-    dim_table_name: str,
-    scd2_view_name: str,
-    pk_columns: list,
-    cols_with_type: list,
-    load_ts: datetime,
-    load_ts_col: str,
-    use_delta_mode_for_raw_table: bool = False,
-) -> str:
-    return TrinoSCD2Strategy(None, trino_catalog, trino_schema).format_view(
-        raw_table_name, dim_table_name, scd2_view_name,
-        pk_columns, cols_with_type, load_ts, load_ts_col, use_delta_mode_for_raw_table,
-    )
-
-
-def format_merge(
-    current_ts: datetime,
-    trino_catalog: str,
-    trino_schema: str,
-    dim_table_name: str,
-    scd2_view_name: str,
-    pk_columns: list,
-    val_columns: list,
-) -> str:
-    return TrinoSCD2Strategy(None, trino_catalog, trino_schema).format_merge(
-        current_ts, dim_table_name, scd2_view_name, pk_columns, val_columns,
-    )
-
-
-def create_dim_table(
-    conn,
-    trino_catalog: str,
-    trino_schema: str,
-    dim_table_name: str,
-    s3_warehouse_bucket: str,
-    s3_warehouse_prefix: str,
-    pk_columns_with_type: list,
-    cols_with_type: list = None,
-    partition_cols: list = None,
-    sort_cols: list = None,
-) -> None:
-    TrinoSCD2Strategy(conn, trino_catalog, trino_schema).create_dim_table(
-        dim_table_name, s3_warehouse_bucket, s3_warehouse_prefix,
-        pk_columns_with_type, cols_with_type, partition_cols, sort_cols,
-    )
-
-
-def retrieve_iceberg_metadata(
-    conn,
-    trino_catalog: str,
-    trino_schema: str,
-    dim_table_name: str,
-):
-    return TrinoSCD2Strategy(conn, trino_catalog, trino_schema).retrieve_iceberg_metadata(
-        dim_table_name
-    )
-
-
-def optimize_table(conn, table_name: str) -> None:
-    stmt = f"""
-        ALTER TABLE {table_name}
-        EXECUTE optimize (file_size_threshold => '256MB')
-    """
-    print(stmt)
-    execute_with_metrics(conn.cursor(), stmt)
-    logger.info(f"Optimize table for {table_name} executed successfully.")
-
-
-def run_analyze_table(conn, table_name: str) -> None:
-    stmt = f"ANALYZE {table_name}"
-    print(stmt)
-    execute_with_metrics(conn.cursor(), stmt)
-    logger.info(f"Analyze table for {table_name} executed successfully.")
-
-
-def merge_into_dim_table(
-    conn,
-    trino_catalog: str,
-    trino_schema: str,
-    raw_table_name: str,
-    dim_table_name: str,
-    scd2_view_name: str,
-    pk_columns: list,
-    cols_with_type: list,
-    load_ts: datetime,
-    load_ts_col: str = "load_ts",
-    current_ts: datetime = None,
-    use_delta_mode_for_raw_table: bool = False,
-    perform_merge_op: bool = True,
-    show_input_to_merge: bool = False,
-    output_file_name: str = None,
-) -> tuple:
-    return TrinoSCD2Strategy(conn, trino_catalog, trino_schema).merge_into_dim_table(
-        raw_table_name, dim_table_name, scd2_view_name,
-        pk_columns, cols_with_type, load_ts, load_ts_col, current_ts,
-        use_delta_mode_for_raw_table, perform_merge_op, show_input_to_merge, output_file_name,
-    )

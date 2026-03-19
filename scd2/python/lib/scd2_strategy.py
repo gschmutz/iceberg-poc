@@ -52,22 +52,31 @@ class SCD2Strategy(ABC):
             logger.warning(f"Failed to delete S3 folder: {e}")
 
     def raw_table_fqn(
-        self
+        self, iceberg_meta_tablename: str = None
     ) -> str:
         """Return the fully qualified name for the raw table."""
-        return self._fqn(self.raw_table_name)
+        if iceberg_meta_tablename:
+            return self._fqn(f"{self.raw_table_name}${iceberg_meta_tablename}")
+        else:
+            return self._fqn(self.raw_table_name)
 
     def scd2_table_fqn(
-        self
+        self, iceberg_meta_tablename: str = None
     ) -> str:
         """Return the fully qualified name for the SCD2 table."""
-        return self._fqn(self.scd2_table_name)
+        if iceberg_meta_tablename:
+            return self._fqn(f"{self.scd2_table_name}${iceberg_meta_tablename}")
+        else:
+            return self._fqn(self.scd2_table_name)
 
     def scd2_intermediary_table_fqn(
-        self
+        self, iceberg_meta_tablename: str = None
     ) -> str:
         """Return the fully qualified name for the SCD2 intermediate table."""
-        return self._fqn(f"{self.scd2_intermediary_table_name}")            
+        if iceberg_meta_tablename:
+            return self._fqn(f"{self.scd2_intermediary_table_name}${iceberg_meta_tablename}")
+        else:
+            return self._fqn(self.scd2_intermediary_table_name)
 
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
