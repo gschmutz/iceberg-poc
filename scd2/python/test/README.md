@@ -31,7 +31,6 @@ The last column points to the markdown which is being generated in the test and 
 | 1 | test_scd2_sel_point_in_time.py | Performs a point-in-time select to find the version of the entity which was valid at the time | [scd2_sel_point_in_time.md](./reports/trino/scd2_test_sel_point_in_time.md) | no |
 | 2 | test_scd2_sel_is_active.py | Performs a select to get all active versions of all entities. | [scd2_test_sel_is_active.md](./reports/trino/scd2_test_sel_is_active.md) | no |
 | 3 | test_scd2_sel_is_latest.py | Performs a select to get all latest versions of all entities. | [scd2_test_sel_is_latest.md](./reports/trino/scd2_test_sel_is_latest.md) | no |
-| 4 | test_scd2_compkey_ins.py | Performs an insert of a new entity using a composite primary key | 
 
 ### Insert
 
@@ -87,7 +86,7 @@ The last column points to the markdown which is being generated in the test and 
 
 | # | Python Script  |   Description | Link to Results as Markdown | Use Asserts |
 |---|------|------------|---------------------|----|
-| 1 | test_scd2_replay.py | Performs multiple operations followed by a replay to validate idempotency | [scd2_test_replay.md](./reports/trino/scd2_test_replay.md) | yes |
+| 1 | test_scd2_replay.py | Validates multiple operations over time and replays all of them a second time | [scd2_test_replay.md](./reports/trino/scd2_test_replay.md) | yes |
 
 
 ## SCD2 (Delta Source)
