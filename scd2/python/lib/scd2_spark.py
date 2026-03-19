@@ -570,9 +570,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         sort_cols: Optional[list] = None,
     ) -> None:
         
-        #self.spark.sql(f"CALL hiverest.system.expire_snapshots(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00', retain_last => 0)")
-        #self.spark.sql(f"CALL hiverest.system.remove_orphan_files(table => '{self._fqn(dim_table_name)}',older_than => TIMESTAMP '2099-01-01 00:00:00')")
-
         drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
         print(drop_stmt)
         self.spark.sql(drop_stmt)
