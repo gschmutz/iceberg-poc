@@ -59,24 +59,27 @@ class TestCommonsBase:
 
     def _make_strategy(self, ctx):
         raise NotImplementedError
-
+    
     def _execute_insert(self, ins_stmt: str, ctx):
         raise NotImplementedError
 
     def _execute_select(self, sel_stmt: str, ctx):
         return self._make_strategy(ctx).get_table_data(sel_stmt)
 
+    def get_strategy_name(self):
+        raise NotImplementedError
+
     def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
         raise NotImplementedError
 
-    def raw_table_fqn(self, ctx):
-        return self._make_strategy(ctx).raw_table_fqn()
+    def raw_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
+        return self._make_strategy(ctx).raw_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
     
-    def scd2_table_fqn(self, ctx):
-        return self._make_strategy(ctx).scd2_table_fqn()
+    def scd2_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
+        return self._make_strategy(ctx).scd2_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
     
-    def scd2_intermediary_table_fqn(self, ctx):
-        return self._make_strategy(ctx).scd2_intermediary_table_fqn()
+    def scd2_intermediary_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
+        return self._make_strategy(ctx).scd2_intermediary_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
 
     def get_table_data(self, ctx, table_name: str, exclude_cols: list = [], order_by_cols: list = [], for_version: str = None):
         """Read a table via the active strategy and return a pandas DataFrame."""
@@ -244,6 +247,8 @@ class TestCommonsBase:
 # ---------------------------------------------------------------------------
 
 class TrinoTestCommons(TestCommonsBase):
+    STRATEGY = "TRINO"
+
     COLS_WITH_TYPE_TRINO = [
             "first_name VARCHAR",
             "last_name VARCHAR",
@@ -254,6 +259,9 @@ class TrinoTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx):
         return TrinoSCD2Strategy(ctx.conn, s3_client=ctx.s3_client, catalog=TRINO_CATALOG, schema=TRINO_SCHEMA, raw_table_name=RAW_TABLE_NAME, scd2_table_name=SCD2_TABLE_NAME)
+
+    def get_strategy_name(self):
+        return self.STRATEGY
 
     def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
         cursor = ctx.conn.cursor()
@@ -291,6 +299,8 @@ class TrinoTestCommons(TestCommonsBase):
         return df
 
 class SparkTestCommons(TestCommonsBase):
+    STRATEGY = "SPARK"
+
     COLS_WITH_TYPE_SPARK = [
             "first_name STRING",
             "last_name STRING",
@@ -302,6 +312,9 @@ class SparkTestCommons(TestCommonsBase):
     def _make_strategy(self, ctx):
         return SparkSCD2Strategy(ctx.spark, s3_client=ctx.s3_client, database="default", raw_table_name=RAW_TABLE_NAME, scd2_table_name=SCD2_TABLE_NAME)
 
+    def get_strategy_name(self):
+        return self.STRATEGY
+    
     def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
         drop_table_sql = f"DROP TABLE IF EXISTS default.{RAW_TABLE_NAME}"
         ctx.spark.sql(drop_table_sql)
@@ -337,7 +350,7 @@ class SparkTestCommons(TestCommonsBase):
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
 
-_impl: TestCommonsBase = TrinoTestCommons()
+_impl: TestCommonsBase = SparkTestCommons()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
@@ -347,17 +360,20 @@ COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
 # Module-level wrappers — kept for backward compatibility with test imports
 # ---------------------------------------------------------------------------
 
+def get_strategy_name():
+    return _impl.get_strategy_name()
+
 def get_table_data(ctx, table_name: str, exclude_cols: list = [], order_by_cols: list = [], for_version: str = None):
     return _impl.get_table_data(ctx, table_name=table_name, exclude_cols=exclude_cols, order_by_cols=order_by_cols, for_version=for_version)
 
-def raw_table_fqn(ctx):
-    return _impl.raw_table_fqn(ctx)
+def raw_table_fqn(ctx, iceberg_meta_tablename: str = None):
+    return _impl.raw_table_fqn(ctx, iceberg_meta_tablename=iceberg_meta_tablename)
 
-def scd2_table_fqn(ctx):
-    return _impl.scd2_table_fqn(ctx)
+def scd2_table_fqn(ctx, iceberg_meta_tablename: str = None):
+    return _impl.scd2_table_fqn(ctx, iceberg_meta_tablename=iceberg_meta_tablename)
 
-def scd2_intermediary_table_fqn(ctx):
-    return _impl.scd2_intermediary_table_fqn(ctx)
+def scd2_intermediary_table_fqn(ctx, iceberg_meta_tablename: str = None):
+    return _impl.scd2_intermediary_table_fqn(ctx, iceberg_meta_tablename=iceberg_meta_tablename)
 
 def create_raw_table(ctx, pk_columns_with_type: list = ["id INT"]):
     return _impl.create_raw_table(ctx, pk_columns_with_type=pk_columns_with_type)
