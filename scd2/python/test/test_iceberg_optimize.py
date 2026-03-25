@@ -1,29 +1,58 @@
-import sys
+import logging
 import os
-import logging
-from datetime import date, timedelta, datetime
-import logging
+import sys
+from datetime import date, datetime, timedelta
+from scd2_strategy import SCD2Table
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
-from util import get_param, get_credential, replace_vars_in_string, render_init, render_table, render_data, diff_with_color
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
+from util import (
+    diff_with_color,
+    get_credential,
+    get_param,
+    render_data,
+    render_init,
+    render_table,
+    replace_vars_in_string,
+)
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
+from commons import (
+    COLS_WITH_TYPE,
+    RAW_TABLE_NAME,
+    S3_WAREHOUSE_BUCKET,
+    S3_WAREHOUSE_PREFIX,
+    TRINO_CATALOG,
+    TRINO_SCHEMA,
+    create_raw_table,
+    get_strategy_name,
+    get_table_data,
+    insert_as_preparation,
+    optimize_table,
+    raw_table_fqn,
+    scd2_merge_as_test,
+)
 from constants import MAX_TS
-from commons import get_strategy_name, raw_table_fqn, TRINO_CATALOG, TRINO_SCHEMA, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, RAW_TABLE_NAME, COLS_WITH_TYPE, scd2_merge_as_test, create_raw_table, optimize_table, insert_as_preparation, get_table_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME=f"reports/{get_strategy_name().lower()}/test_iceberg_optimize.md"
+FILE_NAME = f"reports/{get_strategy_name().lower()}/test_iceberg_optimize.md"
 
-load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
+
 
 def test_step_1(ctx):
-    logger.info("-------------------------------- Test Step 1 --------------------------------")
+    logger.info(
+        "-------------------------------- Test Step 1 --------------------------------"
+    )
 
     create_raw_table(ctx)
     render_init("Testing Insert Operation", FILE_NAME)
-    render_data("This test validates an INSERT operation of one new record", output_file_name=FILE_NAME)
+    render_data(
+        "This test validates an INSERT operation of one new record",
+        output_file_name=FILE_NAME,
+    )
 
     render_data(f"## Test Step 1", output_file_name=FILE_NAME)
 
@@ -68,17 +97,38 @@ def test_step_1(ctx):
             (43, 'Paula', 'Gerber', 'Fribourg', 'paula.gerber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
     """
 
-    insert_as_preparation(ctx=ctx, ins_stmts=[insert_sql_1, insert_sql_2, insert_sql_3, insert_sql_4, insert_sql_5])
+    insert_as_preparation(
+        ctx=ctx,
+        ins_stmts=[
+            insert_sql_1,
+            insert_sql_2,
+            insert_sql_3,
+            insert_sql_4,
+            insert_sql_5,
+        ],
+    )
 
-    df = get_table_data(ctx, raw_table_fqn(ctx, iceberg_meta_tablename="files"), order_by_cols=[])
-    render_table(df, title=f"### Iceberg Metadata before OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
+    df = get_table_data(
+        ctx=ctx, table=SCD2Table.RAW, iceberg_meta_tablename="files", order_by_cols=[]
+    )
+    render_table(
+        df,
+        title=f"### Iceberg Metadata before OPTIMIZE",
+        include_cols=["file_path", "record_count", "file_size_in_bytes"],
+        output_file_name=FILE_NAME,
+    )
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
     optimize_table(ctx, table_name=raw_table_fqn(ctx))
 
     # Verify and Visualize results
-    df = get_table_data(ctx.conn, f'{raw_table_fqn(ctx)}$files"', order_by_cols=[])
-    render_table(df, title=f"### Iceberg Metadata after OPTIMIZE", include_cols=["file_path", "record_count", "file_size_in_bytes"], output_file_name=FILE_NAME)
+    df = get_table_data(ctx=ctx, table=SCD2Table.SCD2, iceberg_meta_tablename="files", order_by_cols=[])
+    render_table(
+        df,
+        title=f"### Iceberg Metadata after OPTIMIZE",
+        include_cols=["file_path", "record_count", "file_size_in_bytes"],
+        output_file_name=FILE_NAME,
+    )
 
-    assert len(df) == 1, f"Expected 1 file after OPTIMIZE, but found {len(df)}"
+    assert len(df) == 2, f"Expected 2 files after OPTIMIZE, but found {len(df)}"

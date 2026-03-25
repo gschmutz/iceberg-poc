@@ -1,42 +1,70 @@
-import sys
+import logging
 import os
-import logging
-from datetime import date, timedelta, datetime
-import logging
+import sys
+from datetime import date, datetime, timedelta
+
 import pandas as pd
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 
-from util import get_param, get_credential, replace_vars_in_string, render_init, render_data, get_table_data, render_table
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib')))
+from util import (
+    get_credential,
+    get_param,
+    render_data,
+    render_init,
+    render_table,
+    replace_vars_in_string,
+)
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
+from commons import (
+    COLS_WITH_TYPE,
+    EXCLUDE_COLS,
+    S3_WAREHOUSE_BUCKET,
+    S3_WAREHOUSE_PREFIX,
+    create_dim_table_for_test,
+    create_raw_table,
+    get_strategy_name,
+    raw_table_fqn,
+    scd2_intermediary_table_fqn,
+    scd2_merge_as_preparation,
+    scd2_merge_as_test,
+    scd2_sel_as_test,
+    scd2_table_fqn,
+)
 from constants import MAX_TS
-from commons import get_strategy_name, raw_table_fqn, scd2_table_fqn, scd2_intermediary_table_fqn, S3_WAREHOUSE_BUCKET, S3_WAREHOUSE_PREFIX, EXCLUDE_COLS, COLS_WITH_TYPE, create_dim_table_for_test, scd2_merge_as_test, scd2_sel_as_test, scd2_merge_as_preparation, create_raw_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME=f"reports/{get_strategy_name().lower()}/scd2_test_sel_is_active.md"
+FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_sel_is_active.md"
 
-load_ts_1= datetime.strptime('2026-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_1 = datetime.strptime('2026-01-02 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
 
-load_ts_2 = datetime.strptime('2026-01-05 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_2 = datetime.strptime('2026-01-06 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_2 = datetime.strptime("2026-01-05 00:00:00", "%Y-%m-%d %H:%M:%S")
+current_ts_2 = datetime.strptime("2026-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
 
-load_ts_3 = datetime.strptime('2026-01-10 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_3 = datetime.strptime('2026-01-11 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_3 = datetime.strptime("2026-01-10 00:00:00", "%Y-%m-%d %H:%M:%S")
+current_ts_3 = datetime.strptime("2026-01-11 00:00:00", "%Y-%m-%d %H:%M:%S")
 
-load_ts_4 = datetime.strptime('2026-01-20 00:00:00', '%Y-%m-%d %H:%M:%S')
-current_ts_4 = datetime.strptime('2026-01-21 00:00:00', '%Y-%m-%d %H:%M:%S')
+load_ts_4 = datetime.strptime("2026-01-20 00:00:00", "%Y-%m-%d %H:%M:%S")
+current_ts_4 = datetime.strptime("2026-01-21 00:00:00", "%Y-%m-%d %H:%M:%S")
+
 
 def test_step_1(ctx):
-    logger.info("-------------------------------- Test Step 1 --------------------------------")
+    logger.info(
+        "-------------------------------- Test Step 1 --------------------------------"
+    )
 
     create_raw_table(ctx)
     create_dim_table_for_test(ctx)
-    
+
     render_init("Testing for valid data at a given at a given timestamp", FILE_NAME)
-    render_data(f"This test validates a single SELECT operation for data valid at a timestamp {load_ts_2 - timedelta(days=2)}", output_file_name=FILE_NAME)
+    render_data(
+        f"This test validates a single SELECT operation for data valid at a timestamp {load_ts_2 - timedelta(days=2)}",
+        output_file_name=FILE_NAME,
+    )
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
@@ -77,9 +105,15 @@ def test_step_1(ctx):
             dp_loaded_at
         )
     """
-    scd2_merge_as_preparation(ctx, ins_stmts=[insert_sql_1,insert_sql_2]
-                              , load_ts_list=[load_ts_1, load_ts_2], current_ts_list=[current_ts_1, current_ts_2]
-                              , output_file_name=FILE_NAME, display_result=True, test_description=f"Performing two batch inserts with load timestamps {load_ts_1} and {load_ts_2} and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara."    )
+    scd2_merge_as_preparation(
+        ctx,
+        ins_stmts=[insert_sql_1, insert_sql_2],
+        load_ts_list=[load_ts_1, load_ts_2],
+        current_ts_list=[current_ts_1, current_ts_2],
+        output_file_name=FILE_NAME,
+        display_result=True,
+        test_description=f"Performing two batch inserts with load timestamps {load_ts_1} and {load_ts_2} and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara.",
+    )
 
     # Run SELECT test
     test_description = f"Select all the active data. Because Bob has been deleted at {load_ts_2} it will no longer be shown when selecting only ACTIVE records as of today."
@@ -94,19 +128,42 @@ def test_step_1(ctx):
         WHERE dp_is_active = TRUE
         ORDER BY id
         """
-    
-    expected = [
-        (1, "Alice", "Meyer", "Bern", "alice.meyer@example.com",
-        load_ts_2, MAX_TS, True, True,
-        current_ts_2, MAX_TS,
-        "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD"),
 
-        (3, "Clara", "Schmid", "Basel", "clara.schmid@example.com",
-        load_ts_2, MAX_TS, True, True,
-        current_ts_2, MAX_TS,
-        "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676")
+    expected = [
+        (
+            1,
+            "Alice",
+            "Meyer",
+            "Bern",
+            "alice.meyer@example.com",
+            load_ts_2,
+            MAX_TS,
+            True,
+            True,
+            current_ts_2,
+            MAX_TS,
+            "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD",
+        ),
+        (
+            3,
+            "Clara",
+            "Schmid",
+            "Basel",
+            "clara.schmid@example.com",
+            load_ts_2,
+            MAX_TS,
+            True,
+            True,
+            current_ts_2,
+            MAX_TS,
+            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+        ),
     ]
 
-    scd2_sel_as_test(ctx, sel_stmt=sel_stmt, expected=expected, output_file_name=FILE_NAME, test_description=test_description)
-
-
+    scd2_sel_as_test(
+        ctx,
+        sel_stmt=sel_stmt,
+        expected=expected,
+        output_file_name=FILE_NAME,
+        test_description=test_description,
+    )
