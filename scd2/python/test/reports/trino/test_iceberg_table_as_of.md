@@ -30,7 +30,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 `
         SELECT * 
         FROM iceberg_hive.default.raw_person
-        FOR VERSION AS OF 5203730220625887969
+        FOR VERSION AS OF 2581652389485283618
         ORDER BY id
         `
 

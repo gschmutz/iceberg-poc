@@ -64,3 +64,36 @@ At 2026-01-05 00:00:00, update `email` of entity with `id=3` in raw table and pe
 | 982b629b-b487-49d6-b3d9-4d0b901d0f8a | 982b629b-b487-49d6-b3d9-4d0b901d0f8a |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | 2026-01-05 00:00:00 | ACTIVE   | UPDATE_VERSION     | CASE_11     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
 |                                      | f1081497-f74b-4650-95c0-31e56f0af588 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | 2026-01-05 00:00:00 | ACTIVE   | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
+
+
+**Dimensional Table `dim_person`**
+
+
+| dp_key                                                                  | id                                   | first_name                               | last_name                                 | city                                     | email                                                       | dp_ts_from                                             | dp_ts_to                                                | dp_is_active                              | dp_is_latest                              | dp_created_at                                          | dp_replaced_at                                          |
+|-------------------------------------------------------------------------|--------------------------------------|------------------------------------------|-------------------------------------------|------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|-------------------------------------------|-------------------------------------------|--------------------------------------------------------|---------------------------------------------------------|
+| 88d3cc92-a5d4-4a79-be58-1fb15914c774                                    | 1                                    | Alice                                    | Meyer                                     | Zurich                                   | alice.meyer@example.com                                     | 2026-01-01 00:00:00                                    | 9999-12-31 23:59:59                                     | True                                      | True                                      | 2026-01-02 00:00:00                                    | 9999-12-31 23:59:59                                     |
+| ded29ed8-249c-4223-b17a-480acee86676                                    | 2                                    | Bob                                      | Keller                                    | Bern                                     | bob.keller@example.com                                      | 2026-01-01 00:00:00                                    | 9999-12-31 23:59:59                                     | True                                      | True                                      | 2026-01-02 00:00:00                                    | 9999-12-31 23:59:59                                     |
+| 982b629b-b487-49d6-b3d9-4d0b901d0f8a                                    | 3                                    | Clara                                    | Schmid                                    | Basel                                    | clara.schmid@example.com                                    | 2026-01-01 00:00:00                                    | <span style='color: orange;'>2026-01-04 23:59:59</span> | <span style='color: orange;'>False</span> | <span style='color: orange;'>False</span> | 2026-01-02 00:00:00                                    | <span style='color: orange;'>2026-01-06 00:00:00</span> |
+| <span style='color: green;'>f1081497-f74b-4650-95c0-31e56f0af588</span> | <span style='color: green;'>3</span> | <span style='color: green;'>Clara</span> | <span style='color: green;'>Schmid</span> | <span style='color: green;'>Basel</span> | <span style='color: green;'>clara.schmid@newmail.com</span> | <span style='color: green;'>2026-01-05 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span>  | <span style='color: green;'>True</span>   | <span style='color: green;'>True</span>   | <span style='color: green;'>2026-01-06 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span>  |
+
+_the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
+
+### Perform Test
+At 2026-01-05 00:00:00, update `email` of entity with `id=3` in raw table and perform SCD2 merge.
+
+
+`
+        SELECT 1 
+        FROM default.dim_person
+        WHERE id = 3 AND dp_is_active = TRUE
+        AND dp_ts_to = (SELECT dp_ts_from - INTERVAL '1 SECOND' FROM default.dim_person WHERE id = 3 AND dp_is_active != TRUE)
+        `
+
+
+
+**Dimensional Table `dim_person`**
+
+
+| 1   |
+|-----|
+
