@@ -60,6 +60,8 @@ def test_step_1(ctx):
         "This test validates multiple operations on one entity over time producing many versions followed by a replay of these operations. This proves that the SCD2 operations are idempotent, so that the exact same result as before the replay is still in place.",
         output_file_name=FILE_NAME,
     )
+    render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
+    render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
     test_description = (
         "Insert 2 entities into raw table and perform initial SCD2 merge."

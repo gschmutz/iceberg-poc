@@ -1,6 +1,8 @@
 # Testing Insert Operation (Delta Mode for Source)
 
 This test validates an INSERT operation of one single entity into an empty dimension table.
+ * **Strategy:** `spark`
+ * **Last Run:** `2026-03-25 13:56:25`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 merge.
 
@@ -19,7 +21,7 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 
 | merge_key   | dp_key                               |   id | first_name   | last_name   | city   | email                   | record_hash                                                      | load_ts             | status   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------|--------------------------------------|------|--------------|-------------|--------|-------------------------|------------------------------------------------------------------|---------------------|----------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|             | 5468cd79-3c58-41a9-b916-5cbb97e75d20 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | 2026-01-01 00:00:00 | ACTIVE   | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|             | ad7ad3a9-51a0-45a9-bf5a-a1dc508dc68b |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | 2026-01-01 00:00:00 | ACTIVE   | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -28,7 +30,7 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 
 | dp_key                                                                  | id                                   | first_name                               | last_name                                | city                                      | email                                                      | dp_ts_from                                             | dp_ts_to                                               | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |-------------------------------------------------------------------------|--------------------------------------|------------------------------------------|------------------------------------------|-------------------------------------------|------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
-| <span style='color: green;'>9d7b18e6-4dae-46e6-87b3-ee0dbe6c4286</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
+| <span style='color: green;'>43fe32eb-b6bf-43e2-a8cc-983bcaac286a</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 

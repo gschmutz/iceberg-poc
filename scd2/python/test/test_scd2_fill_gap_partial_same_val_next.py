@@ -67,6 +67,8 @@ def test_step_1(ctx):
         "This test validates filling the gap in a single entity. The record added into the gap is having the same values as the version following the gap.",
         output_file_name=FILE_NAME,
     )
+    render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
+    render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
     test_description = f"At {load_ts_1}, insert 3 records, at {load_ts_2} delete the one with id=3 and reinsert id=3 at {load_ts_4} into raw table and perform initial SCD2 merge."
 

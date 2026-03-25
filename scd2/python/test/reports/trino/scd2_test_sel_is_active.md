@@ -1,6 +1,8 @@
 # Testing for valid data at a given at a given timestamp
 
 This test validates a single SELECT operation for data valid at a timestamp 2026-01-03 00:00:00
+ * **Strategy:** `trino`
+ * **Last Run:** `2026-03-25 12:12:24`
 Performing two batch inserts with load timestamps 2026-01-01 00:00:00 and 2026-01-05 00:00:00 and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara.
 ### Perform Preparation
 
@@ -23,10 +25,10 @@ Performing two batch inserts with load timestamps 2026-01-01 00:00:00 and 2026-0
 
 | dp_key                               |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| af179634-964c-444c-9668-bacdc3c3304c |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 9dc92ef6-5319-49f2-99a0-dd7c07cc8f79 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
-| b5d58e54-a853-450d-b7d3-89d9a16ae8f0 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 5141a285-4746-467e-b600-6aa23b170a97 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| 0907b6d6-6c6f-455b-8063-d6893a47ca23 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| d1e06b7f-7096-4643-adb5-d8ede1cc2621 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| b12242b5-e4d2-457d-a336-24929f3915da |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| f9207129-7038-4b5d-b00a-af280c5a4271 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 

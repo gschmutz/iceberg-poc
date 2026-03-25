@@ -58,6 +58,8 @@ def test_step_1(ctx):
         "This test validates a DELETE operation of a single entity with many versions. The delete is created by a logical delete in the raw table, i.e., the entity's status is set to 'INACTIVE'.",
         output_file_name=FILE_NAME,
     )
+    render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
+    render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
     test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge. At {load_ts_2}, update email address of entity with `id=3` and perform SCD2 merge."
 

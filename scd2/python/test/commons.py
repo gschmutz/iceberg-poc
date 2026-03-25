@@ -604,7 +604,7 @@ class PySparkTestCommons(TestCommonsBase):
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
 
-_impl: TestCommonsBase = SparkTestCommons()
+_impl: TestCommonsBase = PySparkTestCommons()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE

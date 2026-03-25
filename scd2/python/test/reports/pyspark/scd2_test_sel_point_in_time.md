@@ -1,6 +1,8 @@
 # Testing for valid data at a given at a given timestamp
 
 This test validates a single SELECT operation for data valid at a timestamp 2026-01-03 00:00:00
+ * **Strategy:** `pyspark`
+ * **Last Run:** `2026-03-25 14:41:01`
 ### Perform Preparation
 
 
@@ -21,9 +23,9 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 | dp_key                               |   id | first_name   | last_name   | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| 067f038f-a9f7-41e4-be90-4393867eb6d5 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| f345a607-6493-4acf-8d3c-3b2db3508c78 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
-| 885e68ef-9dd8-435b-908b-d14212f04451 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| b0eac7bf-7203-4b32-a670-3ab18448e194 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| 3794f75a-9cd1-4506-9566-28d984b5abd9 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| d531f2fd-e1dc-4849-8adc-325515944509 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 

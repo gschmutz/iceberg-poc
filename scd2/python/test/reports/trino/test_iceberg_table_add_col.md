@@ -1,6 +1,8 @@
 # Testing Add Column to existing Iceberg table
 
 This test validates an ALTER TABLE ADD COLUMN operation on an existing Iceberg table.
+ * **Strategy:** `trino`
+ * **Last Run:** `2026-03-25 11:59:51`
 ## Test Step 1
 
 

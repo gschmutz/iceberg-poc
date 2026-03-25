@@ -1,6 +1,8 @@
 # Testing Insert Operation
 
 This test validates an INSERT operation of one new record
+ * **Strategy:** `trino`
+ * **Last Run:** `2026-03-25 12:00:06`
 ## Test Step 1
 
 

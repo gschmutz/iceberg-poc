@@ -1,6 +1,8 @@
 # Testing Insert Operation
 
 This test validates an INSERT operation of one new record
+ * **Strategy:** `spark`
+ * **Last Run:** `2026-03-25 13:54:06`
 ## Test Step 1
 
 

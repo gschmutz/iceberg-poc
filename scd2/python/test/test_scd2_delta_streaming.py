@@ -60,6 +60,8 @@ def test_step_1(ctx):
         "This test validates an INSERT operation of one new entity (with a 1st version) and an UPDATE of an existing entity.",
         output_file_name=FILE_NAME,
     )
+    render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
+    render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
     test_description = "Insert 3 entities with different `dp_ts_from`timestamps into raw table and perform initial SCD2 merge."
 
