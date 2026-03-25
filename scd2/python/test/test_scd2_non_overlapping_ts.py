@@ -240,11 +240,11 @@ def test_step_2(ctx):
     sel_stmt = f"""
         SELECT 1 
         FROM {scd2_table_fqn(ctx)}
-        WHERE id = 3 AND dp_is_active = TRUE
-        AND dp_ts_to = (SELECT dp_ts_from - INTERVAL '1 SECOND' FROM {scd2_table_fqn(ctx)} WHERE id = 3 AND dp_is_active != TRUE)
+        WHERE id = 3 AND dp_is_active != TRUE
+        AND dp_ts_to = (SELECT dp_ts_from - INTERVAL '1' SECOND FROM {scd2_table_fqn(ctx)} WHERE id = 3 AND dp_is_active = TRUE)
         """
     
-    expected_step2 = [(1,1)]
+    expected_step2 = [(1)]
 
     scd2_sel_as_test(
         ctx,
