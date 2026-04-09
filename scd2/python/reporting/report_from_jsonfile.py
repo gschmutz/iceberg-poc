@@ -1,26 +1,33 @@
+import ast
 import json
 import statistics
-import ast
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from scipy.stats import zscore
 
-merge_records = json.load(open("benchmark_merge_l_cust.json"))["select * from benchmark_scd2_merge_report_v"]
-query_records = json.load(open("benchmark_select_l_cust.json"))["select * from benchmark_scd2_query_report_v"]
+merge_records = json.load(open("benchmark_merge_l_cust.json"))[
+    "select * from benchmark_scd2_merge_report_v"
+]
+query_records = json.load(open("benchmark_select_l_cust.json"))[
+    "select * from benchmark_scd2_query_report_v"
+]
 
 print(merge_records)
 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 200)
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", 200)
+
 
 # ———————————————————————————
 # Functions to parse string lists into floats
 def parse_list(s):
     return [float(x) for x in ast.literal_eval(s)]
 
+
 # ———————————————————————————
 # --- MERGE SUMMARY ---
-ts_keys = [f"es_ts_{i}_l" for i in range(1,16)]
+ts_keys = [f"es_ts_{i}_l" for i in range(1, 16)]
 
 merge_stats = {}
 for ts in ts_keys:
@@ -38,10 +45,10 @@ for ts in ts_keys:
     upper = Q3 + 1.5 * IQR
     filtered = arr[(arr >= lower) & (arr <= upper)]
 
-    #zs = zscore(arr)
-    #filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
+    # zs = zscore(arr)
+    # filtered = arr[np.abs(zs) < 3]   # keep only those with |z| < 3
 
-    if (ts == "es_ts_2_l"):
+    if ts == "es_ts_2_l":
         print("Filtered shape:", filtered.shape)
         print("Filtered values:", filtered)
         print("Original values:", arr)
@@ -78,7 +85,7 @@ for rec in query_records:
         if value_key in rec:
             vals = parse_list(rec[value_key])
             arr = np.array(vals)
-            
+
             Q1 = np.percentile(arr, 25)
             Q3 = np.percentile(arr, 75)
             IQR = Q3 - Q1
@@ -93,7 +100,7 @@ for rec in query_records:
                 "median": np.median(filtered),
                 "min": np.min(filtered),
                 "max": np.max(filtered),
-                "std": np.std(filtered)
+                "std": np.std(filtered),
             }
             query_stats.setdefault(base, {})[key] = stats
 
