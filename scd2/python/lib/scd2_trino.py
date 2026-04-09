@@ -1,9 +1,9 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Optional
 
 import pandas as pd
-from scd2_strategy import SCD2Strategy
+from scd2_strategy import SCD2Strategy, SCD2Table
 from util import execute_with_metrics, render_table
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +24,16 @@ class TrinoSCD2Strategy(SCD2Strategy):
         result, metadata = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, conn, s3_client, catalog: str, schema: str, raw_table_name: str, scd2_table_name: str, scd2_intermediary_table_name: str = None):
+    def __init__(
+        self,
+        conn,
+        s3_client,
+        catalog: str,
+        schema: str,
+        raw_table_name: str,
+        scd2_table_name: str,
+        scd2_intermediary_table_name: str = None,
+    ):
         super().__init__(raw_table_name, scd2_table_name, scd2_intermediary_table_name)
         self.conn = conn
         self.catalog = catalog
@@ -32,6 +41,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.s3_client = s3_client
 
     # ── Internal helpers ────────────────────────────────────────────────────
+
+    def _iceberg_meta_table_sep(self) -> str:
+        return "$"
 
     def _fqn(self, object_name: str) -> str:
         """Return the fully-qualified Trino table name ``catalog.schema.table``."""
@@ -42,7 +54,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
         return [f"CAST({v} AS VARCHAR)" for v in values]
 
     @staticmethod
-    def _format_join_condition(pk_columns: list, prefix_left: str, prefix_right: str) -> str:
+    def _format_join_condition(
+        pk_columns: list, prefix_left: str, prefix_right: str
+    ) -> str:
         return " AND ".join(
             f"{prefix_left}.{col} IS NOT DISTINCT FROM {prefix_right}.{col}"
             for col in pk_columns
@@ -68,12 +82,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
-        ins_dp_is_active: str = 'True',
-        ins_dp_is_latest: str = 'True',
+        ins_dp_is_active: str = "True",
+        ins_dp_is_latest: str = "True",
         is_del: bool = False,
         del_key: Optional[str] = None,
         is_del_2: bool = False,
-        del_key_2: Optional[str] = None
+        del_key_2: Optional[str] = None,
     ) -> str:
         return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, is_del_2 BOOLEAN, del_key_2 VARCHAR))"
 
@@ -88,7 +102,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         pk_str = ", ".join(pk_columns_with_type) if pk_columns_with_type else ""
         cols_str = ", ".join(cols_with_type) if cols_with_type else ""
-        partitioning_str = ", ".join(f"'{c}'" for c in partitioning_cols) if partitioning_cols else ""
+        partitioning_str = (
+            ", ".join(f"'{c}'" for c in partitioning_cols) if partitioning_cols else ""
+        )
         sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
 
         return f"""
@@ -133,7 +149,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         prefixed_val_columns_str = fv(ap(val_columns, "src"))
         cast_pk_columns_str = fv(cv(pk_columns))
         cast_val_columns_str = fv(cv(val_columns))
-        load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
+        load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_src_overlap = self._format_join_condition(pk_columns, "src", "overlap")
         join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
@@ -513,7 +529,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         pk_columns_str = fv(pk_columns)
         val_columns_str = fv(val_columns)
         source_val_columns_str = fv(prefixed_val_columns)
-        current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
+        current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         return f"""
     MERGE INTO {self.scd2_table_fqn()} AS target
@@ -574,7 +590,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         # Drop the S3 folder for the dimension table
         s3_path = f"{s3_warehouse_prefix}/{self.schema}/{self.scd2_table_name}"
-        self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
+        self.delete_s3_location(
+            s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
+        )
 
         create_stmt = self._format_create_dim_table(
             s3_warehouse_bucket=s3_warehouse_bucket,
@@ -640,12 +658,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
 
-        logger.info(view_stmt)
+        logger.debug(view_stmt)
         self.conn.cursor().execute(view_stmt)
         logger.info("View created successfully.")
 
         if show_input_to_merge:
-            df = self.get_table_data(self.scd2_intermediary_table_name, order_by_cols=["merge_key"])
+            df = self.get_table_data(
+                SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"]
+            )
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if perform_merge_op:
@@ -659,19 +679,20 @@ class TrinoSCD2Strategy(SCD2Strategy):
             logger.info(merge_stmt)
             result = execute_with_metrics(self.conn.cursor(), merge_stmt)
             logger.info(f"Merge result: {result}")
-            #iceberg_metadata = self.retrieve_iceberg_metadata(dim_table_name)
+            # iceberg_metadata = self.retrieve_iceberg_metadata(dim_table_name)
             return result, None
 
         return None, None
 
     def get_table_data(
         self,
-        table_name: str,
+        table: SCD2Table,
+        iceberg_meta_tablename: str = None,
         exclude_cols: list = [],
         order_by_cols: list = [],
         for_version: str = None,
     ) -> pd.DataFrame:
-        table_fqn = self._fqn(table_name)
+        table_fqn = self._resolve_table_fqn(table, iceberg_meta_tablename=iceberg_meta_tablename)
         cursor = self.conn.cursor()
 
         if exclude_cols:
@@ -681,7 +702,11 @@ class TrinoSCD2Strategy(SCD2Strategy):
         else:
             column_list = "*"
 
-        order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
+        order_by_clause = (
+            f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}"
+            if order_by_cols
+            else ""
+        )
 
         if for_version is not None:
             table_fqn = f"{table_fqn} FOR VERSION AS OF {for_version}"

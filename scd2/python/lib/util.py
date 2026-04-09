@@ -2,10 +2,10 @@ import logging
 import os
 import re
 import time
+from datetime import date, datetime, timedelta
+
 import pandas as pd
 from tabulate import tabulate
-
-from datetime import date, timedelta, datetime
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,30 +14,33 @@ logger = logging.getLogger(__name__)
 # will only be used when running inside a scenario in Dataiku
 try:
     from dataiku.scenario import Scenario
+
     # This will only succeed if running inside DSS
     scenario = Scenario()
 except ImportError:
-    logger.info("Unable to setup dataiku scenario API due to import error")    
+    logger.info("Unable to setup dataiku scenario API due to import error")
     scenario = None
- 
+
 # will only be used when running inside a scenario in Dataiku
 try:
     import dataiku
+
     # This will only succeed if running inside DSS
     client = dataiku.api_client()
 except ImportError:
     logger.info("Unable to setup dataiku client API due to import error")
     client = None
- 
+
+
 def get_param(name, default=None, upper=False) -> str:
     """
     Retrieves the value of a parameter by name from the scenario variables if available,
     otherwise from the environment variables.
- 
+
     Args:
         name (str): The name of the parameter to retrieve.
         default (Any, optional): The default value to return if the parameter is not found. Defaults to None.
- 
+
     Returns:
         Any: The value of the parameter if found, otherwise the default value.
     """
@@ -53,6 +56,7 @@ def get_param(name, default=None, upper=False) -> str:
         return return_value.upper()
     else:
         return return_value
+
 
 def get_credential(name, default=None) -> str:
     """
@@ -75,8 +79,9 @@ def get_credential(name, default=None) -> str:
     else:
         return_value = os.getenv(name, default)
     logger.info(f"{name}: *****")
-         
+
     return return_value
+
 
 def get_zone_name(upper=False) -> str:
     """
@@ -99,6 +104,7 @@ def get_zone_name(upper=False) -> str:
     else:
         return return_value
 
+
 def get_run_id() -> str:
     """
     Retrieves the run ID from the Dataiku scenario if available, otherwise generates a new UUID.
@@ -110,9 +116,11 @@ def get_run_id() -> str:
         return_value = scenario.get_all_variables().get("scenarioTriggerRunId")
     if not return_value:
         import uuid
+
         return_value = str(uuid.uuid4())
     logger.info(f"Run ID: {return_value}")
     return return_value
+
 
 def get_run_url() -> str:
     """
@@ -128,10 +136,12 @@ def get_run_url() -> str:
     logger.info(f"Run URL: {return_value}")
     return return_value
 
+
 def replace_vars_in_string(s, variables):
     print(f"Replacing variables in string: {s} with {variables}")
     # Replace {var} with value from variables dict
-    return re.sub(r"\{(\w+)\}", lambda m: str(variables.get(m.group(1), m.group(0))), s)        
+    return re.sub(r"\{(\w+)\}", lambda m: str(variables.get(m.group(1), m.group(0))), s)
+
 
 def execute_with_metrics(cursor, sql: str) -> dict:
     start = time.perf_counter()
@@ -158,22 +168,30 @@ def execute_with_metrics(cursor, sql: str) -> dict:
         "success": success,
         "error": error,
         "executed_at": datetime.utcnow(),
-    }        
+    }
+
 
 VOLATILE_IDX = {9, 10, 11}
+
+
 def strip_volatile(row, volatile_idx: set):
-    return tuple(
-        v for i, v in enumerate(row)
-        if i not in volatile_idx
-    )
+    return tuple(v for i, v in enumerate(row) if i not in volatile_idx)
+
 
 def normalize_row(row):
     return tuple(
-        v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v
-        for v in row
+        v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v for v in row
     )
 
-def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[], order_by_cols: list=[], for_version:str=None, output_file=None):
+
+def get_table_data(
+    conn,
+    fully_qualified_table_name: str,
+    exclude_cols: list = [],
+    order_by_cols: list = [],
+    for_version: str = None,
+    output_file=None,
+):
     if conn is not None:
         cursor = conn.cursor()
     # Build the column list, excluding columns in exclude_cols
@@ -186,11 +204,17 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
         column_list = "*"
 
     # Build ORDER BY clause only if order_by_cols is not empty
-    order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
+    order_by_clause = (
+        f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}"
+        if order_by_cols
+        else ""
+    )
 
     if for_version is not None:
-        fully_qualified_table_name = f"{fully_qualified_table_name} FOR VERSION AS OF {for_version}"
-    
+        fully_qualified_table_name = (
+            f"{fully_qualified_table_name} FOR VERSION AS OF {for_version}"
+        )
+
     sql = f"""
         SELECT {column_list}
         FROM {fully_qualified_table_name}
@@ -198,6 +222,7 @@ def get_table_data(conn, fully_qualified_table_name: str, exclude_cols: list=[],
         """
     df = pd.read_sql_query(sql, conn)
     return df
+
 
 def diff_with_color(df1, df2, index_cols=None, sort_cols=None):
     """
@@ -279,17 +304,27 @@ def diff_with_color(df1, df2, index_cols=None, sort_cols=None):
     result_df = pd.DataFrame(rows, columns=final_cols)
     return result_df
 
+
 def render_init(title: str, output_file_name: str):
     if output_file_name:
         with open(output_file_name, "w") as f:
             f.write(f"# {title}\n\n")
+
 
 def render_data(data: str, output_file_name=None):
     if data and output_file_name:
         with open(output_file_name, "a") as f:
             f.write(data + "\n")
 
-def render_table(df, title:str = "", decscription: str = "", include_cols: list=[], exclude_cols: list=[], output_file_name=None):
+
+def render_table(
+    df,
+    title: str = "",
+    decscription: str = "",
+    include_cols: list = [],
+    exclude_cols: list = [],
+    output_file_name=None,
+):
     # Build the column list, including only columns in include_cols
     if include_cols:
         selected_columns = [col for col in include_cols if col in df.columns]
@@ -309,9 +344,13 @@ def render_table(df, title:str = "", decscription: str = "", include_cols: list=
     table_output += tabulate(df, headers=df.columns, tablefmt="github", showindex=False)
     table_output += "\n"
     if exclude_cols:
-        table_output += "\n_the following columns where excluded from the result: `" + ", ".join(exclude_cols) + "`_\n"
+        table_output += (
+            "\n_the following columns where excluded from the result: `"
+            + ", ".join(exclude_cols)
+            + "`_\n"
+        )
 
-    if (output_file_name):
+    if output_file_name:
         with open(output_file_name, "a") as f:
             f.write(table_output + "\n")
 

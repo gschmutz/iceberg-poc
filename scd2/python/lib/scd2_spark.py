@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
-from pyspark.sql.types import TimestampType, TimestampNTZType
-from scd2_strategy import SCD2Strategy
+from pyspark.sql.types import TimestampNTZType, TimestampType
+from scd2_strategy import SCD2Strategy, SCD2Table
 from util import render_table
 
 logging.basicConfig(level=logging.INFO)
@@ -28,13 +28,24 @@ class SparkSCD2Strategy(SCD2Strategy):
         result, _ = strategy.merge_into_dim_table(raw_table_name, ...)
     """
 
-    def __init__(self, spark, s3_client, database: str, raw_table_name: str, scd2_table_name: str, scd2_intermediary_table_name: str = None):
+    def __init__(
+        self,
+        spark,
+        s3_client,
+        database: str,
+        raw_table_name: str,
+        scd2_table_name: str,
+        scd2_intermediary_table_name: str = None,
+    ):
         super().__init__(raw_table_name, scd2_table_name, scd2_intermediary_table_name)
         self.spark = spark
         self.database = database
         self.s3_client = s3_client
 
     # ── Internal helpers ────────────────────────────────────────────────────
+
+    def _iceberg_meta_table_sep(self) -> str:
+        return "."
 
     def _fqn(self, object_name: str) -> str:
         """Return the fully-qualified Spark table name ``database.table``."""
@@ -45,14 +56,15 @@ class SparkSCD2Strategy(SCD2Strategy):
         return [f"CAST({v} AS STRING)" for v in values]
 
     @staticmethod
-    def _format_join_condition(pk_columns: list, prefix_left: str, prefix_right: str) -> str:
+    def _format_join_condition(
+        pk_columns: list, prefix_left: str, prefix_right: str
+    ) -> str:
         return " AND ".join(
-            f"{prefix_left}.{col} <=> {prefix_right}.{col}"
-            for col in pk_columns
+            f"{prefix_left}.{col} <=> {prefix_right}.{col}" for col in pk_columns
         )
 
     # ── Private SQL builders ────────────────────────────────────────────────
-    
+
     @staticmethod
     def _format_case_object(
         name: str,
@@ -71,12 +83,12 @@ class SparkSCD2Strategy(SCD2Strategy):
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
-        ins_dp_is_active: str = 'True',
-        ins_dp_is_latest: str = 'True',
+        ins_dp_is_active: str = "True",
+        ins_dp_is_latest: str = "True",
         is_del: bool = False,
         del_key: Optional[str] = None,
         is_del_2: bool = False,
-        del_key_2: Optional[str] = None
+        del_key_2: Optional[str] = None,
     ) -> str:
         return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2)"""
 
@@ -91,7 +103,9 @@ class SparkSCD2Strategy(SCD2Strategy):
     ) -> str:
         pk_str = ", ".join(pk_columns_with_type) if pk_columns_with_type else ""
         cols_str = ", ".join(cols_with_type) if cols_with_type else ""
-        partitioning_str = ", ".join(f"{c}" for c in partitioning_cols) if partitioning_cols else ""
+        partitioning_str = (
+            ", ".join(f"{c}" for c in partitioning_cols) if partitioning_cols else ""
+        )
         sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
 
         return f"""
@@ -134,12 +148,12 @@ class SparkSCD2Strategy(SCD2Strategy):
         prefixed_val_columns_str = fv(ap(val_columns, "src"))
         cast_pk_columns_str = fv(cs(pk_columns))
         cast_val_columns_str = fv(cs(val_columns))
-        load_ts_str = load_ts.strftime('%Y-%m-%d %H:%M:%S')
+        load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_src_overlap = self._format_join_condition(pk_columns, "src", "overlap")
         join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
         join_src_next = self._format_join_condition(pk_columns, "src", "next")
-        
+
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
@@ -514,7 +528,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         pk_columns_str = fv(pk_columns)
         val_columns_str = fv(val_columns)
         source_val_columns_str = fv(prefixed_val_columns)
-        current_ts_str = current_ts.strftime('%Y-%m-%d %H:%M:%S')
+        current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         return f"""
     MERGE INTO {self.scd2_table_fqn()} AS target
@@ -569,14 +583,16 @@ class SparkSCD2Strategy(SCD2Strategy):
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
-        
+
         drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
         print(drop_stmt)
         self.spark.sql(drop_stmt)
 
         # Drop the S3 folder for the dimension table
         s3_path = f"{s3_warehouse_prefix}/{self.database}/{self.scd2_table_name}"
-        self.delete_s3_location(s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path)
+        self.delete_s3_location(
+            s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
+        )
 
         create_stmt = self._format_create_dim_table(
             s3_warehouse_bucket=s3_warehouse_bucket,
@@ -596,13 +612,13 @@ class SparkSCD2Strategy(SCD2Strategy):
             EXECUTE optimize (file_size_threshold => '256MB')
         """
         print(stmt)
-        #execute_with_metrics(self.conn.cursor(), stmt)
+        # execute_with_metrics(self.conn.cursor(), stmt)
         logger.info(f"Optimize table for {table_name} executed successfully.")
 
     def analyze_table(self, table_name: str) -> None:
         stmt = f"ANALYZE {table_name}"
         print(stmt)
-        #execute_with_metrics(self.conn.cursor(), stmt)
+        # execute_with_metrics(self.conn.cursor(), stmt)
         logger.info(f"Analyze table for {table_name} executed successfully.")
 
     def materialize_view(self, scd2_intermediary_table_name: str) -> str:
@@ -612,7 +628,9 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         # Drop the S3 folder for the dimension table
         s3_path = f"warehouse/{scd2_intermediary_table_name}_mv"
-        self.delete_s3_location(s3_client=self.s3_client, bucket="admin-bucket", path=s3_path)
+        self.delete_s3_location(
+            s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
+        )
 
         stmt = f"CREATE TABLE {self._fqn(scd2_intermediary_table_name)}_mv AS SELECT * FROM {self._fqn(scd2_intermediary_table_name)}"
 
@@ -645,12 +663,14 @@ class SparkSCD2Strategy(SCD2Strategy):
         df = self.spark.sql(view_stmt)
         df.show(truncate=False)
         df.createOrReplaceTempView(self.scd2_intermediary_table_name)
-        logger.info(f"SCD2 view {self.scd2_intermediary_table_name} created successfully.")
+        logger.info(
+            f"SCD2 view {self.scd2_intermediary_table_name} created successfully."
+        )
 
-        scd2_view_name = self.materialize_view(self.scd2_intermediary_table_name)
+        self.materialize_view(self.scd2_intermediary_table_name)
 
         if show_input_to_merge:
-            df = self.get_table_data(scd2_view_name, order_by_cols=["merge_key"])
+            df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if perform_merge_op:
@@ -675,13 +695,14 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def get_table_data(
         self,
-        table_name: str,
+        table: SCD2Table,
+        iceberg_meta_tablename: str = None,
         exclude_cols: list = [],
         order_by_cols: list = [],
         for_version: str = None,
     ) -> pd.DataFrame:
-        table_fqn = self._fqn(table_name)
-
+        table_fqn = self._resolve_table_fqn(table, iceberg_meta_tablename=iceberg_meta_tablename)
+        logger.info(f"Fetching data from table {table_fqn} with iceberg_meta_tablename={iceberg_meta_tablename}, order_by_cols={order_by_cols}, for_version={for_version}...")
         if for_version is not None:
             table_ref = f"{table_fqn} VERSION AS OF {for_version}"
         else:
@@ -693,8 +714,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         else:
             column_list = "*"
 
-        order_by_clause = f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}" if order_by_cols else ""
+        order_by_clause = (
+            f"ORDER BY {', '.join(f'{col} NULLS LAST' for col in order_by_cols)}"
+            if order_by_cols
+            else ""
+        )
 
         sql = f"SELECT {column_list} FROM {table_ref} {order_by_clause}"
         return self.spark.sql(sql).toPandas()
-
