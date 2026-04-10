@@ -390,7 +390,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         FROM changed_records
     ),
     prepared_source AS (
-        -- Original records for updates
+        -- Original records for update (1st update in simple scenarios)
         SELECT
             situation.upd_key                   AS merge_key,
             situation.upd_key                   AS dp_key,
@@ -410,6 +410,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         UNION ALL
 
+        -- Original records for update (2nd update in complex scenarios)
         SELECT
             situation.upd_key_2                 AS merge_key,
             situation.upd_key_2                 AS dp_key,
@@ -449,7 +450,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         
         UNION ALL
 
-        -- Duplicate records for deletes
+        -- Duplicate records for delete (1st delete in simple scenarios)
         SELECT
             situation.del_key AS merge_key,
             situation.del_key AS dp_key,
@@ -468,7 +469,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         WHERE situation.is_del = TRUE
 
         UNION ALL
-        -- Duplicate records for deletes
+        -- Duplicate records for delete (2nd delete in complex scenarios)
         SELECT
             situation.del_key_2 AS merge_key,
             situation.del_key_2 AS dp_key,
