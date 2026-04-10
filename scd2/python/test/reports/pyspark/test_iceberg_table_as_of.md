@@ -1,8 +1,10 @@
 # Testing Timetravel
 
 This test validates an SELECT ... FOR VERSION AS OF operation on an existing Iceberg table.
+
+
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-04-09 21:25:35`
+ * **Last Run:** `2026-04-10 14:18:11`
 ## Test Step 1
 ### Perform Test
 Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.

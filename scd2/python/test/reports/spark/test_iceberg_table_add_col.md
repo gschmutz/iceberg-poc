@@ -1,8 +1,10 @@
 # Testing Add Column to existing Iceberg table
 
 This test validates an ALTER TABLE ADD COLUMN operation on an existing Iceberg table.
+
+
  * **Strategy:** `spark`
- * **Last Run:** `2026-04-09 20:32:41`
+ * **Last Run:** `2026-04-10 13:51:52`
 ## Test Step 1
 
 

@@ -1,8 +1,10 @@
 # Testing Timetravel
 
 This test validates an SELECT ... FOR VERSION AS OF operation on an existing Iceberg table.
+
+
  * **Strategy:** `trino`
- * **Last Run:** `2026-04-09 18:29:03`
+ * **Last Run:** `2026-04-10 13:35:40`
 ## Test Step 1
 ### Perform Test
 Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.
@@ -32,7 +34,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 `
         SELECT * 
         FROM iceberg_hive.default.raw_person
-        FOR VERSION AS OF 7474059573773216022
+        FOR VERSION AS OF 4850092217961140533
         ORDER BY id
         `
 

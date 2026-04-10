@@ -1,8 +1,10 @@
 # Testing Insert Operation (Delta Mode for Source)
 
 This test validates an INSERT operation of one single entity into an empty dimension table.
+
+
  * **Strategy:** `trino`
- * **Last Run:** `2026-04-09 18:30:29`
+ * **Last Run:** `2026-04-10 13:36:32`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 merge.
 
@@ -30,7 +32,7 @@ At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 
 
 | dp_key                                                                  | id                                   | first_name                               | last_name                                | city                                      | email                                                      | dp_ts_from                                             | dp_ts_to                                               | dp_is_active                            | dp_is_latest                            | dp_created_at                                          | dp_replaced_at                                         |
 |-------------------------------------------------------------------------|--------------------------------------|------------------------------------------|------------------------------------------|-------------------------------------------|------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
-| <span style='color: green;'>7d5228eb-1a73-445b-a025-7660324d3f79</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
+| <span style='color: green;'>0f7ecd90-4c52-451a-8e35-323ca16604c8</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span> | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 
 _the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
 
