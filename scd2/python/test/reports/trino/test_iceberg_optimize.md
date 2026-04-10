@@ -2,7 +2,7 @@
 
 This test validates an INSERT operation of one new record
  * **Strategy:** `trino`
- * **Last Run:** `2026-03-25 11:59:44`
+ * **Last Run:** `2026-04-09 18:28:56`
 ## Test Step 1
 
 
@@ -11,11 +11,11 @@ This test validates an INSERT operation of one new record
 
 | file_path                                                                                                                                                                                   |   record_count |   file_size_in_bytes |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://admin-bucket/warehouse/raw_person-5fcc6501d8e741f4bc8e7979b9ac09de/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260325_105945_00074_parzf-8881cc8c-922e-4f42-9894-e2cec507ab49.parquet |              3 |                 1429 |
-| s3a://admin-bucket/warehouse/raw_person-5fcc6501d8e741f4bc8e7979b9ac09de/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260325_105945_00073_parzf-14253d7c-f563-4e4e-b437-8d3530b77b52.parquet |              3 |                 1453 |
-| s3a://admin-bucket/warehouse/raw_person-5fcc6501d8e741f4bc8e7979b9ac09de/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260325_105944_00072_parzf-4ff1de6a-b69c-41e1-8aa6-c6b3a18928e2.parquet |              3 |                 1443 |
-| s3a://admin-bucket/warehouse/raw_person-5fcc6501d8e741f4bc8e7979b9ac09de/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260325_105946_00075_parzf-344a6aef-b59f-4076-8f35-8f6b67aa3ba0.parquet |              3 |                 1441 |
-| s3a://admin-bucket/warehouse/raw_person-5fcc6501d8e741f4bc8e7979b9ac09de/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260325_105944_00071_parzf-37fb5078-36c1-48ec-8c32-ad439002d184.parquet |              3 |                 1433 |
+| s3a://admin-bucket/warehouse/raw_person-140b7e6fd68f4b0bba3b74a1ac66bc0c/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260409_162827_00101_hqpn9-581c4798-1139-43ce-a316-03d506cc8259.parquet |              3 |                 1453 |
+| s3a://admin-bucket/warehouse/raw_person-140b7e6fd68f4b0bba3b74a1ac66bc0c/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260409_162828_00103_hqpn9-d081f795-04fa-4d85-b1bf-e215c44e7125.parquet |              3 |                 1441 |
+| s3a://admin-bucket/warehouse/raw_person-140b7e6fd68f4b0bba3b74a1ac66bc0c/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260409_162828_00102_hqpn9-a4dd4765-eff8-4e16-8034-ed0b6f059fce.parquet |              3 |                 1429 |
+| s3a://admin-bucket/warehouse/raw_person-140b7e6fd68f4b0bba3b74a1ac66bc0c/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260409_162827_00100_hqpn9-eef82290-8679-4e8a-9e53-ec1b87b4f1bb.parquet |              3 |                 1443 |
+| s3a://admin-bucket/warehouse/raw_person-140b7e6fd68f4b0bba3b74a1ac66bc0c/data/dp_loaded_at=2026-01-01T00%3A00%3A00/20260409_162827_00099_hqpn9-0762f56b-c60f-45b3-b1b5-cd27b27df705.parquet |              3 |                 1433 |
 
 Executing OPTIMIZE on the Iceberg table.
 
@@ -25,8 +25,8 @@ Executing OPTIMIZE on the Iceberg table.
 
 | file_path                                                                                                                                                              |   record_count |   file_size_in_bytes |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------|
-| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260325_104913_00064_parzf-32bb9ef8-77cd-4ca4-9e23-3ba3f48692c9.parquet |              1 |                 1147 |
-| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260325_104856_00055_parzf-6fedea48-a2ed-4743-9e68-0c94ed793ed3.parquet |              3 |                 2535 |
-| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-05T00%3A00%3A00/20260325_104913_00064_parzf-6ba5d70f-cb40-40df-ab79-c8f9c7fac580.parquet |              1 |                 2473 |
-| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260325_104913_00064_parzf-3d31b603-cfbe-4c9e-b6bd-128aed72324a.parquet |              1 |                 2472 |
+| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260409_162731_00093_hqpn9-c53b7917-ffc6-4bab-a98b-2cb8430a81a1.parquet |              1 |                 1146 |
+| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260409_162731_00093_hqpn9-d61f0dae-3644-4eda-9c9a-85446336f5b8.parquet |              1 |                 2592 |
+| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-05T00%3A00%3A00/20260409_162731_00093_hqpn9-25913b66-44d6-450d-a13f-96068f6b33ee.parquet |              1 |                 2592 |
+| s3a://warehouse-bucket/iceberg_poc/default/dim_person/data/dp_ts_from=2026-01-01T00%3A00%3A00/20260409_162713_00084_hqpn9-8514a44b-4f6d-4398-8245-28c2e8a1ac8c.parquet |              3 |                 2660 |
 

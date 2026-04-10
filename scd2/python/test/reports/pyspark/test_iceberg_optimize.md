@@ -2,5 +2,5 @@
 
 This test validates an INSERT operation of one new record
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-03-25 14:25:27`
+ * **Last Run:** `2026-04-09 21:25:19`
 ## Test Step 1

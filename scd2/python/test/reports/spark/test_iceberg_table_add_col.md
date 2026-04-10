@@ -2,7 +2,7 @@
 
 This test validates an ALTER TABLE ADD COLUMN operation on an existing Iceberg table.
  * **Strategy:** `spark`
- * **Last Run:** `2026-03-25 13:53:43`
+ * **Last Run:** `2026-04-09 20:32:41`
 ## Test Step 1
 
 

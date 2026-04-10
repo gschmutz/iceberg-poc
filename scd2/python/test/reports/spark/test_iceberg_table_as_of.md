@@ -2,7 +2,7 @@
 
 This test validates an SELECT ... FOR VERSION AS OF operation on an existing Iceberg table.
  * **Strategy:** `spark`
- * **Last Run:** `2026-03-25 13:53:57`
+ * **Last Run:** `2026-04-09 20:32:49`
 ## Test Step 1
 ### Perform Test
 Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.
