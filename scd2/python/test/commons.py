@@ -464,8 +464,7 @@ class TrinoTestCommons(TestCommonsBase):
             email VARCHAR,
             status VARCHAR,
             dp_ts_from TIMESTAMP,
-            dp_loaded_at TIMESTAMP,
-            dp_key VARCHAR
+            dp_loaded_at TIMESTAMP
         )
         WITH (
             format = 'PARQUET',
@@ -524,8 +523,7 @@ class SparkTestCommons(TestCommonsBase):
             email STRING,
             status STRING,
             dp_ts_from TIMESTAMP,
-            dp_loaded_at TIMESTAMP,
-            dp_key STRING
+            dp_loaded_at TIMESTAMP
         )
         USING ICEBERG
         PARTITIONED BY (dp_loaded_at)
@@ -582,8 +580,7 @@ class PySparkTestCommons(TestCommonsBase):
             email STRING,
             status STRING,
             dp_ts_from TIMESTAMP,
-            dp_loaded_at TIMESTAMP,
-            dp_key STRING
+            dp_loaded_at TIMESTAMP
         )
         USING ICEBERG
         PARTITIONED BY (dp_loaded_at)
