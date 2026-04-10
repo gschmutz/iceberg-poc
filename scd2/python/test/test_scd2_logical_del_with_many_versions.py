@@ -67,7 +67,7 @@ def test_step_1(ctx):
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
         INSERT INTO {raw_table_fqn(ctx)}
-        SELECT *
+        SELECT *, uuid() AS dp_key
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -95,7 +95,7 @@ def test_step_1(ctx):
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
         INSERT INTO {raw_table_fqn(ctx)}
-        SELECT *
+        SELECT *, uuid() AS dp_key
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
@@ -195,7 +195,7 @@ def test_step_2(ctx):
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
         INSERT INTO {raw_table_fqn(ctx)}
-        SELECT *
+        SELECT *, uuid() AS dp_key
         FROM (
             VALUES
                 (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_3}', TIMESTAMP '{load_ts_3}'),
