@@ -63,7 +63,7 @@ def test_step_1(ctx):
         "This test validates an UPDATE operation of one entity (with a new version with different value) on a set of existing entities.",
         output_file_name=FILE_NAME,
     )
-    render_data("", output_file_name=FILE_NAME)
+    render_data("\n", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 

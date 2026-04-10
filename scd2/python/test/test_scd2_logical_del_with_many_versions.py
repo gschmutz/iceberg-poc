@@ -58,7 +58,7 @@ def test_step_1(ctx):
         "This test validates a DELETE operation of a single entity with many versions. The delete is created by a logical delete in the raw table, i.e., the entity's status is set to 'INACTIVE'.",
         output_file_name=FILE_NAME,
     )
-    render_data("", output_file_name=FILE_NAME)
+    render_data("\n", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
