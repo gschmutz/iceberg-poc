@@ -58,6 +58,7 @@ def test_step_1(ctx):
         "This test validates an INSERT operation in the past of a version for an entity which already exists and with a different value.",
         output_file_name=FILE_NAME,
     )
+    render_data("", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 

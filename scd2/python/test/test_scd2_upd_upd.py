@@ -62,6 +62,7 @@ def test_step_1(ctx):
         "This test validates multiple UPDATE operations on one entity over time producing many versions.",
         output_file_name=FILE_NAME,
     )
+    render_data("", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 

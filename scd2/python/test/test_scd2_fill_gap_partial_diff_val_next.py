@@ -67,6 +67,7 @@ def test_step_1(ctx):
         "This test validates filling the gap in a single entity. The record added into the gap is having a different value than the version following the gap.",
         output_file_name=FILE_NAME,
     )
+    render_data("", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
