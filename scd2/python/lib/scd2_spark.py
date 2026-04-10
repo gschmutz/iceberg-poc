@@ -668,6 +668,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             f"SCD2 view {self.scd2_intermediary_table_name} created successfully."
         )
 
+        # have to materialize the view because of the UUID() function used for generating dp_key for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
         self.materialize_view(self.scd2_intermediary_table_name)
 
         if show_input_to_merge:
