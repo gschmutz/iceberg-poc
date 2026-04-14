@@ -11,8 +11,10 @@ Set environment variables for local environment
 ```bash
 export TSHIRT_SIZE="l"
 export NOF_DAYS=30
+export HMS_MAJOR_VERSION=4
 export HMS_HOST=localhost
 export HMS_PORT=9083
+export HMS_REST_PORT=9084
 
 export TRINO_USER=trino
 export TRINO_PASSWORD=
@@ -38,10 +40,12 @@ export DOWNLOAD_TEST_CASES_FROM_S3=false
 Set environment variables for lightsail environment
 
 ```bash
-export TSHIRT_SIZE="xs"
+export TSHIRT_SIZE="m"
 export NOF_DAYS=30
+export HMS_MAJOR_VERSION=4
 export HMS_HOST=dataplatform
 export HMS_PORT=9083
+export HMS_REST_PORT=9084
 
 export TRINO_USER=trino
 export TRINO_PASSWORD=
