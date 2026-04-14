@@ -2735,12 +2735,12 @@
       #
       #===== Nimtable ========
       #
-      NIMTABLE_enable: true
+      NIMTABLE_enable: false
 
       #
       #===== Nimtable ========
       #
-      LAKEVISION_enable: true
+      LAKEVISION_enable: false
       LAKEVISION_public_health_enabled: true
       LAKEVISION_database_url: 'postgresql://postgres:abc123!@postgresql:5432/postgres'
       #
