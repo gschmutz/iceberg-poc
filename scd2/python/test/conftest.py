@@ -33,8 +33,10 @@ def spark():
     spark = (
         SparkSession.builder.master("local[*]")
         .appName("pytest-pyspark")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.host", "127.0.0.1")
         # Keep tests deterministic & reasonably fast
-        .config("spark.ui.enabled", "true")
+        .config("spark.ui.enabled", "false")
         .config("spark.driver.memory", "8g")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.sql.session.timeZone", "UTC")
