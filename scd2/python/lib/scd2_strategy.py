@@ -32,12 +32,20 @@ class SCD2Strategy(ABC):
         raw_table_name: str,
         scd2_table_name: str,
         scd2_intermediary_table_name: str = None,
+        cols_bks: Optional[list] = None,
+        cols_bks_with_type: Optional[list] = None,
+        cols_val: Optional[list] = None,
+        cols_val_with_type: Optional[list] = None,
     ):
         self.raw_table_name = raw_table_name
         self.scd2_table_name = scd2_table_name
         self.scd2_intermediary_table_name = (
             scd2_intermediary_table_name or f"{scd2_table_name}_temp"
         )
+        self.cols_bks = cols_bks
+        self.cols_bks_with_type = cols_bks_with_type
+        self.cols_val = cols_val
+        self.cols_val_with_type = cols_val_with_type
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -113,8 +121,6 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def format_view(
         self,
-        cols_bks: list,
-        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str,
         use_delta_mode_for_raw_table: bool = False,
@@ -125,8 +131,6 @@ class SCD2Strategy(ABC):
     def format_merge(
         self,
         current_ts: datetime,
-        cols_bks: list,
-        cols_val: list,
     ) -> str:
         """Return the MERGE INTO statement that applies SCD2 changes to the dimension table."""
 
@@ -137,8 +141,6 @@ class SCD2Strategy(ABC):
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
-        cols_bks_with_type: list,
-        cols_val_with_type: Optional[list] = None,
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
@@ -147,8 +149,6 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def merge_into_dim_table(
         self,
-        cols_bks: list,
-        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,

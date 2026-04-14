@@ -75,7 +75,7 @@ class TestCommonsBase:
 
     COLS_WITH_TYPE: list  # defined in each concrete subclass
 
-    def _make_strategy(self, ctx):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -126,11 +126,10 @@ class TestCommonsBase:
         )
 
     def create_dim_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
-        self._make_strategy(ctx).create_dim_table(
+        cols_bks = [col.split()[0] for col in cols_bks_with_type]
+        self._make_strategy(ctx, cols_bks=cols_bks, cols_bks_with_type=cols_bks_with_type).create_dim_table(
             s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
             s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-            cols_bks_with_type=cols_bks_with_type,
-            cols_val_with_type=self.COLS_WITH_TYPE,
             partition_cols=["dp_ts_from"],
             sort_cols=[],
         )
@@ -189,11 +188,9 @@ class TestCommonsBase:
         for idx, ins_stmt in enumerate(ins_stmts):
             self._execute_insert(ins_stmt, ctx)
 
-            self._make_strategy(ctx).merge_into_dim_table(
+            self._make_strategy(ctx, cols_bks=cols_bks).merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
-                cols_bks=cols_bks,
-                cols_val_with_type=self.COLS_WITH_TYPE,
                 current_ts=current_ts_list[idx],
                 use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                 perform_merge_op=perform_merge_op,
@@ -267,11 +264,9 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        self._make_strategy(ctx).merge_into_dim_table(
+        self._make_strategy(ctx, cols_bks=cols_bks).merge_into_dim_table(
             load_ts=load_ts,
             load_ts_col="dp_loaded_at",
-            cols_bks=cols_bks,
-            cols_val_with_type=self.COLS_WITH_TYPE,
             current_ts=current_ts,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
@@ -339,13 +334,11 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        strategy = self._make_strategy(ctx)
+        strategy = self._make_strategy(ctx, cols_bks=cols_bks)
         for idx, load_ts in enumerate(load_ts_list):
             strategy.merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
-                cols_bks=cols_bks,
-                cols_val_with_type=self.COLS_WITH_TYPE,
                 current_ts=current_ts_list[idx],
                 use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                 perform_merge_op=perform_merge_op,
@@ -433,7 +426,7 @@ class TrinoTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_TRINO
 
-    def _make_strategy(self, ctx):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
         return TrinoSCD2Strategy(
             ctx.conn,
             s3_client=ctx.s3_client,
@@ -441,6 +434,10 @@ class TrinoTestCommons(TestCommonsBase):
             schema=TRINO_SCHEMA,
             raw_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
+            cols_bks=cols_bks,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val_with_type=self.COLS_WITH_TYPE,
+            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
         )
 
     def get_strategy_name(self):
@@ -497,13 +494,17 @@ class SparkTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
-    def _make_strategy(self, ctx):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
         return SparkSCD2Strategy(
             ctx.spark,
             s3_client=ctx.s3_client,
             database="default",
             raw_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
+            cols_bks=cols_bks,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val_with_type=self.COLS_WITH_TYPE,
+            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
         )
 
     def get_strategy_name(self):
@@ -554,13 +555,17 @@ class PySparkTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
-    def _make_strategy(self, ctx):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
         return PySparkSCD2Strategy(
             ctx.spark,
             s3_client=ctx.s3_client,
             database="default",
             raw_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
+            cols_bks=cols_bks,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val_with_type=self.COLS_WITH_TYPE,
+            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
         )
 
     def get_strategy_name(self):
