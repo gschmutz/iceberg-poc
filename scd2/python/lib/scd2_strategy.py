@@ -113,8 +113,8 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def format_view(
         self,
-        pk_columns: list,
-        cols_with_type: list,
+        cols_bks: list,
+        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str,
         use_delta_mode_for_raw_table: bool = False,
@@ -125,8 +125,8 @@ class SCD2Strategy(ABC):
     def format_merge(
         self,
         current_ts: datetime,
-        pk_columns: list,
-        val_columns: list,
+        cols_bks: list,
+        cols_val: list,
     ) -> str:
         """Return the MERGE INTO statement that applies SCD2 changes to the dimension table."""
 
@@ -137,8 +137,8 @@ class SCD2Strategy(ABC):
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
-        pk_columns_with_type: list,
-        cols_with_type: Optional[list] = None,
+        cols_bks_with_type: list,
+        cols_val_with_type: Optional[list] = None,
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
@@ -147,8 +147,8 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def merge_into_dim_table(
         self,
-        pk_columns: list,
-        cols_with_type: list,
+        cols_bks: list,
+        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,

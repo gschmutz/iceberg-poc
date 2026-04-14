@@ -91,7 +91,7 @@ if S3_ENDPOINT_URL:
 s3 = boto3.client(**s3_config)
 
 # without pk column!!
-cols_with_type = [
+cols_val_with_type = [
     "clientdocumentcreationdate TIMESTAMP(6)",
     "clientdocumentpriorityid BIGINT",
     "clientdocumentpriorityenum VARCHAR",
@@ -124,7 +124,7 @@ cols_with_type = [
     "clientdocumentfirstactivation TIMESTAMP(6)",
     "clientdocumentcrscarftype VARCHAR",
 ]
-val_columns = [col.split()[0] for col in cols_with_type]
+cols_val = [col.split()[0] for col in cols_val_with_type]
 
 
 def get_trino_connection():
@@ -289,7 +289,7 @@ def run_merge_all(
         s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
         s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
         pk_col_with_type=f"clientdocumentid BIGINT",
-        cols_with_type=cols_with_type,
+        cols_val_with_type=cols_val_with_type,
         partition_cols=partition_cols,
         sort_cols=sort_cols,
     )
@@ -309,7 +309,7 @@ def run_merge_all(
             load_ts=load_date,
             load_ts_col="dp_exported_at",
             pk_col="clientdocumentid",
-            cols_with_type=cols_with_type,
+            cols_val_with_type=cols_val_with_type,
             current_ts=(start_ts + timedelta(days=day)),
         )
 
@@ -369,7 +369,7 @@ def run_select_over_time(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
     """
@@ -395,7 +395,7 @@ def run_select_over_time_and_active(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
         AND {restrict_active_expression}
@@ -422,7 +422,7 @@ def run_select_count_active(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -448,7 +448,7 @@ def run_select_count_latest(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """

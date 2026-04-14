@@ -113,8 +113,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     def _build_staging_df(
         self,
-        pk_columns: list,
-        val_columns: list,
+        cols_bks: list,
+        cols_val: list,
         load_ts: datetime,
         load_ts_col: str,
         use_delta_mode_for_raw_table: bool = False,
@@ -129,7 +129,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
         load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
-        all_cols = pk_columns + val_columns
+        all_cols = cols_bks + cols_val
 
         # ── src_records ───────────────────────────────────────────────────────
         hash_expr = F.upper(
@@ -139,8 +139,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             self.spark.table(self.raw_table_fqn())
             .filter(F.col(load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
             .select(
-                *[F.col(c) for c in pk_columns],
-                *[F.col(c) for c in val_columns],
+                *[F.col(c) for c in cols_bks],
+                *[F.col(c) for c in cols_val],
                 F.col("dp_ts_from").alias("src_dp_ts_from"),
                 F.col(load_ts_col).alias("load_ts"),
                 F.col("status"),
@@ -152,7 +152,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         scd2_df = self.spark.table(self.scd2_table_fqn())
 
         overlap_df = scd2_df.select(
-            *[F.col(c).alias(f"overlap_{c}") for c in pk_columns],
+            *[F.col(c).alias(f"overlap_{c}") for c in cols_bks],
             F.col("record_hash").alias("overlap_record_hash"),
             F.col("dp_key").alias("overlap_dp_key"),
             F.col("dp_ts_from").alias("overlap_dp_ts_from"),
@@ -162,7 +162,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         prev_df = scd2_df.select(
-            *[F.col(c).alias(f"prev_{c}") for c in pk_columns],
+            *[F.col(c).alias(f"prev_{c}") for c in cols_bks],
             F.col("dp_key").alias("prev_dp_key"),
             F.col("record_hash").alias("prev_record_hash"),
             F.col("dp_ts_from").alias("prev_dp_ts_from"),
@@ -172,7 +172,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         next_df = scd2_df.filter(F.col("dp_is_active") == True).select(
-            *[F.col(c).alias(f"next_{c}") for c in pk_columns],
+            *[F.col(c).alias(f"next_{c}") for c in cols_bks],
             F.col("dp_key").alias("next_dp_key"),
             F.col("record_hash").alias("next_record_hash"),
             F.col("dp_ts_from").alias("next_dp_ts_from"),
@@ -185,7 +185,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         def null_safe_pk_cond(prefix):
             return reduce(
                 lambda a, b: a & b,
-                [F.col(c).eqNullSafe(F.col(f"{prefix}_{c}")) for c in pk_columns],
+                [F.col(c).eqNullSafe(F.col(f"{prefix}_{c}")) for c in cols_bks],
             )
 
         overlap_cond = null_safe_pk_cond("overlap") & F.col("src_dp_ts_from").between(
@@ -631,8 +631,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         records_df = records_df.withColumn("situation", situation_col)
 
         # ── prepared_source (UNION ALL of the 5 operation branches) ──────────
-        pk_cols = [F.col(c) for c in pk_columns]
-        val_cols = [F.col(c) for c in val_columns]
+        pk_cols = [F.col(c) for c in cols_bks]
+        val_cols = [F.col(c) for c in cols_val]
 
         null_ts = F.lit(None).cast("timestamp")
         null_bool = F.lit(None).cast("boolean")
@@ -730,8 +730,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     def merge_into_dim_table(
         self,
-        pk_columns: list,
-        cols_with_type: list,
+        cols_bks: list,
+        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
@@ -741,11 +741,11 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         output_file_name: Optional[str] = None,
     ) -> tuple:
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
-        val_columns = [col.split()[0] for col in cols_with_type]
+        cols_val = [col.split()[0] for col in cols_val_with_type]
 
         staging_df = self._build_staging_df(
-            pk_columns=pk_columns,
-            val_columns=val_columns,
+            cols_bks=cols_bks,
+            cols_val=cols_val,
             load_ts=load_ts,
             load_ts_col=load_ts_col,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
@@ -767,8 +767,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         if perform_merge_op:
             merge_stmt = self.format_merge(
                 current_ts=current_ts,
-                pk_columns=pk_columns,
-                val_columns=val_columns,
+                cols_bks=cols_bks,
+                cols_val=cols_val,
             )
             logger.info(merge_stmt)
             try:

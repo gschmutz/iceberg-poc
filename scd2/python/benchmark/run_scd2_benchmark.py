@@ -87,7 +87,7 @@ if S3_ENDPOINT_URL:
 s3 = boto3.client(**s3_config)
 
 # without pk column!!
-cols_with_type = [
+cols_val_with_type = [
     "salutation VARCHAR",
     "title VARCHAR",
     "first_name VARCHAR",
@@ -115,7 +115,7 @@ cols_with_type = [
     "national_id VARCHAR",
     "tax_id VARCHAR",
 ]
-val_columns = [col.split()[0] for col in cols_with_type]
+cols_val = [col.split()[0] for col in cols_val_with_type]
 
 
 def get_trino_connection():
@@ -278,7 +278,7 @@ def run_merge_all(
         s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
         s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
         pk_col_with_type=f"{table_name}_id VARCHAR",
-        cols_with_type=cols_with_type,
+        cols_val_with_type=cols_val_with_type,
         partition_cols=partition_cols,
         sort_cols=sort_cols,
     )
@@ -298,7 +298,7 @@ def run_merge_all(
             load_ts=load_date,
             load_ts_col="export_at",
             pk_col="person_id",
-            cols_with_type=cols_with_type,
+            cols_val_with_type=cols_val_with_type,
             current_ts=(start_ts + timedelta(days=day)),
         )
 
@@ -360,7 +360,7 @@ def run_select_over_time(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE dp_ts_from <= CAST('2024-01-10' as TIMESTAMP) and dp_ts_to >= CAST('2024-01-20' as TIMESTAMP)
     """
@@ -386,7 +386,7 @@ def run_select_over_time_and_active(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE dp_ts_from <= CAST('2024-01-10' as TIMESTAMP) AND dp_ts_to >= CAST('2024-01-20' as TIMESTAMP)
         AND {restrict_active_expression}
@@ -413,7 +413,7 @@ def run_select_count_active(
 
     query = f"""
         SELECT count(*) AS rows_active
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -439,7 +439,7 @@ def run_select_count_latest(
 
     query = f"""
         SELECT count(*) AS rows_latest
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """
@@ -518,7 +518,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
+        , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE cast('2024-01-05' as date) BETWEEN dp_ts_from AND dp_ts_to
         AND {restrict_active_expression} 

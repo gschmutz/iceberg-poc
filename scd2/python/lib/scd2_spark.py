@@ -57,10 +57,10 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     @staticmethod
     def _format_join_condition(
-        pk_columns: list, prefix_left: str, prefix_right: str
+        cols_bks: list, prefix_left: str, prefix_right: str
     ) -> str:
         return " AND ".join(
-            f"{prefix_left}.{col} <=> {prefix_right}.{col}" for col in pk_columns
+            f"{prefix_left}.{col} <=> {prefix_right}.{col}" for col in cols_bks
         )
 
     # ── Private SQL builders ────────────────────────────────────────────────
@@ -96,13 +96,13 @@ class SparkSCD2Strategy(SCD2Strategy):
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
-        pk_columns_with_type: list,
-        cols_with_type: Optional[list],
+        cols_bks_with_type: list,
+        cols_val_with_type: Optional[list],
         partitioning_cols: Optional[list],
         sort_cols: Optional[list],
     ) -> str:
-        pk_str = ", ".join(pk_columns_with_type) if pk_columns_with_type else ""
-        cols_str = ", ".join(cols_with_type) if cols_with_type else ""
+        pk_str = ", ".join(cols_bks_with_type) if cols_bks_with_type else ""
+        cols_str = ", ".join(cols_val_with_type) if cols_val_with_type else ""
         partitioning_str = (
             ", ".join(f"{c}" for c in partitioning_cols) if partitioning_cols else ""
         )
@@ -132,8 +132,8 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def _format_cte(
         self,
-        pk_columns: list,
-        val_columns: list,
+        cols_bks: list,
+        cols_val: list,
         load_ts: datetime,
         load_ts_col: str,
         use_delta_mode_for_raw_table: bool = False,
@@ -142,25 +142,25 @@ class SparkSCD2Strategy(SCD2Strategy):
         ap = self.add_prefix
         cs = self._cast_to_string
 
-        pk_columns_str = fv(pk_columns)
-        pk_prefixed_columns_str = fv(ap(pk_columns, "src"))
-        val_columns_str = fv(val_columns)
-        prefixed_val_columns_str = fv(ap(val_columns, "src"))
-        cast_pk_columns_str = fv(cs(pk_columns))
-        cast_val_columns_str = fv(cs(val_columns))
+        cols_bks_str = fv(cols_bks)
+        prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
+        cols_val_str = fv(cols_val)
+        prefixed_cols_val_str = fv(ap(cols_val, "src"))
+        cast_cols_bks_str = fv(cs(cols_bks))
+        cast_cols_val_str = fv(cs(cols_val))
         load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
 
-        join_src_overlap = self._format_join_condition(pk_columns, "src", "overlap")
-        join_src_prev = self._format_join_condition(pk_columns, "src", "prev")
-        join_src_next = self._format_join_condition(pk_columns, "src", "next")
+        join_src_overlap = self._format_join_condition(cols_bks, "src", "overlap")
+        join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
+        join_src_next = self._format_join_condition(cols_bks, "src", "next")
 
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
-            SELECT {fv(ap(pk_columns, "t"))}, {fv(ap(val_columns, "t"))}, t.dp_ts_from, t.{load_ts_col}, t.status,
+            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{load_ts_col}, t.status,
                 upper(
                     sha2(
-                        concat_ws('||', {fv(cs(ap(pk_columns, "t")))}, {fv(cs(ap(val_columns, "t")))}
+                        concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
                         ), 256
                     )
                 ) AS record_hash
@@ -168,8 +168,8 @@ class SparkSCD2Strategy(SCD2Strategy):
             WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
-            {pk_prefixed_columns_str},
-            {prefixed_val_columns_str},
+            {prefixed_cols_bks_str},
+            {prefixed_cols_val_str},
             src.dp_ts_from      AS src_dp_ts_from,
             src.record_hash     AS src_record_hash,
             src.{load_ts_col}   AS load_ts,
@@ -195,7 +195,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         FROM src_records AS src
         LEFT JOIN (
             SELECT
-                {pk_columns_str},
+                {cols_bks_str},
                 record_hash,
                 dp_key,
                 dp_ts_to,
@@ -209,7 +209,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         LEFT JOIN (
             SELECT
                 dp_key,
-                {pk_columns_str},
+                {cols_bks_str},
                 record_hash,
                 dp_ts_from,
                 dp_ts_to,
@@ -223,7 +223,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         LEFT JOIN (
             SELECT
                 dp_key,
-                {pk_columns_str},
+                {cols_bks_str},
                 record_hash,
                 dp_ts_from,
                 dp_ts_to,
@@ -394,8 +394,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         SELECT
             situation.upd_key                   AS merge_key,
             situation.upd_key                   AS dp_key,
-            {pk_columns_str},
-            {val_columns_str},
+            {cols_bks_str},
+            {cols_val_str},
             src_record_hash                     AS record_hash,
             load_ts,
             status,
@@ -414,8 +414,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         SELECT
             situation.upd_key_2                 AS merge_key,
             situation.upd_key_2                 AS dp_key,
-            {pk_columns_str},
-            {val_columns_str},
+            {cols_bks_str},
+            {cols_val_str},
             src_record_hash                     AS record_hash,
             load_ts,
             status,
@@ -434,8 +434,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         SELECT
             NULL AS merge_key,
             uuid() AS dp_key,
-            {pk_columns_str},
-            {val_columns_str},
+            {cols_bks_str},
+            {cols_val_str},
             src_record_hash                     AS record_hash,
             load_ts,
             status,
@@ -454,8 +454,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         SELECT
             situation.del_key AS merge_key,
             situation.del_key AS dp_key,
-            {pk_columns_str},
-            {val_columns_str},
+            {cols_bks_str},
+            {cols_val_str},
             src_record_hash                     AS record_hash,
             load_ts,
             status,
@@ -473,8 +473,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         SELECT
             situation.del_key_2 AS merge_key,
             situation.del_key_2 AS dp_key,
-            {pk_columns_str},
-            {val_columns_str},
+            {cols_bks_str},
+            {cols_val_str},
             src_record_hash                     AS record_hash,
             load_ts,
             status,
@@ -493,18 +493,18 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def format_view(
         self,
-        pk_columns: list,
-        cols_with_type: list,
+        cols_bks: list,
+        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str,
         use_delta_mode_for_raw_table: bool = False,
     ) -> str:
         """Return the CTE + SELECT SQL to be run via spark.sql() and registered
         as a temp view with ``createOrReplaceTempView(scd2_view_name)``."""
-        val_columns = [col.split()[0] for col in cols_with_type]
+        cols_val = [col.split()[0] for col in cols_val_with_type]
         cte = self._format_cte(
-            pk_columns=pk_columns,
-            val_columns=val_columns,
+            cols_bks=cols_bks,
+            cols_val=cols_val,
             load_ts=load_ts,
             load_ts_col=load_ts_col,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
@@ -519,16 +519,16 @@ class SparkSCD2Strategy(SCD2Strategy):
     def format_merge(
         self,
         current_ts: datetime,
-        pk_columns: list,
-        val_columns: list,
+        cols_bks: list,
+        cols_val: list,
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
 
-        prefixed_val_columns = ap(val_columns, "source")
-        pk_columns_str = fv(pk_columns)
-        val_columns_str = fv(val_columns)
-        source_val_columns_str = fv(prefixed_val_columns)
+        prefixed_cols_val = ap(cols_val, "source")
+        cols_bks_str = fv(cols_bks)
+        cols_val_str = fv(cols_val)
+        source_cols_val_str = fv(prefixed_cols_val)
         current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         return f"""
@@ -550,8 +550,8 @@ class SparkSCD2Strategy(SCD2Strategy):
     WHEN NOT MATCHED
     THEN INSERT (
         dp_key,
-        {pk_columns_str},
-        {val_columns_str},
+        {cols_bks_str},
+        {cols_val_str},
         dp_ts_from,
         dp_ts_to,
         dp_is_active,
@@ -561,8 +561,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         record_hash
     ) VALUES (
         source.dp_key,
-        {fv(ap(pk_columns, "source"))},
-        {source_val_columns_str},
+        {fv(ap(cols_bks, "source"))},
+        {source_cols_val_str},
         source.dp_ts_from,
         source.dp_ts_to,
         source.dp_is_active,
@@ -579,8 +579,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
-        pk_columns_with_type: list,
-        cols_with_type: Optional[list] = None,
+        cols_bks_with_type: list,
+        cols_val_with_type: Optional[list] = None,
         partition_cols: Optional[list] = None,
         sort_cols: Optional[list] = None,
     ) -> None:
@@ -598,8 +598,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         create_stmt = self._format_create_dim_table(
             s3_warehouse_bucket=s3_warehouse_bucket,
             s3_warehouse_prefix=s3_warehouse_prefix,
-            pk_columns_with_type=pk_columns_with_type,
-            cols_with_type=cols_with_type,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val_with_type=cols_val_with_type,
             partitioning_cols=partition_cols,
             sort_cols=sort_cols,
         )
@@ -641,8 +641,8 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def merge_into_dim_table(
         self,
-        pk_columns: list,
-        cols_with_type: list,
+        cols_bks: list,
+        cols_val_with_type: list,
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
@@ -652,8 +652,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         output_file_name: Optional[str] = None,
     ) -> tuple:
         view_stmt = self.format_view(
-            pk_columns=pk_columns,
-            cols_with_type=cols_with_type,
+            cols_bks=cols_bks,
+            cols_val_with_type=cols_val_with_type,
             load_ts=load_ts,
             load_ts_col=load_ts_col,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
@@ -676,11 +676,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if perform_merge_op:
-            val_columns = [col.split()[0] for col in cols_with_type]
+            cols_val = [col.split()[0] for col in cols_val_with_type]
             merge_stmt = self.format_merge(
                 current_ts=current_ts,
-                pk_columns=pk_columns,
-                val_columns=val_columns,
+                cols_bks=cols_bks,
+                cols_val=cols_val,
             )
 
             logger.info(merge_stmt)

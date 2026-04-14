@@ -45,8 +45,8 @@ def test_step_1(ctx):
         "-------------------------------- Test Step 1 --------------------------------"
     )
 
-    create_raw_table(ctx, pk_columns_with_type=["id1 INT, id2 INT"])
-    create_dim_table_for_test(ctx, pk_columns_with_type=["id1 INT, id2 INT"])
+    create_raw_table(ctx, cols_bks_with_type=["id1 INT, id2 INT"])
+    create_dim_table_for_test(ctx, cols_bks_with_type=["id1 INT, id2 INT"])
     render_init("Testing Insert Operation with Composite Key", FILE_NAME)
     render_data(
         "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
@@ -135,7 +135,7 @@ def test_step_1(ctx):
         ctx,
         test_step=1,
         ins_stmt=insert_sql_1,
-        pk_columns=["id1", "id2"],
+        cols_bks=["id1", "id2"],
         load_ts=load_ts_1,
         current_ts=current_ts_1,
         expected=expected,
@@ -242,7 +242,7 @@ def test_step_2(ctx):
         ctx,
         test_step=2,
         ins_stmt=insert_sql_2,
-        pk_columns=["id1", "id2"],
+        cols_bks=["id1", "id2"],
         load_ts=load_ts_2,
         current_ts=current_ts_2,
         expected=expected,

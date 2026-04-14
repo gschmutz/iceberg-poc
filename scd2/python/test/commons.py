@@ -87,7 +87,7 @@ class TestCommonsBase:
     def get_strategy_name(self):
         raise NotImplementedError
 
-    def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
         raise NotImplementedError
 
     def raw_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
@@ -125,12 +125,12 @@ class TestCommonsBase:
             for_version=for_version,
         )
 
-    def create_dim_table_for_test(self, ctx, pk_columns_with_type: list = ["id INT"]):
+    def create_dim_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
         self._make_strategy(ctx).create_dim_table(
             s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
             s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-            pk_columns_with_type=pk_columns_with_type,
-            cols_with_type=self.COLS_WITH_TYPE,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val_with_type=self.COLS_WITH_TYPE,
             partition_cols=["dp_ts_from"],
             sort_cols=[],
         )
@@ -182,7 +182,7 @@ class TestCommonsBase:
         expected=None,
         output_file_name: str = None,
         test_description: str = None,
-        pk_columns: list = ["id"],
+        cols_bks: list = ["id"],
     ):
         render_data(test_description, output_file_name=output_file_name)
 
@@ -192,8 +192,8 @@ class TestCommonsBase:
             self._make_strategy(ctx).merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
-                pk_columns=pk_columns,
-                cols_with_type=self.COLS_WITH_TYPE,
+                cols_bks=cols_bks,
+                cols_val_with_type=self.COLS_WITH_TYPE,
                 current_ts=current_ts_list[idx],
                 use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                 perform_merge_op=perform_merge_op,
@@ -203,7 +203,7 @@ class TestCommonsBase:
         render_data("### Perform Preparation", output_file_name=output_file_name)
 
         df_raw = self.get_table_data(
-            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + pk_columns
+            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
         )
         render_table(
             df_raw,
@@ -213,7 +213,7 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=pk_columns + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
             )
             render_table(
                 df,
@@ -226,7 +226,7 @@ class TestCommonsBase:
             actual_df = self.get_table_data(
                 ctx,
                 table=SCD2Table.SCD2,
-                order_by_cols=pk_columns + ["dp_ts_from"],
+                order_by_cols=cols_bks + ["dp_ts_from"],
                 exclude_cols=["dp_key"],
             )
             expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -248,7 +248,7 @@ class TestCommonsBase:
         use_delta_mode_for_raw_table: bool = False,
         display_result: bool = True,
         show_input_to_merge: bool = True,
-        pk_columns: list = ["id"],
+        cols_bks: list = ["id"],
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -256,10 +256,10 @@ class TestCommonsBase:
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=pk_columns + ["dp_ts_from"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
         )
         df_raw = self.get_table_data(
-            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + pk_columns
+            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
         )
         render_table(
             df_raw,
@@ -270,8 +270,8 @@ class TestCommonsBase:
         self._make_strategy(ctx).merge_into_dim_table(
             load_ts=load_ts,
             load_ts_col="dp_loaded_at",
-            pk_columns=pk_columns,
-            cols_with_type=self.COLS_WITH_TYPE,
+            cols_bks=cols_bks,
+            cols_val_with_type=self.COLS_WITH_TYPE,
             current_ts=current_ts,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
@@ -281,13 +281,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=pk_columns + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_key"],
-                sort_cols=pk_columns + ["dp_ts_from"],
+                sort_cols=cols_bks + ["dp_ts_from"],
             )
             render_table(
                 df_colored,
@@ -301,7 +301,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=pk_columns + ["dp_ts_from"],
+            order_by_cols=cols_bks + ["dp_ts_from"],
             exclude_cols=["dp_key"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -322,16 +322,16 @@ class TestCommonsBase:
         use_delta_mode_for_raw_table: bool = False,
         display_result: bool = True,
         show_input_to_merge: bool = True,
-        pk_columns: list = ["id"],
+        cols_bks: list = ["id"],
     ):
         render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=pk_columns + ["dp_ts_from"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
         )
         df_raw = self.get_table_data(
-            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + pk_columns
+            ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
         )
         render_table(
             df_raw,
@@ -344,8 +344,8 @@ class TestCommonsBase:
             strategy.merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
-                pk_columns=pk_columns,
-                cols_with_type=self.COLS_WITH_TYPE,
+                cols_bks=cols_bks,
+                cols_val_with_type=self.COLS_WITH_TYPE,
                 current_ts=current_ts_list[idx],
                 use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                 perform_merge_op=perform_merge_op,
@@ -355,13 +355,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=pk_columns + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_key"],
-                sort_cols=pk_columns + ["dp_ts_from"],
+                sort_cols=cols_bks + ["dp_ts_from"],
             )
             render_table(
                 df_colored,
@@ -375,7 +375,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=pk_columns + ["dp_ts_from"],
+            order_by_cols=cols_bks + ["dp_ts_from"],
             exclude_cols=["dp_key"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -446,7 +446,7 @@ class TrinoTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
-    def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
         cursor = ctx.conn.cursor()
 
         drop_table_sql = (
@@ -457,7 +457,7 @@ class TrinoTestCommons(TestCommonsBase):
 
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
-            {", ".join(pk_columns_with_type)},
+            {", ".join(cols_bks_with_type)},
             first_name VARCHAR,
             last_name VARCHAR,
             city VARCHAR,
@@ -509,14 +509,14 @@ class SparkTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
-    def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
         drop_table_sql = f"DROP TABLE IF EXISTS default.{RAW_TABLE_NAME}"
         ctx.spark.sql(drop_table_sql)
         logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
 
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS default.{RAW_TABLE_NAME} (
-            {", ".join(pk_columns_with_type)},
+            {", ".join(cols_bks_with_type)},
             first_name STRING,
             last_name STRING,
             city STRING,
@@ -566,14 +566,14 @@ class PySparkTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
-    def create_raw_table(self, ctx, pk_columns_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
         drop_table_sql = f"DROP TABLE IF EXISTS default.{RAW_TABLE_NAME}"
         ctx.spark.sql(drop_table_sql)
         logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
 
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS default.{RAW_TABLE_NAME} (
-            {", ".join(pk_columns_with_type)},
+            {", ".join(cols_bks_with_type)},
             first_name STRING,
             last_name STRING,
             city STRING,
@@ -651,13 +651,13 @@ def scd2_intermediary_table_fqn(ctx, iceberg_meta_tablename: str = None):
     )
 
 
-def create_raw_table(ctx, pk_columns_with_type: list = ["id INT"]):
-    return _impl.create_raw_table(ctx, pk_columns_with_type=pk_columns_with_type)
+def create_raw_table(ctx, cols_bks_with_type: list = ["id INT"]):
+    return _impl.create_raw_table(ctx, cols_bks_with_type=cols_bks_with_type)
 
 
-def create_dim_table_for_test(ctx, pk_columns_with_type: list = ["id INT"]):
+def create_dim_table_for_test(ctx, cols_bks_with_type: list = ["id INT"]):
     return _impl.create_dim_table_for_test(
-        ctx, pk_columns_with_type=pk_columns_with_type
+        ctx, cols_bks_with_type=cols_bks_with_type
     )
 
 def execute_select(sel_stmt: str, ctx) -> pd.DataFrame:
@@ -678,7 +678,7 @@ def scd2_merge_as_preparation(
     expected=None,
     output_file_name: str = None,
     test_description: str = None,
-    pk_columns: list = ["id"],
+    cols_bks: list = ["id"],
 ):
     return _impl.scd2_merge_as_preparation(
         ctx,
@@ -691,7 +691,7 @@ def scd2_merge_as_preparation(
         expected=expected,
         output_file_name=output_file_name,
         test_description=test_description,
-        pk_columns=pk_columns,
+        cols_bks=cols_bks,
     )
 
 
@@ -709,7 +709,7 @@ def scd2_merge_as_test(
     use_delta_mode_for_raw_table: bool = False,
     display_result: bool = True,
     show_input_to_merge: bool = True,
-    pk_columns: list = ["id"],
+    cols_bks: list = ["id"],
 ):
     return _impl.scd2_merge_as_test(
         ctx,
@@ -725,7 +725,7 @@ def scd2_merge_as_test(
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
-        pk_columns=pk_columns,
+        cols_bks=cols_bks,
     )
 
 
@@ -742,7 +742,7 @@ def scd2_merge_as_test2(
     use_delta_mode_for_raw_table: bool = False,
     display_result: bool = True,
     show_input_to_merge: bool = True,
-    pk_columns: list = ["id"],
+    cols_bks: list = ["id"],
 ):
     return _impl.scd2_merge_as_test2(
         ctx,
@@ -757,7 +757,7 @@ def scd2_merge_as_test2(
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
-        pk_columns=pk_columns,
+        cols_bks=cols_bks,
     )
 
 
