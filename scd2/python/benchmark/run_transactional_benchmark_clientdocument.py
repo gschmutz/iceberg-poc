@@ -13,15 +13,19 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import trino
-from benchmark_commons import fmt_checksum_cols
 from faker import Faker
 from pyiceberg.catalog import load_catalog
 from pyiceberg.schema import Schema
 from pyiceberg.types import DateType, DoubleType, IntegerType, StringType, TimestampType
 from trino.auth import BasicAuthentication
 
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../benchmark"))
+)
+from benchmark_commons import fmt_checksum_cols
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from scd2_trino import create_dim_table, merge_into_dim_table, optimize_table
+from scd2_import import create_dim_table, merge_into_dim_table, optimize_table
 from util import (
     execute_with_metrics,
     get_credential,
@@ -88,32 +92,37 @@ s3 = boto3.client(**s3_config)
 
 # without pk column!!
 cols_with_type = [
-    "salutation VARCHAR",
-    "title VARCHAR",
-    "first_name VARCHAR",
-    "middle_name VARCHAR",
-    "last_name VARCHAR",
-    "suffix VARCHAR",
-    "gender VARCHAR",
-    "email VARCHAR",
-    "phone_mobile VARCHAR",
-    "phone_home VARCHAR",
-    "street VARCHAR",
-    "house_number VARCHAR",
-    "postal_code VARCHAR",
-    "city VARCHAR",
-    "state VARCHAR",
-    "country VARCHAR",
-    "birth_date DATE",
-    "nationality VARCHAR",
-    "marital_status VARCHAR",
-    "number_of_children INT",
-    "employment_status VARCHAR",
-    "job_title VARCHAR",
-    "employer VARCHAR",
-    "annual_income DOUBLE",
-    "national_id VARCHAR",
-    "tax_id VARCHAR",
+    "clientdocumentcreationdate TIMESTAMP(6)",
+    "clientdocumentpriorityid BIGINT",
+    "clientdocumentpriorityenum VARCHAR",
+    "clientdocumentstatusid BIGINT",
+    "clientdocumentstatusenum VARCHAR",
+    "clientdocumentformid BIGINT",
+    "clientdocumentlabel VARCHAR",
+    "clientdocumentdescription VARCHAR",
+    "clientdocumentsignaturedate TIMESTAMP(6)",
+    "clientdocumentobjectvers BIGINT",
+    "clientdocumentdetails VARCHAR",
+    "clientdocumentnecessary INTEGER",
+    "clientdocumentmanualcreated INTEGER",
+    "clientdocumentmanualedited INTEGER",
+    "clientdocumentcreateduser VARCHAR",
+    "clientdocumentlifecyclestate BIGINT",
+    "clientdocumentfeeauthenticated INTEGER",
+    "clientdocumentdeviationtype BIGINT",
+    "clientdocumentwaiverlocation BIGINT",
+    "clientdocumentpledgeborrow INTEGER",
+    "clientdocumentvaliduntil TIMESTAMP(6)",
+    "clientdocumentebaeruserid VARCHAR",
+    "clientdocumentownership BIGINT",
+    "clientdocumentsource BIGINT",
+    "clientdocumenthosttransmitid BIGINT",
+    "clientdocumentdispatchstate BIGINT",
+    "clientdocumenttaxstartdate TIMESTAMP(6)",
+    "clientdocumentcollprovthird BIGINT",
+    "clientdocumentcrsescalation VARCHAR",
+    "clientdocumentfirstactivation TIMESTAMP(6)",
+    "clientdocumentcrscarftype VARCHAR",
 ]
 val_columns = [col.split()[0] for col in cols_with_type]
 
@@ -137,6 +146,7 @@ def get_trino_connection():
             BasicAuthentication(TRINO_USER, TRINO_PASSWORD) if TRINO_PASSWORD else None
         ),
         verify=False,  # Disable SSL verification for self-signed certificates,
+        request_timeout=1800.0,
     )
 
     return conn
@@ -264,8 +274,9 @@ def run_merge_all(
     case_description: str,
     partition_cols: list = None,
     sort_cols: list = None,
+    number_of_days: int = NOF_DAYS,
 ):
-    table_name = "person"
+    table_name = "crm_clientdocument"
     dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
     raw_table_name = f"raw_{table_name}_{tshirt}"
 
@@ -277,16 +288,16 @@ def run_merge_all(
         f"dim_{table_name}_{case_id}_{tshirt}",
         s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
         s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-        pk_col_with_type=f"{table_name}_id VARCHAR",
+        pk_col_with_type=f"clientdocumentid BIGINT",
         cols_with_type=cols_with_type,
         partition_cols=partition_cols,
         sort_cols=sort_cols,
     )
 
-    start_ts = datetime(2024, 1, 1, 0, 0, 0)
-    for day in range(NOF_DAYS):
+    start_ts = datetime(2025, 10, 13, 0, 0, 0)
+    for day in range(number_of_days):
         load_date = start_ts + timedelta(days=day)
-        print(load_date)
+        logger.info(f"Processing load date: {load_date}")
 
         result, iceberg_metadata = merge_into_dim_table(
             conn=conn,
@@ -294,10 +305,10 @@ def run_merge_all(
             trino_schema=TRINO_SCHEMA,
             raw_table_name=raw_table_name,
             dim_table_name=dim_table_name,
-            scd2_view_name=f"view_person_{tshirt}_scd2",
+            scd2_view_name=f"{table_name}_{tshirt}_scd2",
             load_ts=load_date,
-            load_ts_col="export_at",
-            pk_col="person_id",
+            load_ts_col="dp_exported_at",
+            pk_col="clientdocumentid",
             cols_with_type=cols_with_type,
             current_ts=(start_ts + timedelta(days=day)),
         )
@@ -325,18 +336,16 @@ def run_merge_all(
 
 
 def run_select_one(
-    tshirt: str,
-    run_id: str,
-    case_id: int,
-    person_id: str,
-    restrict_active_expression: str = "",
+    tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""
 ):
     conn = get_trino_connection()
 
+    clientdocumentid = "44584281"  # known clientdocumentid to select at the end
+
     query = f"""
         SELECT *
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE person_id = '{person_id}'
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE clientdocumentid = {clientdocumentid}
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -346,9 +355,9 @@ def run_select_one(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}",
-        statement_name="select one person by PK",
+        statement_name="select one clientdocument by PK",
         result=result,
     )
 
@@ -361,8 +370,8 @@ def run_select_over_time(
     query = f"""
         SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE dp_ts_from <= CAST('2024-01-10' as TIMESTAMP) and dp_ts_to >= CAST('2024-01-20' as TIMESTAMP)
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -372,9 +381,9 @@ def run_select_over_time(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}",
-        statement_name="select persons over time",
+        statement_name="select clientdocuments over time",
         result=result,
     )
 
@@ -387,8 +396,8 @@ def run_select_over_time_and_active(
     query = f"""
         SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE dp_ts_from <= CAST('2024-01-10' as TIMESTAMP) AND dp_ts_to >= CAST('2024-01-20' as TIMESTAMP)
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
         AND {restrict_active_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -399,9 +408,9 @@ def run_select_over_time_and_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}",
-        statement_name="select active persons over time",
+        statement_name="select active clientdocuments over time",
         result=result,
     )
 
@@ -412,9 +421,9 @@ def run_select_count_active(
     conn = get_trino_connection()
 
     query = f"""
-        SELECT count(*) AS rows_active
+        SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -425,9 +434,9 @@ def run_select_count_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}",
-        statement_name="count all active persons",
+        statement_name="count all active clientdocuments",
         result=result,
     )
 
@@ -438,9 +447,9 @@ def run_select_count_latest(
     conn = get_trino_connection()
 
     query = f"""
-        SELECT count(*) AS rows_latest
+        SELECT count(*) AS rows_over_time
         , {fmt_checksum_cols(val_columns)}
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """
     result = execute_with_metrics(conn.cursor(), query)
@@ -451,23 +460,23 @@ def run_select_count_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}",
-        statement_name="count all active persons",
+        statement_name="count all latest clientdocuments",
         result=result,
     )
 
 
-def run_select_count_by_gender(
+def run_select_count_by_grouping_active(
     tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""
 ):
     conn = get_trino_connection()
 
     query = f"""
-        SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        SELECT clientdocumentpriorityenum, array_agg(clientdocumentid) AS clientdocuments, COUNT(clientdocumentid) AS grouping_count
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
-        GROUP BY gender
+        GROUP BY clientdocumentpriorityenum
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -477,24 +486,24 @@ def run_select_count_by_gender(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
-        statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}",
-        statement_name="count by gender for all active persons",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_ACTIVE_{case_id}_{tshirt}",
+        statement_name="count by grouping for all active clientdocuments",
         result=result,
     )
 
 
-def run_select_count_by_gender_latest(
+def run_select_count_by_grouping_latest(
     tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""
 ):
     conn = get_trino_connection()
 
     query = f"""
-        SELECT gender, array_agg(person_id) AS persons, COUNT(person_id) AS gender_count
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
+        SELECT clientdocumentpriorityenum, array_agg(clientdocumentid) AS clientdocuments, COUNT(clientdocumentid) AS grouping_count
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
         AND dp_is_latest = TRUE
-        GROUP BY gender
+        GROUP BY clientdocumentpriorityenum
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -504,26 +513,25 @@ def run_select_count_by_gender_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
-        statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}",
-        statement_name="count by gender for all latest persons",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}",
+        statement_name="count by grouping for all latest clientdocuments",
         result=result,
     )
 
 
-def run_select_nof_person_in_ch_at_5th_of_jan(
+def run_select_nof_entities_in_grouping_at_5th_of_jan(
     tshirt: str, run_id: str, case_id: int, restrict_active_expression: str = ""
 ):
     conn = get_trino_connection()
 
     query = f"""
-        SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(val_columns)}
-        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
-        WHERE cast('2024-01-05' as date) BETWEEN dp_ts_from AND dp_ts_to
+        SELECT COUNT(*) AS entities_in_group, array_agg(clientdocumentid) AS enties
+        FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
+        WHERE cast('2026-01-05' as TIMESTAMP) between dp_ts_from and dp_ts_to
         AND {restrict_active_expression} 
         AND dp_is_active = TRUE
-        AND country = 'CH'
+        AND clientdocumentpriorityenum = 'mediumn'
     """
     result = execute_with_metrics(conn.cursor(), query)
 
@@ -533,9 +541,9 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
-        statement_key=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}",
-        statement_name="count all persons in CH which where active on 5 jan",
+        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        statement_key=f"SCD2_SELECT_NOF_CLIENTDOCUMENTS_IN_GROUPING_ON_DAY_{case_id}_{tshirt}",
+        statement_name="count all clientdocuments in grouping which where active on 5 jan",
         result=result,
     )
 
@@ -543,6 +551,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
 def run_test_cases(
     number_of_runs: int,
     run_for_test_cases: list,
+    number_of_days: int,
     run_select_only: bool = False,
     drop_benchmark_table_first: bool = False,
 ):
@@ -552,8 +561,6 @@ def run_test_cases(
     logger.info(
         f"Running test-cases for tshirt size {tshirt} for {number_of_runs} runs"
     )
-
-    person_id = "1349659"  # known person_id to select at the end
 
     create_benchmark_table(drop_benchmark_table_first)
 
@@ -572,7 +579,7 @@ def run_test_cases(
 
         # Replace {pk_col} with "clientdocumentid" throughout the test_data
         test_data_str = json.dumps(test_data)
-        test_data_str = test_data_str.replace("{pk_col}", "person_id")
+        test_data_str = test_data_str.replace("{pk_col}", "clientdocumentid")
         test_data = json.loads(test_data_str)
 
     for _ in range(number_of_runs):
@@ -595,6 +602,7 @@ def run_test_cases(
                     case_description=test_case["description"],
                     partition_cols=test_case.get("partition_cols"),
                     sort_cols=test_case.get("sort_cols"),
+                    number_of_days=number_of_days,
                 )
 
             # At the end let's perform some selects to benchmark read performance
@@ -603,7 +611,6 @@ def run_test_cases(
                     tshirt=tshirt,
                     run_id=run_id,
                     case_id=test_case["case_id"],
-                    person_id=person_id,
                     restrict_active_expression=test_case.get(
                         "restrict_active_expression"
                     ),
@@ -640,7 +647,7 @@ def run_test_cases(
                         "restrict_active_expression"
                     ),
                 )
-                run_select_count_by_gender(
+                run_select_count_by_grouping_active(
                     tshirt=tshirt,
                     run_id=run_id,
                     case_id=test_case["case_id"],
@@ -648,7 +655,7 @@ def run_test_cases(
                         "restrict_active_expression"
                     ),
                 )
-                run_select_count_by_gender_latest(
+                run_select_count_by_grouping_latest(
                     tshirt=tshirt,
                     run_id=run_id,
                     case_id=test_case["case_id"],
@@ -656,7 +663,7 @@ def run_test_cases(
                         "restrict_active_expression"
                     ),
                 )
-                run_select_nof_person_in_ch_at_5th_of_jan(
+                run_select_nof_entities_in_grouping_at_5th_of_jan(
                     tshirt=tshirt,
                     run_id=run_id,
                     case_id=test_case["case_id"],
@@ -670,6 +677,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run")
     parser.add_argument("--number_of_runs", default=1, type=int)
+    parser.add_argument("--number_of_days", default=30, type=int)
     parser.add_argument("--run_for_test_cases", default=[], type=list)
     parser.add_argument("--run_select_only", default=False, type=bool)
     parser.add_argument("--drop_benchmark_table_first", default=False, type=bool)
@@ -678,9 +686,10 @@ if __name__ == "__main__":
 
     if args.command == "run_test_cases":
         run_test_cases(
-            args.number_of_runs,
-            args.run_for_test_cases,
-            run_select_only=False,
+            number_of_runs=args.number_of_runs,
+            number_of_days=args.number_of_days,
+            run_for_test_cases=args.run_for_test_cases,
+            run_select_only=args.run_select_only,
             drop_benchmark_table_first=args.drop_benchmark_table_first,
         )
     else:

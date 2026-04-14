@@ -1,19 +1,26 @@
-import sys
-import os
 import logging
+import os
 import random
+import sys
 import uuid
 from datetime import date, timedelta
 
-import trino
 import duckdb
-from duckdb.typing import VARCHAR, DATE
 import pyarrow as pa
+import trino
+from duckdb.typing import DATE, VARCHAR
 from faker import Faker
 from pyiceberg.catalog import load_catalog
 from pyiceberg.table import Table
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import get_param, get_credential, get_zone_name, replace_vars_in_string, execute_with_metrics
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from util import (
+    execute_with_metrics,
+    get_credential,
+    get_param,
+    get_zone_name,
+    replace_vars_in_string,
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,23 +30,23 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------
 
-TRINO_USER = get_credential('TRINO_USER', 'trino')
-TRINO_PASSWORD = get_credential('TRINO_PASSWORD', '')
-TRINO_HOST = get_param('TRINO_HOST', 'localhost')
-TRINO_PORT = get_param('TRINO_PORT', '28082')
-TRINO_CATALOG = get_param('TRINO_CATALOG', 'minio')
-TRINO_USE_SSL = get_param('TRINO_USE_SSL', 'true').lower() in ('true', '1', 't')
+TRINO_USER = get_credential("TRINO_USER", "trino")
+TRINO_PASSWORD = get_credential("TRINO_PASSWORD", "")
+TRINO_HOST = get_param("TRINO_HOST", "localhost")
+TRINO_PORT = get_param("TRINO_PORT", "28082")
+TRINO_CATALOG = get_param("TRINO_CATALOG", "minio")
+TRINO_USE_SSL = get_param("TRINO_USE_SSL", "true").lower() in ("true", "1", "t")
 
-HMS_HOST = get_param('HMS_HOST', 'localhost')
-HMS_PORT = get_param('HMS_PORT', '9083')
+HMS_HOST = get_param("HMS_HOST", "localhost")
+HMS_PORT = get_param("HMS_PORT", "9083")
 
 # Connect to MinIO or AWS S3
-S3_ENDPOINT_URL = get_param('S3_ENDPOINT_URL', 'http://localhost:9000')
+S3_ENDPOINT_URL = get_param("S3_ENDPOINT_URL", "http://localhost:9000")
 
-S3_ADMIN_BUCKET = get_param('S3_ADMIN_BUCKET', 'admin-bucket')
-S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, { "zone": "", "env": "" } )
-AWS_ACCESS_KEY = get_credential('AWS_ACCESS_KEY', None)
-AWS_SECRET_ACCESS_KEY = get_credential('AWS_SECRET_ACCESS_KEY', None)
+S3_ADMIN_BUCKET = get_param("S3_ADMIN_BUCKET", "admin-bucket")
+S3_ADMIN_BUCKET = replace_vars_in_string(S3_ADMIN_BUCKET, {"zone": "", "env": ""})
+AWS_ACCESS_KEY = get_credential("AWS_ACCESS_KEY", None)
+AWS_SECRET_ACCESS_KEY = get_credential("AWS_SECRET_ACCESS_KEY", None)
 
 WAREHOUSE = "s3://warehouse-bucket/"
 
@@ -93,27 +100,34 @@ con.create_function("faker_last_name", lambda: fake.last_name(), return_type=VAR
 con.create_function("faker_email", lambda: fake.email(), return_type=VARCHAR)
 con.create_function("faker_phone", lambda: fake.phone_number(), return_type=VARCHAR)
 con.create_function("faker_street", lambda: fake.street_name(), return_type=VARCHAR)
-con.create_function("faker_building", lambda: fake.building_number(), return_type=VARCHAR)
+con.create_function(
+    "faker_building", lambda: fake.building_number(), return_type=VARCHAR
+)
 con.create_function("faker_postcode", lambda: fake.postcode(), return_type=VARCHAR)
 con.create_function("faker_city", lambda: fake.city(), return_type=VARCHAR)
 con.create_function("faker_state", lambda: fake.state(), return_type=VARCHAR)
-con.create_function("faker_country_code", lambda: fake.country_code(), return_type=VARCHAR)
-con.create_function("faker_birthdate", lambda: fake.date_of_birth(minimum_age=18, maximum_age=90), return_type=DATE)
+con.create_function(
+    "faker_country_code", lambda: fake.country_code(), return_type=VARCHAR
+)
+con.create_function(
+    "faker_birthdate",
+    lambda: fake.date_of_birth(minimum_age=18, maximum_age=90),
+    return_type=DATE,
+)
 con.create_function("faker_job", lambda: fake.job(), return_type=VARCHAR)
 con.create_function("faker_company", lambda: fake.company(), return_type=VARCHAR)
 con.create_function("faker_ssn", lambda: fake.ssn(), return_type=VARCHAR)
-con.create_function("faker_taxid", lambda: fake.bothify("??######"), return_type=VARCHAR)
-
 con.create_function(
-    "random_choice",
-    lambda x: random.choice(x),
-    return_type="VARCHAR"
+    "faker_taxid", lambda: fake.bothify("??######"), return_type=VARCHAR
 )
+
+con.create_function("random_choice", lambda x: random.choice(x), return_type="VARCHAR")
 # ---------------------------------------------------------------------
 # DuckDB table
 # ---------------------------------------------------------------------
 
-con.execute("""
+con.execute(
+    """
 CREATE TABLE persons (
     surrogate_key VARCHAR,
     person_id VARCHAR,
@@ -153,7 +167,9 @@ CREATE TABLE persons (
     source_system VARCHAR,
     status VARCHAR
 )
-""")
+"""
+)
+
 
 def format_create_raw_table(table_name: str) -> str:
 
@@ -214,6 +230,7 @@ def format_create_raw_table(table_name: str) -> str:
     """
     return ddl
 
+
 def run_raw_create_table(table_name: str):
 
     drop_table_stmt = f"""DROP TABLE IF EXISTS iceberg_hive."default".{table_name}"""
@@ -226,13 +243,16 @@ def run_raw_create_table(table_name: str):
     execute_with_metrics(conn.cursor(), create_table_stmt)
     logger.info(f"Raw table {table_name} created successfully.")
 
+
 # ---------------------------------------------------------------------
 # Initial load (set-based, fast)
 # ---------------------------------------------------------------------
 
+
 def initial_load(n):
     log.info("Initial load: %s rows", n)
-    con.execute(f"""
+    con.execute(
+        f"""
     INSERT INTO persons
     SELECT
         uuid()::VARCHAR,
@@ -273,29 +293,37 @@ def initial_load(n):
         random_choice(['CRM','ERP','HR']),
         'ACTIVE'
     FROM range({n});
-    """)
+    """
+    )
+
 
 # ---------------------------------------------------------------------
 # Daily CDC
 # ---------------------------------------------------------------------
 
+
 def apply_daily_changes(logical_del: bool = True):
     if logical_del:
         # Logical Deletes
-        con.execute(f"""
+        con.execute(
+            f"""
         UPDATE persons
         SET status = 'INACTIVE'
         WHERE random() < {DELETE_RATE} and status = 'ACTIVE';
-        """)
+        """
+        )
     else:
         # Deletes
-        con.execute(f"""
+        con.execute(
+            f"""
         DELETE FROM persons
         WHERE random() < {DELETE_RATE};
-        """)
+        """
+        )
 
     # Updates
-    con.execute(f"""
+    con.execute(
+        f"""
     UPDATE persons
     SET
         email = CASE WHEN random() < 0.6 THEN faker_email() ELSE email END,
@@ -306,10 +334,12 @@ def apply_daily_changes(logical_del: bool = True):
             ELSE annual_income
         END
     WHERE random() < {UPDATE_RATE};
-    """)
+    """
+    )
 
     # Inserts
-    con.execute(f"""
+    con.execute(
+        f"""
     INSERT INTO persons
     SELECT
         uuid()::VARCHAR,
@@ -357,13 +387,16 @@ def apply_daily_changes(logical_del: bool = True):
         AS INTEGER
         )
     );
-    """)
+    """
+    )
+
 
 # ---------------------------------------------------------------------
 # Iceberg catalog
 # ---------------------------------------------------------------------
 
-def load_iceberg_table(table_name: str) -> Table:    
+
+def load_iceberg_table(table_name: str) -> Table:
     # Prepare catalog properties with comprehensive S3 configuration
     catalog_props = {
         "name": "iceberg",
@@ -388,35 +421,40 @@ def load_iceberg_table(table_name: str) -> Table:
 
     # Optimize file size
     with table.transaction() as tx:
-        tx.set_properties({
-            # File sizing
-            "write.target-file-size-bytes": str(512 * 1024 * 1024),  # 512 MB
-            "write.parquet.row-group-size-bytes": str(128 * 1024 * 1024),
-
-            # Metadata
-            "commit.retry.num-retries": "5",
-
-            # Performance
-            "write.distribution-mode": "hash",
-
-            # Compression
-            "write.parquet.compression-codec": "zstd"
-        })
+        tx.set_properties(
+            {
+                # File sizing
+                "write.target-file-size-bytes": str(512 * 1024 * 1024),  # 512 MB
+                "write.parquet.row-group-size-bytes": str(128 * 1024 * 1024),
+                # Metadata
+                "commit.retry.num-retries": "5",
+                # Performance
+                "write.distribution-mode": "hash",
+                # Compression
+                "write.parquet.compression-codec": "zstd",
+            }
+        )
     return table
+
 
 # ---------------------------------------------------------------------
 # Iceberg append
 # ---------------------------------------------------------------------
 
+
 def append_to_iceberg(table: Table, export_date: date):
-    arrow = con.execute("""
+    arrow = con.execute(
+        """
         SELECT *,
                CAST($export_date AS DATE) AS export_date,
                CAST(current_timestamp AS TIMESTAMP) AS load_ts
         FROM persons
-    """, {"export_date": export_date}).fetch_arrow_table()
+    """,
+        {"export_date": export_date},
+    ).fetch_arrow_table()
 
     table.append(arrow)
+
 
 # ---------------------------------------------------------------------
 # Main
