@@ -3,130 +3,162 @@
 ## Preparation of context
 
 ```txt
-can you please help me to analyze the following benchmark report for a test of different strategy for implementing SCD2 on Iceberg tables. There are 15 test cases document here:
+can you please help me to analyze the following benchmark report for a test of different strategy for implementing SCD2 on Iceberg tables. There are 18 test cases document here:
 
  {
     "test_cases": [
         {
-            "case_id": 1,
-            "description": "Partition by day(valid_from) and is_current_version, no sorting",
-            "partition_cols": ["day(valid_from)", "is_current_version"],
+            "case_id": 0,
+            "description": "no partitioning and no sorting",
+            "partition_cols": [],
             "sort_cols": [],
-            "restrict_current_expression": "is_current_version = true",
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        },
+        {
+            "case_id": 1,
+            "description": "Partition by day(dp_ts_from) and dp_is_active, no sorting",
+            "partition_cols": ["day(dp_ts_from)", "dp_is_active"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 2,
-            "description": "Partition by month(valid_from) and is_current_version, no sorting",
-            "partition_cols": ["month(valid_from)", "is_current_version"],
+            "description": "Partition by month(dp_ts_from) and dp_is_active, no sorting",
+            "partition_cols": ["month(dp_ts_from)", "dp_is_active"],
             "sort_cols": [],
-            "restrict_current_expression": "is_current_version = true",
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 3,
-            "description": "Partition by day(valid_from), sort by is_current_version",
-            "partition_cols": ["day(valid_from)"],
-            "sort_cols": ["is_current_version"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by day(dp_ts_from), sort by dp_is_active",
+            "partition_cols": ["day(dp_ts_from)"],
+            "sort_cols": ["dp_is_active"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },    
         {
             "case_id": 4,
-            "description": "Partition by month(valid_from), sort by is_current_version",
-            "partition_cols": ["month(valid_from)"],
-            "sort_cols": ["is_current_version"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by month(dp_ts_from), sort by dp_is_active",
+            "partition_cols": ["month(dp_ts_from)"],
+            "sort_cols": ["dp_is_active"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },    
         {
             "case_id": 5,
-            "description": "Partition by is_current_version only, sort by person_id",
-            "partition_cols": ["is_current_version"],
-            "sort_cols": ["person_id"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by dp_is_active only, sort by dp_is_latest",
+            "partition_cols": ["dp_is_active"],
+            "sort_cols": ["dp_is_latest"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 6,
-            "description": "Partition by is_current_version and day(valid_from), no sorting",
-            "partition_cols": ["is_current_version", "day(valid_from)"],
+            "description": "Partition by dp_is_active and day(dp_ts_from), no sorting",
+            "partition_cols": ["dp_is_active", "day(dp_ts_from)"],
             "sort_cols": [],
-            "restrict_current_expression": "is_current_version = true",
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 7,
-            "description": "Partition by is_current_version and month(valid_from), no sorting",
-            "partition_cols": ["is_current_version", "month(valid_from)"],
+            "description": "Partition by dp_is_active and month(dp_ts_from), no sorting",
+            "partition_cols": ["dp_is_active", "month(dp_ts_from)"],
             "sort_cols": [],
-            "restrict_current_expression": "is_current_version = true",
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },        
         {
             "case_id": 8,
-            "description": "Partition by day(valid_from), is_current_version, sort by person_id",
-            "partition_cols": ["day(valid_from)", "is_current_version"],
-            "sort_cols": ["person_id"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by day(dp_ts_from), dp_is_active, sort by dp_is_latest",
+            "partition_cols": ["day(dp_ts_from)", "dp_is_active"],
+            "sort_cols": ["dp_is_latest"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 9,
-            "description": "Partition by month(valid_from) and is_current_version, sort by person_id",
-            "partition_cols": ["month(valid_from)", "is_current_version"],
-            "sort_cols": ["person_id"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by month(dp_ts_from) and dp_is_active, sort by dp_is_latest",
+            "partition_cols": ["month(dp_ts_from)", "dp_is_active"],
+            "sort_cols": ["dp_is_latest"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 10,
-            "description": "Partition by bucket(16, person_id), sort by is_current_version",
-            "partition_cols": ["bucket(person_id, 16)"],
-            "sort_cols": ["is_current_version"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by bucket(16, {pk_col}), sort by dp_is_active",
+            "partition_cols": ["bucket({pk_col}, 16)"],
+            "sort_cols": ["dp_is_active"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 11,
-            "description": "Partition by bucket(16, person_id), is_current_version, sort by valid_from",
-            "partition_cols": ["bucket(person_id, 16)", "is_current_version"],
-            "sort_cols": ["valid_from"],
-            "restrict_current_expression": "is_current_version = true",
+            "description": "Partition by bucket(16, {pk_col}), dp_is_active, sort by dp_ts_from",
+            "partition_cols": ["bucket({pk_col}, 16)", "dp_is_active"],
+            "sort_cols": ["dp_ts_from"],
+            "restrict_active_expression": "dp_is_active = true",
             "active": true
         },
         {
             "case_id": 12,
-            "description": "Partition by month(valid_from) and month(valid_to), sort by is_current_version",
-            "partition_cols": ["month(valid_from)", "month(valid_to)"],
-            "sort_cols": ["is_current_version"],
-            "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "description": "Partition by month(dp_ts_from) and month(dp_ts_to), sort by dp_is_active",
+            "partition_cols": ["month(dp_ts_from)", "month(dp_ts_to)"],
+            "sort_cols": ["dp_is_active"],
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },       
         {
             "case_id": 13,
-            "description": "Partition by month(valid_from), sort by valid_to",
-            "partition_cols": ["month(valid_from)"],
-            "sort_cols": ["valid_to"],
-            "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "description": "Partition by month(dp_ts_from), sort by dp_ts_to",
+            "partition_cols": ["month(dp_ts_from)"],
+            "sort_cols": ["dp_ts_to"],
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },
         {
             "case_id": 14,
-            "description": "Partition by day(valid_to), no sorting",
-            "partition_cols": ["day(valid_to)"],
+            "description": "Partition by day(dp_ts_to), no sorting",
+            "partition_cols": ["day(dp_ts_to)"],
             "sort_cols": [],
-            "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
         },               
         {
             "case_id": 15,
-            "description": "Partition by month(valid_to), no sorting",
-            "partition_cols": ["month(valid_to)"],
+            "description": "Partition by month(dp_ts_to), no sorting",
+            "partition_cols": ["month(dp_ts_to)"],
             "sort_cols": [],
-            "restrict_current_expression": "valid_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
             "active": true
-        }           
+        },           
+        {
+            "case_id": 16,
+            "description": "Partition by month(dp_ts_to), no sorting",
+            "partition_cols": ["month(dp_ts_to)"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_ts_to = TIMESTAMP '9999-12-31 23:59:59'",
+            "active": true
+        },           
+        {
+            "case_id": 17,
+            "description": "Partition by dp_is_active and dp_is_latest, no sorting",
+            "partition_cols": ["dp_is_active", "dp_is_latest"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        },           
+        {
+            "case_id": 18,
+            "description": "Partition by dp_is_latest and dp_is_active, no sorting",
+            "partition_cols": ["dp_is_latest", "dp_is_active"],
+            "sort_cols": [],
+            "restrict_active_expression": "dp_is_active = true",
+            "active": true
+        }              
     ]
 }
 
