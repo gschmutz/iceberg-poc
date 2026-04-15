@@ -12,19 +12,87 @@ logger = logging.getLogger(__name__)
 
 
 class SCD2Table(Enum):
-    """The three logical tables managed by an SCD2 strategy."""
+    """Identifies one of the three logical Apache Iceberg tables in the SCD2 pipeline.
+
+    Attributes:
+        RAW: The staging table that receives new source records for each load batch.
+            Partitioned by the load-timestamp column so that each batch can be
+            isolated and re-processed independently.
+        SCD2: The SCD2 dimension table that holds the full version history.
+            Every row represents a single version of an entity, bounded by
+            ``dp_ts_from`` / ``dp_ts_to`` and annotated with ``dp_is_active``
+            and ``dp_is_latest``.
+        INTERMEDIARY: A temporary view or materialized table produced between the
+            raw read and the final ``MERGE INTO``.  It contains the classified
+            change records (NEW / CHANGED / DELETED / UNCHANGED) together with
+            the ``merge_key`` column that drives the MERGE logic.
+    """
+
     RAW = "raw"
     SCD2 = "scd2"
     INTERMEDIARY = "intermediary"
 
 
 class SCD2Strategy(ABC):
-    """Abstract base class defining the SCD2 merge strategy interface.
+    """Abstract base class for engine-specific SCD2 merge implementations.
 
-    Concrete implementations provide engine-specific SQL generation and
-    execution (e.g. Trino, Spark).  Each instance owns a single execution
-    context (connection, SparkSession, …) and a namespace (catalog/schema or
-    database) so callers do not have to repeat those arguments on every call.
+    SCD2Strategy defines the full contract for loading a batch of source records
+    into a Slowly Changing Dimension Type 2 (SCD2) Apache Iceberg table.  Each
+    concrete subclass targets a specific SQL engine:
+
+    * ``TrinoSCD2Strategy``  – Trino / Iceberg via Hive Metastore
+    * ``SparkSCD2Strategy``  – Apache Spark SQL / Iceberg
+    * ``PySparkSCD2Strategy`` – PySpark DataFrame API + Spark SQL MERGE
+
+    Merge pipeline (view-then-merge pattern)
+    -----------------------------------------
+    1. Source records for the current batch are read from the **raw table**
+       filtered on ``load_ts_col``.
+    2. A SHA-256 row hash is computed over all business-key and value columns
+       (``concat_ws('||', ...)`` + SHA-256) for change detection.
+    3. Each source record is FULL OUTER JOINed against the existing SCD2 table
+       to classify it as NEW / CHANGED / DELETED / UNCHANGED.
+    4. Changed records emit **two** rows in the staging view:
+       - one with ``merge_key = <pk>`` → matches an existing row → closes the
+         old version (UPDATE sets ``dp_ts_to``, ``dp_is_active``, ``dp_is_latest``).
+       - one with ``merge_key = NULL`` → no match → inserts the new version.
+    5. ``MERGE INTO <scd2_table> USING <intermediary_view>`` applies all changes
+       atomically via a single engine MERGE statement.
+
+    SCD2 dimension metadata columns
+    --------------------------------
+    Every row in the SCD2 table carries the following engine-managed columns:
+
+    * ``dp_key``         – UUID surrogate key (unique per version row).
+    * ``dp_ts_from``     – Effective start timestamp of this version.
+    * ``dp_ts_to``       – Effective end timestamp (``9999-12-31 23:59:59`` = open).
+    * ``dp_is_active``   – ``True`` while the entity is not soft-deleted.
+    * ``dp_is_latest``   – ``True`` for the most recent version (even if deleted).
+    * ``dp_created_at``  – Timestamp when this version row was first inserted.
+    * ``dp_replaced_at`` – Timestamp when this version was superseded (or NULL).
+    * ``record_hash``    – SHA-256 hash of all business columns for change detection.
+
+    Typical usage
+    --------------
+    ::
+
+        strategy = TrinoSCD2Strategy(
+            conn, s3_client,
+            catalog="iceberg_hive", schema="default",
+            raw_table_name="raw_person",
+            scd2_table_name="dim_person",
+            cols_bks=["id"],
+            cols_bks_with_type=["id INT"],
+            cols_val=["first_name", "last_name", "city"],
+            cols_val_with_type=["first_name VARCHAR", "last_name VARCHAR", "city VARCHAR"],
+            load_ts_col="dp_loaded_at",
+            use_delta_mode_for_raw_table=False,
+            perform_merge_op=True,
+        )
+        result, metadata = strategy.merge_into_scd2_table(
+            load_ts=datetime(2024, 1, 15, 10, 0, 0),
+            current_ts=datetime.now(),
+        )
     """
 
     def __init__(
@@ -37,9 +105,50 @@ class SCD2Strategy(ABC):
         cols_val: Optional[list] = None,
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
+        materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
         load_ts_col: str = "load_ts",
     ):
+        """Initialise the strategy with table names, column definitions, and behavior flags.
+
+        Args:
+            raw_table_name: Unqualified name of the raw staging table that receives
+                source records for each load batch (e.g. ``"raw_person"``).
+            scd2_table_name: Unqualified name of the SCD2 dimension table
+                (e.g. ``"dim_person"``).
+            scd2_intermediary_table_name: Unqualified name for the intermediary
+                view or materialized staging table used between change detection
+                and the MERGE statement.  Defaults to ``<scd2_table_name>_temp``.
+            cols_bks: Business-key column names used to identify an entity across
+                versions (e.g. ``["id"]`` or ``["tenant_id", "user_id"]``).
+            cols_bks_with_type: Business-key columns with their engine-specific SQL
+                type declarations (e.g. ``["id INT"]``).  Used when (re)creating
+                the SCD2 table.
+            cols_val: Value column names whose changes trigger a new SCD2 version
+                (e.g. ``["first_name", "last_name", "city"]``).
+            cols_val_with_type: Value columns with type declarations
+                (e.g. ``["first_name VARCHAR", "city VARCHAR"]``).
+            use_delta_mode_for_raw_table: Controls how the absence of an entity
+                in the current raw batch is interpreted.
+
+                * ``False`` (default, full-snapshot mode) – an entity that is
+                  present in the SCD2 table but absent from the raw batch is
+                  treated as deleted and a soft-delete version is written.
+                * ``True`` (delta / CDC mode) – absent entities are ignored;
+                  only records explicitly present in the raw batch are processed.
+            materialize_data_before_merge: When ``True`` the intermediary staging
+                view is written to a physical Iceberg table before the MERGE is
+                executed.  Required for engines (e.g. Spark) that do not allow
+                non-deterministic functions such as ``uuid()`` inside a MERGE
+                source query.  Defaults to ``False``.
+            perform_merge_op: When ``False`` the pipeline stops after creating the
+                intermediary view, allowing callers to inspect the staged records
+                without modifying the SCD2 table.  Defaults to ``True``.
+            load_ts_col: Name of the timestamp column in the raw table that
+                identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
+                to :meth:`merge_into_scd2_table` filters the raw table on
+                ``load_ts_col = load_ts``.  Defaults to ``"load_ts"``.
+        """
         self.raw_table_name = raw_table_name
         self.scd2_table_name = scd2_table_name
         self.scd2_intermediary_table_name = (
@@ -50,6 +159,7 @@ class SCD2Strategy(ABC):
         self.cols_val = cols_val
         self.cols_val_with_type = cols_val_with_type
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
+        self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
         self.load_ts_col = load_ts_col
 
@@ -57,19 +167,47 @@ class SCD2Strategy(ABC):
 
     @staticmethod
     def add_prefix(values: list, prefix: str) -> list:
-        """Prepend a qualifier prefix to each column name."""
+        """Prepend a table/alias qualifier to each column name.
+
+        Args:
+            values: Column names to qualify (e.g. ``["id", "first_name"]``).
+            prefix: Table alias or name to prepend (e.g. ``"src"``).
+                Pass an empty string or ``None`` to return the list unchanged.
+
+        Returns:
+            A new list where every element is ``"<prefix>.<column>"``.
+        """
         if prefix:
             return [f"{prefix}.{v}" for v in values]
         return values
 
     @staticmethod
     def format_values(values: list) -> str:
-        """Join a list of column expressions into a comma-separated string."""
+        """Join a list of column expressions into a comma-separated SQL fragment.
+
+        Args:
+            values: Arbitrary column expressions or names.
+
+        Returns:
+            A single string of the form ``"expr1, expr2, ..."`` suitable for
+            embedding in a SELECT list or similar SQL clause.
+        """
         return ", ".join(str(v) for v in values)
 
     @staticmethod
     def delete_s3_location(s3_client, bucket: str, path: str) -> None:
-        """Delete all objects under the specified S3 location."""
+        """Delete all S3 objects under the given prefix.
+
+        Used before (re)creating an Iceberg table to ensure no stale data files
+        remain under the table's S3 location, which could confuse the Iceberg
+        metadata layer.
+
+        Args:
+            s3_client: A boto3 S3 client (or compatible) used for the deletion.
+            bucket: S3 bucket name (without the ``s3a://`` prefix).
+            path: Key prefix to delete (e.g. ``"warehouse/default/dim_person"``).
+                All objects whose key starts with this prefix are removed.
+        """
         try:
             paginator = s3_client.get_paginator("list_objects_v2")
             pages = paginator.paginate(Bucket=bucket, Prefix=path)
@@ -82,21 +220,47 @@ class SCD2Strategy(ABC):
             logger.warning(f"Failed to delete S3 folder: {e}")
 
     def raw_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
-        """Return the fully qualified name for the raw table."""
+        """Return the engine-qualified name for the raw staging table.
+
+        Args:
+            iceberg_meta_tablename: Optional Iceberg metadata table suffix such as
+                ``"snapshots"`` or ``"files"``.  When provided the returned name
+                addresses that metadata table (e.g. ``catalog.schema."raw_person$snapshots"``
+                for Trino, ``default.raw_person.snapshots`` for Spark).
+
+        Returns:
+            Fully-qualified table name ready for use in SQL statements.
+        """
         if iceberg_meta_tablename:
             return self._fqn(f'"{self.raw_table_name}{self._iceberg_meta_table_sep()}{iceberg_meta_tablename}"')
         else:
             return self._fqn(self.raw_table_name)
 
     def scd2_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
-        """Return the fully qualified name for the SCD2 table."""
+        """Return the engine-qualified name for the SCD2 dimension table.
+
+        Args:
+            iceberg_meta_tablename: Optional Iceberg metadata table suffix
+                (see :meth:`raw_table_fqn` for details).
+
+        Returns:
+            Fully-qualified table name ready for use in SQL statements.
+        """
         if iceberg_meta_tablename:
             return self._fqn(f'"{self.scd2_table_name}{self._iceberg_meta_table_sep()}{iceberg_meta_tablename}"')
         else:
             return self._fqn(self.scd2_table_name)
 
     def scd2_intermediary_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
-        """Return the fully qualified name for the SCD2 intermediate table."""
+        """Return the engine-qualified name for the intermediary staging table or view.
+
+        Args:
+            iceberg_meta_tablename: Optional Iceberg metadata table suffix
+                (see :meth:`raw_table_fqn` for details).
+
+        Returns:
+            Fully-qualified name ready for use in SQL statements.
+        """
         if iceberg_meta_tablename:
             return self._fqn(
                 f'"{self.scd2_intermediary_table_name}{self._iceberg_meta_table_sep()}{iceberg_meta_tablename}"'
@@ -104,8 +268,20 @@ class SCD2Strategy(ABC):
         else:
             return self._fqn(self.scd2_intermediary_table_name)
 
-    def _resolve_table_fqn(self, table: SCD2Table, iceberg_meta_tablename: str = None,) -> str:
-        """Return the fully-qualified name for the given logical table."""
+    def _resolve_table_fqn(self, table: SCD2Table, iceberg_meta_tablename: str = None) -> str:
+        """Dispatch a :class:`SCD2Table` enum value to the correct FQN helper.
+
+        Args:
+            table: Which logical table to resolve.
+            iceberg_meta_tablename: Optional Iceberg metadata table suffix passed
+                through to the underlying FQN helper.
+
+        Returns:
+            Fully-qualified table name.
+
+        Raises:
+            ValueError: If ``table`` is not a recognized :class:`SCD2Table` member.
+        """
         if table == SCD2Table.RAW:
             return self.raw_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
         if table == SCD2Table.SCD2:
@@ -118,25 +294,79 @@ class SCD2Strategy(ABC):
 
     @abstractmethod
     def _iceberg_meta_table_sep(self) -> str:
-        """Return the separator used for Iceberg meta tables."""
+        """Return the separator between a table name and an Iceberg metadata suffix.
+
+        Trino uses ``"$"`` (e.g. ``table$snapshots``); Spark uses ``"."``
+        (e.g. ``table.snapshots``).
+        """
 
     @abstractmethod
     def _fqn(self, object_name: str) -> str:
-        """Return the fully qualified name for the given object."""
+        """Return the engine-specific fully-qualified name for a database object.
+
+        Trino format: ``catalog.schema.object``
+        Spark format: ``database.object``
+
+        Args:
+            object_name: Unqualified object name (table, view, …).
+
+        Returns:
+            Fully-qualified name string.
+        """
 
     @abstractmethod
     def format_view(
         self,
         load_ts: datetime,
     ) -> str:
-        """Return the SQL that creates (or replaces) the SCD2 staging view."""
+        """Return the SQL statement that builds the intermediary SCD2 staging view.
+
+        The generated SQL contains a chain of CTEs that:
+
+        1. Reads and hashes source records from the raw table for the given
+           ``load_ts`` batch (filtered on ``self.load_ts_col``).
+        2. FULL OUTER JOINs each source record against the current, previous,
+           and next SCD2 versions to detect overlaps and gaps.
+        3. Classifies each record as NEW, CHANGED, DELETED, or UNCHANGED.
+        4. Expands CHANGED records into two rows using the ``merge_key = NULL``
+           trick so that a single MERGE statement can both close the old version
+           and insert the new one.
+
+        The resulting view is used as the MERGE source in :meth:`format_merge`.
+
+        Args:
+            load_ts: Timestamp that identifies the raw-table batch to process.
+                Only rows where ``<load_ts_col> = load_ts`` are read.
+
+        Returns:
+            A ``CREATE OR REPLACE VIEW … AS …`` SQL string (Trino) or the raw
+            CTE + SELECT SQL to be registered as a temp view (Spark).
+        """
 
     @abstractmethod
     def format_merge(
         self,
         current_ts: datetime,
     ) -> str:
-        """Return the MERGE INTO statement that applies SCD2 changes to the dimension table."""
+        """Return the ``MERGE INTO`` statement that applies SCD2 changes.
+
+        The MERGE matches rows from the intermediary staging view against the
+        SCD2 dimension table on ``merge_key = dp_key``:
+
+        * **Matched rows** (``merge_key`` is not NULL) → UPDATE: closes the
+          existing version by setting ``dp_ts_to``, ``dp_is_active``, and
+          ``dp_is_latest``.
+        * **Unmatched rows** (``merge_key`` is NULL) → INSERT: writes a new
+          version with ``dp_ts_from``, ``dp_ts_to = MAX_TS``, a new ``dp_key``
+          UUID, and the current SHA-256 ``record_hash``.
+
+        Args:
+            current_ts: Wall-clock timestamp used as ``dp_created_at`` for newly
+                inserted version rows.
+
+        Returns:
+            A ``MERGE INTO <scd2_table> USING <intermediary> …`` SQL string.
+        """
 
     # ── Abstract operations ─────────────────────────────────────────────────
 
@@ -148,10 +378,36 @@ class SCD2Strategy(ABC):
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:
-        """Execute the full SCD2 merge pipeline.
+        """Execute the full SCD2 merge pipeline for one load batch.
+
+        Orchestrates the complete view-then-merge workflow:
+
+        1. Calls :meth:`format_view` and registers the intermediary staging view.
+        2. If ``self.materialize_data_before_merge`` is ``True``, writes the view
+           to a physical table to avoid non-deterministic function issues in MERGE.
+        3. Optionally renders the staged records for debugging
+           (``show_input_to_merge``).
+        4. If ``self.perform_merge_op`` is ``True``, calls :meth:`format_merge`
+           and executes the MERGE statement against the SCD2 table.
+
+        Args:
+            load_ts: Timestamp identifying the raw-table batch to process.
+                Passed through to :meth:`format_view`.
+            current_ts: Wall-clock timestamp used as ``dp_created_at`` for new
+                version rows.  Defaults to ``None`` (implementations may default
+                to ``datetime.now()``).
+            show_input_to_merge: When ``True``, the contents of the intermediary
+                staging view are printed/rendered before the MERGE executes.
+                Useful for debugging.
+            output_file_name: Optional path for a Markdown report file.  When
+                provided, rendered output is appended to this file.
 
         Returns:
-            (result, iceberg_metadata) – both may be None when perform_merge_op=False.
+            A ``(result, iceberg_metadata)`` tuple.  ``result`` is the raw engine
+            result of the MERGE statement (row-count record for Trino, DataFrame
+            for Spark).  ``iceberg_metadata`` is engine-specific snapshot
+            information or ``None``.  Both values are ``None`` when
+            ``self.perform_merge_op`` is ``False``.
         """
 
     @abstractmethod
@@ -163,28 +419,46 @@ class SCD2Strategy(ABC):
         order_by_cols: list = [],
         for_version: str = None,
     ) -> "pd.DataFrame":
-        """Read table data and return as a pandas DataFrame.
+        """Read one of the three logical SCD2 tables and return it as a DataFrame.
 
         Args:
-            table: Which logical table to read (RAW, SCD2, or INTERMEDIARY).
-            exclude_cols: Column names to omit from the result.
-            order_by_cols: Columns to sort by.
-            for_version: Optional snapshot identifier (Trino: ``FOR VERSION AS OF``,
-                Spark: ``VERSION AS OF``).
+            table: Which logical table to read — use the :class:`SCD2Table` enum
+                (``RAW``, ``SCD2``, or ``INTERMEDIARY``).
+            iceberg_meta_tablename: Optional Iceberg metadata table suffix (e.g.
+                ``"snapshots"``, ``"files"``) to query instead of the data table.
+            exclude_cols: Column names to drop from the result before returning.
+                Useful for omitting hash columns or metadata not relevant to
+                test assertions.
+            order_by_cols: Columns to sort the result by (ascending).  Providing
+                a stable sort order makes test assertions deterministic.
+            for_version: Optional Iceberg snapshot identifier for time-travel
+                queries.  Trino syntax: ``FOR VERSION AS OF <id>``;
+                Spark syntax: ``VERSION AS OF <id>``.
+
+        Returns:
+            A pandas DataFrame containing the requested table data.
         """
 
     @abstractmethod
     def optimize_table(self, table_name: str) -> None:
-        """Optimize the specified table.
+        """Compact small data files in the specified Iceberg table.
 
-        Returns:
-           None
+        Runs the engine-specific table optimization command (e.g.
+        ``ALTER TABLE … EXECUTE optimize`` for Trino, or the equivalent for
+        Spark) to merge small Parquet files produced by frequent MERGE operations
+        into larger, more efficient files.
+
+        Args:
+            table_name: Fully-qualified name of the table to optimize.
         """
 
     @abstractmethod
     def analyze_table(self, table_name: str) -> None:
-        """Analyze the specified table.
+        """Collect column-level statistics for the specified Iceberg table.
 
-        Returns:
-           None
+        Runs the engine-specific ANALYZE command so that the query planner has
+        up-to-date statistics for cardinality estimation and join optimization.
+
+        Args:
+            table_name: Fully-qualified name of the table to analyse.
         """
