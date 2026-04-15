@@ -40,6 +40,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_bks_with_type: Optional[list] = None,
         cols_val: Optional[list] = None,
         cols_val_with_type: Optional[list] = None,
+        use_delta_mode_for_raw_table: bool = False,
+        perform_merge_op: bool = True,
     ):
         super().__init__(
             raw_table_name,
@@ -49,6 +51,8 @@ class SparkSCD2Strategy(SCD2Strategy):
             cols_bks_with_type=cols_bks_with_type,
             cols_val=cols_val,
             cols_val_with_type=cols_val_with_type,
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            perform_merge_op=perform_merge_op,
         )
         self.spark = spark
         self.database = database
@@ -148,7 +152,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val: list,
         load_ts: datetime,
         load_ts_col: str,
-        use_delta_mode_for_raw_table: bool = False,
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
@@ -507,7 +510,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         self,
         load_ts: datetime,
         load_ts_col: str,
-        use_delta_mode_for_raw_table: bool = False,
     ) -> str:
         """Return the CTE + SELECT SQL to be run via spark.sql() and registered
         as a temp view with ``createOrReplaceTempView(scd2_view_name)``."""
@@ -516,7 +518,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             cols_val=self.cols_val,
             load_ts=load_ts,
             load_ts_col=load_ts_col,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
         return f"""
     CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
@@ -649,15 +650,12 @@ class SparkSCD2Strategy(SCD2Strategy):
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        perform_merge_op: bool = True,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:
         view_stmt = self.format_view(
             load_ts=load_ts,
             load_ts_col=load_ts_col,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
 
         logger.info(f"Creating SCD2 view: {view_stmt}...")
@@ -676,7 +674,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
-        if perform_merge_op:
+        if self.perform_merge_op:
             merge_stmt = self.format_merge(
                 current_ts=current_ts,
             )

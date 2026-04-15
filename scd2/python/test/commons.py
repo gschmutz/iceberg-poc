@@ -75,7 +75,8 @@ class TestCommonsBase:
 
     COLS_WITH_TYPE: list  # defined in each concrete subclass
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+                       use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -188,12 +189,12 @@ class TestCommonsBase:
         for idx, ins_stmt in enumerate(ins_stmts):
             self._execute_insert(ins_stmt, ctx)
 
-            self._make_strategy(ctx, cols_bks=cols_bks).merge_into_dim_table(
+            self._make_strategy(ctx, cols_bks=cols_bks,
+                                use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+                                perform_merge_op=perform_merge_op).merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
                 current_ts=current_ts_list[idx],
-                use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                perform_merge_op=perform_merge_op,
                 show_input_to_merge=True,
             )
 
@@ -264,12 +265,12 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        self._make_strategy(ctx, cols_bks=cols_bks).merge_into_dim_table(
+        self._make_strategy(ctx, cols_bks=cols_bks,
+                            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+                            perform_merge_op=perform_merge_op).merge_into_dim_table(
             load_ts=load_ts,
             load_ts_col="dp_loaded_at",
             current_ts=current_ts,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            perform_merge_op=perform_merge_op,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
         )
@@ -334,14 +335,14 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        strategy = self._make_strategy(ctx, cols_bks=cols_bks)
+        strategy = self._make_strategy(ctx, cols_bks=cols_bks,
+                                       use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+                                       perform_merge_op=perform_merge_op)
         for idx, load_ts in enumerate(load_ts_list):
             strategy.merge_into_dim_table(
                 load_ts=load_ts_list[idx],
                 load_ts_col="dp_loaded_at",
                 current_ts=current_ts_list[idx],
-                use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                perform_merge_op=perform_merge_op,
                 show_input_to_merge=show_input_to_merge,
                 output_file_name=output_file_name,
             )
@@ -426,7 +427,8 @@ class TrinoTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_TRINO
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+                       use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True):
         return TrinoSCD2Strategy(
             ctx.conn,
             s3_client=ctx.s3_client,
@@ -438,6 +440,8 @@ class TrinoTestCommons(TestCommonsBase):
             cols_bks_with_type=cols_bks_with_type,
             cols_val_with_type=self.COLS_WITH_TYPE,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            perform_merge_op=perform_merge_op,
         )
 
     def get_strategy_name(self):
@@ -494,7 +498,8 @@ class SparkTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+                       use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True):
         return SparkSCD2Strategy(
             ctx.spark,
             s3_client=ctx.s3_client,
@@ -505,6 +510,8 @@ class SparkTestCommons(TestCommonsBase):
             cols_bks_with_type=cols_bks_with_type,
             cols_val_with_type=self.COLS_WITH_TYPE,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            perform_merge_op=perform_merge_op,
         )
 
     def get_strategy_name(self):
@@ -555,7 +562,8 @@ class PySparkTestCommons(TestCommonsBase):
     ]
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"]):
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+                       use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True):
         return PySparkSCD2Strategy(
             ctx.spark,
             s3_client=ctx.s3_client,
@@ -566,6 +574,8 @@ class PySparkTestCommons(TestCommonsBase):
             cols_bks_with_type=cols_bks_with_type,
             cols_val_with_type=self.COLS_WITH_TYPE,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            perform_merge_op=perform_merge_op,
         )
 
     def get_strategy_name(self):

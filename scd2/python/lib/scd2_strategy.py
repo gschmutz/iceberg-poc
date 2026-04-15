@@ -36,6 +36,8 @@ class SCD2Strategy(ABC):
         cols_bks_with_type: Optional[list] = None,
         cols_val: Optional[list] = None,
         cols_val_with_type: Optional[list] = None,
+        use_delta_mode_for_raw_table: bool = False,
+        perform_merge_op: bool = True,
     ):
         self.raw_table_name = raw_table_name
         self.scd2_table_name = scd2_table_name
@@ -46,6 +48,8 @@ class SCD2Strategy(ABC):
         self.cols_bks_with_type = cols_bks_with_type
         self.cols_val = cols_val
         self.cols_val_with_type = cols_val_with_type
+        self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
+        self.perform_merge_op = perform_merge_op
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -123,7 +127,6 @@ class SCD2Strategy(ABC):
         self,
         load_ts: datetime,
         load_ts_col: str,
-        use_delta_mode_for_raw_table: bool = False,
     ) -> str:
         """Return the SQL that creates (or replaces) the SCD2 staging view."""
 
@@ -152,8 +155,6 @@ class SCD2Strategy(ABC):
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        perform_merge_op: bool = True,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:

@@ -115,7 +115,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         self,
         load_ts: datetime,
         load_ts_col: str,
-        use_delta_mode_for_raw_table: bool = False,
     ) -> DataFrame:
         """Build the staging DataFrame (PySpark equivalent of the SQL CTE chain
         ``changed_records → records_to_process → prepared_source``).
@@ -731,8 +730,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         load_ts: datetime,
         load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        perform_merge_op: bool = True,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:
@@ -740,7 +737,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         staging_df = self._build_staging_df(
             load_ts=load_ts,
             load_ts_col=load_ts_col,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
         )
 
         staging_df.show(truncate=False)
@@ -756,7 +752,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
-        if perform_merge_op:
+        if self.perform_merge_op:
             merge_stmt = self.format_merge(
                 current_ts=current_ts,
             )
