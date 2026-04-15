@@ -471,36 +471,37 @@ class TrinoTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
+
     def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
-        fqn = f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{SCD2_TABLE_NAME}"
         cursor = ctx.conn.cursor()
-        cursor.execute(f"DROP TABLE IF EXISTS {fqn}")
-        SCD2Strategy.delete_s3_location(
-            ctx.s3_client, S3_WAREHOUSE_BUCKET,
-            f"{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}",
+
+        drop_table_sql = (
+            f"DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}"
         )
-        pk_str = ", ".join(cols_bks_with_type)
-        cols_str = ", ".join(self.COLS_WITH_TYPE)
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {fqn} (
-                dp_key VARCHAR,
-                {pk_str},
-                {cols_str},
-                dp_ts_from TIMESTAMP,
-                dp_ts_to TIMESTAMP,
-                dp_is_active BOOLEAN,
-                dp_is_latest BOOLEAN,
-                dp_created_at TIMESTAMP,
-                dp_replaced_at TIMESTAMP,
-                record_hash VARCHAR
-            )
-            WITH (
-                partitioning = ARRAY['dp_ts_from'],
-                sorted_by = ARRAY[],
-                location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}'
-            )
-        """)
-        logger.info(f"Dimension table {fqn} created successfully.")
+        cursor.execute(drop_table_sql)
+        logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
+
+        create_table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
+            {", ".join(cols_bks_with_type)},
+            first_name VARCHAR,
+            last_name VARCHAR,
+            city VARCHAR,
+            email VARCHAR,
+            status VARCHAR,
+            dp_ts_from TIMESTAMP,
+            dp_loaded_at TIMESTAMP
+        )
+        WITH (
+            format = 'PARQUET',
+            partitioning = ARRAY['dp_loaded_at']
+        )
+        """
+
+        cursor.execute(create_table_sql)
+        logger.debug(
+            f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
+        )
 
     def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]) -> None:
         self._create_scd2_table_trino(ctx, cols_bks_with_type)
