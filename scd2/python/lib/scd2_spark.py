@@ -31,7 +31,6 @@ class SparkSCD2Strategy(SCD2Strategy):
     def __init__(
         self,
         spark,
-        s3_client,
         database: str,
         raw_table_name: str,
         scd2_table_name: str,
@@ -41,24 +40,27 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val: Optional[list] = None,
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
+        materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         load_ts_col: str = "load_ts",
     ):
         super().__init__(
-            raw_table_name,
-            scd2_table_name,
-            scd2_intermediary_table_name,
+            scd2_intermediary_table_name=(
+                    scd2_intermediary_table_name or f"{scd2_table_name}_temp"
+                    ),
             cols_bks=cols_bks,
             cols_bks_with_type=cols_bks_with_type,
             cols_val=cols_val,
             cols_val_with_type=cols_val_with_type,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             load_ts_col=load_ts_col,
         )
         self.spark = spark
         self.database = database
-        self.s3_client = s3_client
+        self.raw_table_name = raw_table_name
+        self.scd2_table_name = scd2_table_name
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -411,7 +413,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         -- Duplicate records for inserts
         SELECT
             NULL AS merge_key,
-            uuid() AS dp_key,
+            UUID()                              AS dp_key,
             {cols_bks_str},
             {cols_val_str},
             src_record_hash                     AS record_hash,
@@ -489,6 +491,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def format_merge(
         self,
+        source_view_name: str,
         current_ts: datetime,
     ) -> str:
         fv = self.format_values
@@ -501,8 +504,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         return f"""
-    MERGE INTO {self.scd2_table_fqn()} AS target
-    USING {self.scd2_intermediary_table_fqn()}_mv AS source
+    MERGE INTO {self.scd2_table_fqn()}  AS target
+    USING {source_view_name}            AS source
     ON target.dp_key = source.merge_key
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
@@ -566,9 +569,9 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         # Drop the S3 folder for the dimension table
         s3_path = f"warehouse/{scd2_intermediary_table_name}_mv"
-        self.delete_s3_location(
-            s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
-        )
+        #self.delete_s3_location(
+        #    s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
+        #)
 
         stmt = f"CREATE TABLE {self._fqn(scd2_intermediary_table_name)}_mv AS SELECT * FROM {self._fqn(scd2_intermediary_table_name)}"
 
@@ -596,8 +599,9 @@ class SparkSCD2Strategy(SCD2Strategy):
             f"SCD2 view {self.scd2_intermediary_table_name} created successfully."
         )
 
-        # have to materialize the view because of the UUID() function used for generating dp_key for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
-        self.materialize_view(self.scd2_intermediary_table_name)
+        if self.materialize_data_before_merge:
+            # have to materialize the view because of the UUID() function used for generating dp_key for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
+            self.materialize_view(self.scd2_intermediary_table_name)
 
         if show_input_to_merge:
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
@@ -605,6 +609,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
+                source_view_name=self.scd2_intermediary_table_fqn() + ("_mv" if self.materialize_data_before_merge else ""),
                 current_ts=current_ts,
             )
 

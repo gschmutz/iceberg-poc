@@ -423,7 +423,6 @@ class TrinoTestCommons(TestCommonsBase):
                        load_ts_col: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
-            s3_client=ctx.s3_client,
             catalog=TRINO_CATALOG,
             schema=TRINO_SCHEMA,
             raw_table_name=RAW_TABLE_NAME,
@@ -531,7 +530,6 @@ class SparkTestCommons(TestCommonsBase):
                        load_ts_col: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
-            s3_client=ctx.s3_client,
             database="default",
             raw_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
@@ -628,7 +626,6 @@ class PySparkTestCommons(SparkTestCommons):
                        load_ts_col: str = "dp_loaded_at"):
         return PySparkSCD2Strategy(
             ctx.spark,
-            s3_client=ctx.s3_client,
             database="default",
             raw_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
@@ -648,7 +645,7 @@ class PySparkTestCommons(SparkTestCommons):
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
 
-_impl: TestCommonsBase = TrinoTestCommons()
+_impl: TestCommonsBase = PySparkTestCommons()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE

@@ -97,25 +97,20 @@ class SCD2Strategy(ABC):
 
     def __init__(
         self,
-        raw_table_name: str,
-        scd2_table_name: str,
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_bks_with_type: Optional[list] = None,
         cols_val: Optional[list] = None,
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
-        materialize_data_before_merge: bool = False,
+        # TODO: have to change it to False as default
+        materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         load_ts_col: str = "load_ts",
     ):
         """Initialise the strategy with table names, column definitions, and behavior flags.
 
         Args:
-            raw_table_name: Unqualified name of the raw staging table that receives
-                source records for each load batch (e.g. ``"raw_person"``).
-            scd2_table_name: Unqualified name of the SCD2 dimension table
-                (e.g. ``"dim_person"``).
             scd2_intermediary_table_name: Unqualified name for the intermediary
                 view or materialized staging table used between change detection
                 and the MERGE statement.  Defaults to ``<scd2_table_name>_temp``.
@@ -149,11 +144,7 @@ class SCD2Strategy(ABC):
                 to :meth:`merge_into_scd2_table` filters the raw table on
                 ``load_ts_col = load_ts``.  Defaults to ``"load_ts"``.
         """
-        self.raw_table_name = raw_table_name
-        self.scd2_table_name = scd2_table_name
-        self.scd2_intermediary_table_name = (
-            scd2_intermediary_table_name or f"{scd2_table_name}_temp"
-        )
+        self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
         self.cols_bks_with_type = cols_bks_with_type
         self.cols_val = cols_val
@@ -346,6 +337,7 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def format_merge(
         self,
+        source_view_name: str,
         current_ts: datetime,
     ) -> str:
         """Return the ``MERGE INTO`` statement that applies SCD2 changes.

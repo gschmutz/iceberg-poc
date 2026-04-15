@@ -17,6 +17,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
     IS NOT DISTINCT FROM null-safe equality, to_hex/sha256 hashing, uuid()
     surrogate key generation).
 
+    Args:
+        raw_table_name: Unqualified name of the raw staging table that receives
+            source records for each load batch (e.g. ``"raw_person"``).
+        scd2_table_name: Unqualified name of the SCD2 dimension table
+            (e.g. ``"dim_person"``).    
+
     Usage::
 
         strategy = TrinoSCD2Strategy(conn, catalog="iceberg_hive", schema="default")
@@ -27,7 +33,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
     def __init__(
         self,
         conn,
-        s3_client,
         catalog: str,
         schema: str,
         raw_table_name: str,
@@ -42,8 +47,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         load_ts_col: str = "load_ts",
     ):
         super().__init__(
-            raw_table_name,
-            scd2_table_name,
             scd2_intermediary_table_name,
             cols_bks=cols_bks,
             cols_bks_with_type=cols_bks_with_type,
@@ -56,7 +59,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.conn = conn
         self.catalog = catalog
         self.schema = schema
-        self.s3_client = s3_client
+        self.raw_table_name = raw_table_name
+        self.scd2_table_name = scd2_table_name        
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -487,6 +491,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def format_merge(
         self,
+        source_view_name: str,
         current_ts: datetime,
     ) -> str:
         fv = self.format_values
@@ -499,8 +504,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         return f"""
-    MERGE INTO {self.scd2_table_fqn()} AS target
-    USING {self.scd2_intermediary_table_fqn()} AS source
+    MERGE INTO {self.scd2_table_fqn()}  AS target
+    USING {source_view_name}            AS source
     ON target.dp_key = source.merge_key
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
@@ -597,6 +602,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
+                source_view_name=self.scd2_intermediary_table_fqn(),
                 current_ts=current_ts,
             )
 

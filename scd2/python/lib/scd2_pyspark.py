@@ -34,6 +34,38 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         result, _ = strategy.merge_into_scd2_table(...)
     """
 
+    def __init__(
+        self,
+        spark,
+        database: str,
+        raw_table_name: str,
+        scd2_table_name: str,
+        scd2_intermediary_table_name: str = None,
+        cols_bks: Optional[list] = None,
+        cols_bks_with_type: Optional[list] = None,
+        cols_val: Optional[list] = None,
+        cols_val_with_type: Optional[list] = None,
+        use_delta_mode_for_raw_table: bool = False,
+        materialize_data_before_merge: bool = True,
+        perform_merge_op: bool = True,
+        load_ts_col: str = "load_ts",
+    ):
+        super().__init__(
+            spark=spark,
+            database=database,
+            raw_table_name=raw_table_name,
+            scd2_table_name=scd2_table_name,
+            scd2_intermediary_table_name=scd2_intermediary_table_name,
+            cols_bks=cols_bks,
+            cols_bks_with_type=cols_bks_with_type,
+            cols_val=cols_val,
+            cols_val_with_type=cols_val_with_type,
+            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            materialize_data_before_merge=materialize_data_before_merge,
+            perform_merge_op=perform_merge_op,
+            load_ts_col=load_ts_col,
+        ) 
+
     # ── PySpark-only helpers ──────────────────────────────────────────────────
 
     @staticmethod
@@ -133,6 +165,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
         src_df = (
             self.spark.table(self.raw_table_fqn())
+            #self.raw_table_df
             .filter(F.col(self.load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
             .select(
                 *[F.col(c) for c in self.cols_bks],
@@ -711,9 +744,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         self.spark.sql(f"DROP TABLE IF EXISTS {mv_fqn}")
 
         s3_path = f"warehouse/{mv_table}"
-        self.delete_s3_location(
-            s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
-        )
+        #self.delete_s3_location(
+        #    s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
+        #)
 
         (
             self.spark.table(scd2_intermediary_table_name)
@@ -733,6 +766,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
     ) -> tuple:
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
+            #source_df=self.source_df,
             load_ts=load_ts,
         )
 
@@ -751,6 +785,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
+                source_view_name=self.scd2_intermediary_table_fqn() + ("_mv" if self.materialize_data_before_merge else ""),
                 current_ts=current_ts,
             )
             logger.info(merge_stmt)
