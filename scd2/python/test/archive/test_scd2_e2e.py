@@ -22,7 +22,7 @@ from commons import (
     SCD2_VIEW_NAME,
     TRINO_CATALOG,
     TRINO_SCHEMA,
-    create_dim_table_for_test,
+    create_scd2_table_for_test,
     create_raw_table,
     scd2_merge_as_test,
 )
@@ -55,7 +55,7 @@ def test_step_1(ctx):
     )
 
     create_raw_table(ctx)
-    create_dim_table_for_test(ctx)
+    create_scd2_table_for_test(ctx)
     render_init("End-to-End SCD2 Test Case over multiple days", FILE_NAME)
     render_data(
         "This test performs SCD2 operations over 5 days.", output_file_name=FILE_NAME

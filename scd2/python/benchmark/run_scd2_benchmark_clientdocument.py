@@ -25,7 +25,7 @@ sys.path.append(
 from benchmark_commons import fmt_checksum_cols
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from scd2_trino import create_dim_table, merge_into_dim_table, optimize_table
+from scd2_trino import create_scd2_table, merge_into_scd2_table, optimize_table
 from util import (
     execute_with_metrics,
     get_credential,
@@ -281,7 +281,7 @@ def run_merge_all(
     raw_table_name = f"raw_{table_name}_{tshirt}"
 
     conn = get_trino_connection()
-    create_dim_table(
+    create_scd2_table(
         conn,
         TRINO_CATALOG,
         TRINO_SCHEMA,
@@ -299,7 +299,7 @@ def run_merge_all(
         load_date = start_ts + timedelta(days=day)
         logger.info(f"Processing load date: {load_date}")
 
-        result, iceberg_metadata = merge_into_dim_table(
+        result, iceberg_metadata = merge_into_scd2_table(
             conn=conn,
             trino_catalog=TRINO_CATALOG,
             trino_schema=TRINO_SCHEMA,

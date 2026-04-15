@@ -24,8 +24,8 @@ class SparkSCD2Strategy(SCD2Strategy):
     Usage::
 
         strategy = SparkSCD2Strategy(spark, database="default")
-        strategy.create_dim_table(dim_table_name, ...)
-        result, _ = strategy.merge_into_dim_table(raw_table_name, ...)
+        strategy.create_scd2_table(dim_table_name, ...)
+        result, _ = strategy.merge_into_scd2_table(raw_table_name, ...)
     """
 
     def __init__(
@@ -42,6 +42,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
         perform_merge_op: bool = True,
+        load_ts_col: str = "load_ts",
     ):
         super().__init__(
             raw_table_name,
@@ -53,6 +54,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             cols_val_with_type=cols_val_with_type,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
+            load_ts_col=load_ts_col,
         )
         self.spark = spark
         self.database = database
@@ -108,7 +110,7 @@ class SparkSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2)"""
 
-    def _format_create_dim_table(
+    def _format_create_scd2_table(
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
@@ -151,7 +153,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_bks: list,
         cols_val: list,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
@@ -172,7 +173,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
-            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{load_ts_col}, t.status,
+            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{self.load_ts_col}, t.status,
                 upper(
                     sha2(
                         concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
@@ -180,14 +181,14 @@ class SparkSCD2Strategy(SCD2Strategy):
                     )
                 ) AS record_hash
             FROM {self.raw_table_fqn()} AS t
-            WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
+            WHERE {self.load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
             src.dp_ts_from      AS src_dp_ts_from,
             src.record_hash     AS src_record_hash,
-            src.{load_ts_col}   AS load_ts,
+            src.{self.load_ts_col}   AS load_ts,
             src.status,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
@@ -509,7 +510,6 @@ class SparkSCD2Strategy(SCD2Strategy):
     def format_view(
         self,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> str:
         """Return the CTE + SELECT SQL to be run via spark.sql() and registered
         as a temp view with ``createOrReplaceTempView(scd2_view_name)``."""
@@ -517,7 +517,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             cols_bks=self.cols_bks,
             cols_val=self.cols_val,
             load_ts=load_ts,
-            load_ts_col=load_ts_col,
         )
         return f"""
     CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
@@ -583,7 +582,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
 
-    def create_dim_table(
+    def create_scd2_table(
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
@@ -601,7 +600,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
         )
 
-        create_stmt = self._format_create_dim_table(
+        create_stmt = self._format_create_scd2_table(
             s3_warehouse_bucket=s3_warehouse_bucket,
             s3_warehouse_prefix=s3_warehouse_prefix,
             cols_bks_with_type=self.cols_bks_with_type,
@@ -645,17 +644,15 @@ class SparkSCD2Strategy(SCD2Strategy):
         self.spark.sql(stmt)
         return f"{scd2_intermediary_table_name}_mv"
 
-    def merge_into_dim_table(
+    def merge_into_scd2_table(
         self,
         load_ts: datetime,
-        load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:
         view_stmt = self.format_view(
             load_ts=load_ts,
-            load_ts_col=load_ts_col,
         )
 
         logger.info(f"Creating SCD2 view: {view_stmt}...")

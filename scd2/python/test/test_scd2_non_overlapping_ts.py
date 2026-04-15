@@ -20,7 +20,7 @@ from commons import (
     S3_WAREHOUSE_BUCKET,
     S3_WAREHOUSE_PREFIX,
     SCD2_VIEW_NAME,
-    create_dim_table_for_test,
+    create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
     raw_table_fqn,
@@ -48,7 +48,7 @@ def test_step_1(ctx):
     )
 
     create_raw_table(ctx)
-    create_dim_table_for_test(ctx)
+    create_scd2_table_for_test(ctx)
 
     render_init("Testing that a new version added for an entity has non-overlapping timestamps", FILE_NAME)
     render_data(

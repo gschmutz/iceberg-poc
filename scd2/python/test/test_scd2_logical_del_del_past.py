@@ -20,7 +20,7 @@ from commons import (
     S3_WAREHOUSE_BUCKET,
     S3_WAREHOUSE_PREFIX,
     SCD2_VIEW_NAME,
-    create_dim_table_for_test,
+    create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
     raw_table_fqn,
@@ -52,7 +52,7 @@ def test_step_1(ctx):
     )
 
     create_raw_table(ctx)
-    create_dim_table_for_test(ctx)
+    create_scd2_table_for_test(ctx)
     render_init(
         "Testing Logical Delete Operation followed by a Delete Operation in the past",
         FILE_NAME,

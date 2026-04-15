@@ -38,6 +38,7 @@ class SCD2Strategy(ABC):
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
         perform_merge_op: bool = True,
+        load_ts_col: str = "load_ts",
     ):
         self.raw_table_name = raw_table_name
         self.scd2_table_name = scd2_table_name
@@ -50,6 +51,7 @@ class SCD2Strategy(ABC):
         self.cols_val_with_type = cols_val_with_type
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
         self.perform_merge_op = perform_merge_op
+        self.load_ts_col = load_ts_col
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -126,7 +128,6 @@ class SCD2Strategy(ABC):
     def format_view(
         self,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> str:
         """Return the SQL that creates (or replaces) the SCD2 staging view."""
 
@@ -140,7 +141,7 @@ class SCD2Strategy(ABC):
     # ── Abstract operations ─────────────────────────────────────────────────
 
     @abstractmethod
-    def create_dim_table(
+    def create_scd2_table(
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
@@ -150,10 +151,9 @@ class SCD2Strategy(ABC):
         """Drop and (re)create the SCD2 dimension table."""
 
     @abstractmethod
-    def merge_into_dim_table(
+    def merge_into_scd2_table(
         self,
         load_ts: datetime,
-        load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,

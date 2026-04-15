@@ -20,8 +20,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
     Usage::
 
         strategy = TrinoSCD2Strategy(conn, catalog="iceberg_hive", schema="default")
-        strategy.create_dim_table(dim_table_name, ...)
-        result, metadata = strategy.merge_into_dim_table(raw_table_name, ...)
+        strategy.create_scd2_table(dim_table_name, ...)
+        result, metadata = strategy.merge_into_scd2_table(raw_table_name, ...)
     """
 
     def __init__(
@@ -39,6 +39,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
         perform_merge_op: bool = True,
+        load_ts_col: str = "load_ts",
     ):
         super().__init__(
             raw_table_name,
@@ -50,6 +51,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             cols_val_with_type=cols_val_with_type,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
+            load_ts_col=load_ts_col,
         )
         self.conn = conn
         self.catalog = catalog
@@ -107,7 +109,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, is_del_2 BOOLEAN, del_key_2 VARCHAR))"
 
-    def _format_create_dim_table(
+    def _format_create_scd2_table(
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
@@ -152,7 +154,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cols_bks: list,
         cols_val: list,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
@@ -183,14 +184,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     )
                 ) AS record_hash
             FROM {self.raw_table_fqn()}
-            WHERE {load_ts_col} = TIMESTAMP '{load_ts_str}'
+            WHERE {self.load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
             src.dp_ts_from      AS src_dp_ts_from,
             src.record_hash     AS src_record_hash,
-            src.{load_ts_col}   AS load_ts,
+            src.{self.load_ts_col}   AS load_ts,
             src.status,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
@@ -511,13 +512,11 @@ class TrinoSCD2Strategy(SCD2Strategy):
     def format_view(
         self,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> str:
         cte = self._format_cte(
             cols_bks=self.cols_bks,
             cols_val=self.cols_val,
             load_ts=load_ts,
-            load_ts_col=load_ts_col,
         )
         return f"""
     CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
@@ -583,7 +582,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
 
-    def create_dim_table(
+    def create_scd2_table(
         self,
         s3_warehouse_bucket: str,
         s3_warehouse_prefix: str,
@@ -600,7 +599,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
         )
 
-        create_stmt = self._format_create_dim_table(
+        create_stmt = self._format_create_scd2_table(
             s3_warehouse_bucket=s3_warehouse_bucket,
             s3_warehouse_prefix=s3_warehouse_prefix,
             cols_bks_with_type=self.cols_bks_with_type,
@@ -644,17 +643,15 @@ class TrinoSCD2Strategy(SCD2Strategy):
         execute_with_metrics(self.conn.cursor(), stmt)
         logger.info(f"Analyze table for {table_name} executed successfully.")
 
-    def merge_into_dim_table(
+    def merge_into_scd2_table(
         self,
         load_ts: datetime,
-        load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> tuple:
         view_stmt = self.format_view(
             load_ts=load_ts,
-            load_ts_col=load_ts_col,
         )
 
         logger.debug(view_stmt)

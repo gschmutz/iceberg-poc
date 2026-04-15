@@ -30,8 +30,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         strategy = PySparkSCD2Strategy(spark, s3_client, database="default",
                                         raw_table_name="raw_person",
                                         scd2_table_name="dim_person")
-        strategy.create_dim_table(...)
-        result, _ = strategy.merge_into_dim_table(...)
+        strategy.create_scd2_table(...)
+        result, _ = strategy.merge_into_scd2_table(...)
     """
 
     # ── PySpark-only helpers ──────────────────────────────────────────────────
@@ -114,7 +114,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
     def _build_staging_df(
         self,
         load_ts: datetime,
-        load_ts_col: str,
     ) -> DataFrame:
         """Build the staging DataFrame (PySpark equivalent of the SQL CTE chain
         ``changed_records → records_to_process → prepared_source``).
@@ -134,12 +133,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
         src_df = (
             self.spark.table(self.raw_table_fqn())
-            .filter(F.col(load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
+            .filter(F.col(self.load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
             .select(
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
                 F.col("dp_ts_from").alias("src_dp_ts_from"),
-                F.col(load_ts_col).alias("load_ts"),
+                F.col(self.load_ts_col).alias("load_ts"),
                 F.col("status"),
                 hash_expr.alias("src_record_hash"),
             )
@@ -725,10 +724,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         logger.info(f"Materialized {mv_fqn} via PySpark write.")
         return mv_table
 
-    def merge_into_dim_table(
+    def merge_into_scd2_table(
         self,
         load_ts: datetime,
-        load_ts_col: str = "load_ts",
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
@@ -736,7 +734,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
             load_ts=load_ts,
-            load_ts_col=load_ts_col,
         )
 
         staging_df.show(truncate=False)
