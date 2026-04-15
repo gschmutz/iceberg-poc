@@ -109,46 +109,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, is_del_2 BOOLEAN, del_key_2 VARCHAR))"
 
-    def _format_create_scd2_table(
-        self,
-        s3_warehouse_bucket: str,
-        s3_warehouse_prefix: str,
-        cols_bks_with_type: list,
-        cols_val_with_type: Optional[list],
-        partitioning_cols: Optional[list],
-        sort_cols: Optional[list],
-    ) -> str:
-        pk_str = ", ".join(cols_bks_with_type) if cols_bks_with_type else ""
-        cols_str = ", ".join(cols_val_with_type) if cols_val_with_type else ""
-        partitioning_str = (
-            ", ".join(f"'{c}'" for c in partitioning_cols) if partitioning_cols else ""
-        )
-        sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
-
-        return f"""
-    CREATE TABLE IF NOT EXISTS {self.scd2_table_fqn()} (
-        dp_key VARCHAR,
-        {pk_str},
-        {cols_str},
-
-        -- SCD2 metadata columns
-        dp_ts_from TIMESTAMP,
-        dp_ts_to TIMESTAMP,
-        dp_is_active BOOLEAN,
-        dp_is_latest BOOLEAN,
-        dp_created_at TIMESTAMP,
-        dp_replaced_at TIMESTAMP,
-
-        -- Additional metadata
-        record_hash VARCHAR
-    )
-    WITH (
-        partitioning = ARRAY[{partitioning_str}],
-        sorted_by = ARRAY[{sorted_by_str}],
-        location = 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.schema}/{self.scd2_table_name}'
-    )
-    """
-
     def _format_cte(
         self,
         cols_bks: list,
@@ -581,35 +541,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
     """
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
-
-    def create_scd2_table(
-        self,
-        s3_warehouse_bucket: str,
-        s3_warehouse_prefix: str,
-        partition_cols: Optional[list] = None,
-        sort_cols: Optional[list] = None,
-    ) -> None:
-        drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
-        print(drop_stmt)
-        execute_with_metrics(self.conn.cursor(), drop_stmt)
-
-        # Drop the S3 folder for the dimension table
-        s3_path = f"{s3_warehouse_prefix}/{self.schema}/{self.scd2_table_name}"
-        self.delete_s3_location(
-            s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
-        )
-
-        create_stmt = self._format_create_scd2_table(
-            s3_warehouse_bucket=s3_warehouse_bucket,
-            s3_warehouse_prefix=s3_warehouse_prefix,
-            cols_bks_with_type=self.cols_bks_with_type,
-            cols_val_with_type=self.cols_val_with_type,
-            partitioning_cols=partition_cols,
-            sort_cols=sort_cols,
-        )
-        print(create_stmt)
-        self.conn.cursor().execute(create_stmt)
-        logger.info(f"Dimension table {self.scd2_table_fqn()} created successfully.")
 
     def retrieve_iceberg_metadata(self, dim_table_name: str):
         query = f"""

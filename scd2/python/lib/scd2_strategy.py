@@ -141,16 +141,6 @@ class SCD2Strategy(ABC):
     # ── Abstract operations ─────────────────────────────────────────────────
 
     @abstractmethod
-    def create_scd2_table(
-        self,
-        s3_warehouse_bucket: str,
-        s3_warehouse_prefix: str,
-        partition_cols: Optional[list] = None,
-        sort_cols: Optional[list] = None,
-    ) -> None:
-        """Drop and (re)create the SCD2 dimension table."""
-
-    @abstractmethod
     def merge_into_scd2_table(
         self,
         load_ts: datetime,

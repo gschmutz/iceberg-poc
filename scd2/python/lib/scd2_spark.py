@@ -110,44 +110,6 @@ class SparkSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2)"""
 
-    def _format_create_scd2_table(
-        self,
-        s3_warehouse_bucket: str,
-        s3_warehouse_prefix: str,
-        cols_bks_with_type: list,
-        cols_val_with_type: Optional[list],
-        partitioning_cols: Optional[list],
-        sort_cols: Optional[list],
-    ) -> str:
-        pk_str = ", ".join(cols_bks_with_type) if cols_bks_with_type else ""
-        cols_str = ", ".join(cols_val_with_type) if cols_val_with_type else ""
-        partitioning_str = (
-            ", ".join(f"{c}" for c in partitioning_cols) if partitioning_cols else ""
-        )
-        sorted_by_str = ", ".join(f"'{c}'" for c in sort_cols) if sort_cols else ""
-
-        return f"""
-    CREATE TABLE IF NOT EXISTS {self.scd2_table_fqn()} (
-        dp_key STRING,
-        {pk_str},
-        {cols_str},
-
-        -- SCD2 metadata columns
-        dp_ts_from TIMESTAMP,
-        dp_ts_to TIMESTAMP,
-        dp_is_active BOOLEAN,
-        dp_is_latest BOOLEAN,
-        dp_created_at TIMESTAMP,
-        dp_replaced_at TIMESTAMP,
-
-        -- Additional metadata
-        record_hash STRING
-    )
-    USING ICEBERG
-    PARTITIONED BY ({partitioning_str})
-    LOCATION 's3a://{s3_warehouse_bucket}/{s3_warehouse_prefix}/{self.database}/{self.scd2_table_name}'
-    """
-
     def _format_cte(
         self,
         cols_bks: list,
@@ -581,36 +543,6 @@ class SparkSCD2Strategy(SCD2Strategy):
     """
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
-
-    def create_scd2_table(
-        self,
-        s3_warehouse_bucket: str,
-        s3_warehouse_prefix: str,
-        partition_cols: Optional[list] = None,
-        sort_cols: Optional[list] = None,
-    ) -> None:
-
-        drop_stmt = f"DROP TABLE IF EXISTS {self.scd2_table_fqn()}"
-        print(drop_stmt)
-        self.spark.sql(drop_stmt)
-
-        # Drop the S3 folder for the dimension table
-        s3_path = f"{s3_warehouse_prefix}/{self.database}/{self.scd2_table_name}"
-        self.delete_s3_location(
-            s3_client=self.s3_client, bucket=s3_warehouse_bucket, path=s3_path
-        )
-
-        create_stmt = self._format_create_scd2_table(
-            s3_warehouse_bucket=s3_warehouse_bucket,
-            s3_warehouse_prefix=s3_warehouse_prefix,
-            cols_bks_with_type=self.cols_bks_with_type,
-            cols_val_with_type=self.cols_val_with_type,
-            partitioning_cols=partition_cols,
-            sort_cols=sort_cols,
-        )
-        print(create_stmt)
-        self.spark.sql(create_stmt)
-        logger.info(f"Dimension table {self.scd2_table_fqn()} created successfully.")
 
     def optimize_table(self, table_name: str) -> None:
         stmt = f"""

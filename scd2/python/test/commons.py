@@ -14,7 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib"
 from constants import MAX_TS
 from scd2_pyspark import PySparkSCD2Strategy
 from scd2_spark import SparkSCD2Strategy
-from scd2_strategy import SCD2Table
+from scd2_strategy import SCD2Strategy, SCD2Table
 from scd2_trino import TrinoSCD2Strategy
 from util import (
     diff_with_color,
@@ -91,6 +91,9 @@ class TestCommonsBase:
 
     def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
         raise NotImplementedError
+    
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
+        raise NotImplementedError
 
     def raw_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
         return self._make_strategy(ctx).raw_table_fqn(
@@ -125,15 +128,6 @@ class TestCommonsBase:
             exclude_cols=exclude_cols,
             order_by_cols=order_by_cols,
             for_version=for_version,
-        )
-
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
-        cols_bks = [col.split()[0] for col in cols_bks_with_type]
-        self._make_strategy(ctx, cols_bks=cols_bks, cols_bks_with_type=cols_bks_with_type).create_scd2_table(
-            s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
-            s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-            partition_cols=["dp_ts_from"],
-            sort_cols=[],
         )
 
     def normalize_ts_for_assert(value):
@@ -413,7 +407,6 @@ class TestCommonsBase:
 # Concrete strategy-specific subclasses
 # ---------------------------------------------------------------------------
 
-
 class TrinoTestCommons(TestCommonsBase):
     STRATEGY = "TRINO"
 
@@ -443,40 +436,74 @@ class TrinoTestCommons(TestCommonsBase):
             perform_merge_op=perform_merge_op,
             load_ts_col=load_ts_col,
         )
+    
+    def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list) -> None:
+        fqn = f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{SCD2_TABLE_NAME}"
+        cursor = ctx.conn.cursor()
+        cursor.execute(f"DROP TABLE IF EXISTS {fqn}")
+        SCD2Strategy.delete_s3_location(
+            ctx.s3_client, S3_WAREHOUSE_BUCKET,
+            f"{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}",
+        )
+        pk_str = ", ".join(cols_bks_with_type)
+        cols_str = ", ".join(self.COLS_WITH_TYPE)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {fqn} (
+                dp_key VARCHAR,
+                {pk_str},
+                {cols_str},
+                dp_ts_from TIMESTAMP,
+                dp_ts_to TIMESTAMP,
+                dp_is_active BOOLEAN,
+                dp_is_latest BOOLEAN,
+                dp_created_at TIMESTAMP,
+                dp_replaced_at TIMESTAMP,
+                record_hash VARCHAR
+            )
+            WITH (
+                partitioning = ARRAY['dp_ts_from'],
+                sorted_by = ARRAY[],
+                location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}'
+            )
+        """)
+        logger.info(f"Dimension table {fqn} created successfully.")   
 
     def get_strategy_name(self):
         return self.STRATEGY
 
     def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
+        fqn = f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{SCD2_TABLE_NAME}"
         cursor = ctx.conn.cursor()
+        cursor.execute(f"DROP TABLE IF EXISTS {fqn}")
+        SCD2Strategy.delete_s3_location(
+            ctx.s3_client, S3_WAREHOUSE_BUCKET,
+            f"{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}",
+        )
+        pk_str = ", ".join(cols_bks_with_type)
+        cols_str = ", ".join(self.COLS_WITH_TYPE)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {fqn} (
+                dp_key VARCHAR,
+                {pk_str},
+                {cols_str},
+                dp_ts_from TIMESTAMP,
+                dp_ts_to TIMESTAMP,
+                dp_is_active BOOLEAN,
+                dp_is_latest BOOLEAN,
+                dp_created_at TIMESTAMP,
+                dp_replaced_at TIMESTAMP,
+                record_hash VARCHAR
+            )
+            WITH (
+                partitioning = ARRAY['dp_ts_from'],
+                sorted_by = ARRAY[],
+                location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}'
+            )
+        """)
+        logger.info(f"Dimension table {fqn} created successfully.")
 
-        drop_table_sql = (
-            f"DROP TABLE IF EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME}"
-        )
-        cursor.execute(drop_table_sql)
-        logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
-
-        create_table_sql = f"""
-        CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
-            {", ".join(cols_bks_with_type)},
-            first_name VARCHAR,
-            last_name VARCHAR,
-            city VARCHAR,
-            email VARCHAR,
-            status VARCHAR,
-            dp_ts_from TIMESTAMP,
-            dp_loaded_at TIMESTAMP
-        )
-        WITH (
-            format = 'PARQUET',
-            partitioning = ARRAY['dp_loaded_at']
-        )
-        """
-
-        cursor.execute(create_table_sql)
-        logger.debug(
-            f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
-        )
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]) -> None:
+        self._create_scd2_table_trino(ctx, cols_bks_with_type)
 
     def _execute_insert(self, ins_stmt: str, ctx):
         cursor = ctx.conn.cursor()
@@ -516,6 +543,35 @@ class SparkTestCommons(TestCommonsBase):
             load_ts_col=load_ts_col,
         )
 
+    def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list) -> None:
+        """Shared Spark/PySpark implementation for creating the SCD2 dimension table."""
+        fqn = f"default.{SCD2_TABLE_NAME}"
+        ctx.spark.sql(f"DROP TABLE IF EXISTS {fqn}")
+        SCD2Strategy.delete_s3_location(
+            ctx.s3_client, S3_WAREHOUSE_BUCKET,
+            f"{S3_WAREHOUSE_PREFIX}/default/{SCD2_TABLE_NAME}",
+        )
+        pk_str = ", ".join(cols_bks_with_type)
+        cols_str = ", ".join(self.COLS_WITH_TYPE)
+        ctx.spark.sql(f"""
+            CREATE TABLE IF NOT EXISTS {fqn} (
+                dp_key STRING,
+                {pk_str},
+                {cols_str},
+                dp_ts_from TIMESTAMP,
+                dp_ts_to TIMESTAMP,
+                dp_is_active BOOLEAN,
+                dp_is_latest BOOLEAN,
+                dp_created_at TIMESTAMP,
+                dp_replaced_at TIMESTAMP,
+                record_hash STRING
+            )
+            USING ICEBERG
+            PARTITIONED BY (dp_ts_from)
+            LOCATION 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/default/{SCD2_TABLE_NAME}'
+        """)
+        logger.info(f"Dimension table {fqn} created successfully.")
+
     def get_strategy_name(self):
         return self.STRATEGY
 
@@ -545,6 +601,9 @@ class SparkTestCommons(TestCommonsBase):
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
         )
 
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]) -> None:
+        self._create_scd2_table_spark(ctx, cols_bks_with_type)
+
     def _execute_insert(self, ins_stmt, ctx):
         ctx.spark.sql(ins_stmt)
 
@@ -552,8 +611,7 @@ class SparkTestCommons(TestCommonsBase):
         df = ctx.spark.sql(sel_stmt).toPandas()
         return df
 
-
-class PySparkTestCommons(TestCommonsBase):
+class PySparkTestCommons(SparkTestCommons):
     STRATEGY = "PYSPARK"
 
     COLS_WITH_TYPE_SPARK = [
@@ -585,45 +643,11 @@ class PySparkTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
-    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
-        drop_table_sql = f"DROP TABLE IF EXISTS default.{RAW_TABLE_NAME}"
-        ctx.spark.sql(drop_table_sql)
-        logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
-
-        create_table_sql = f"""
-        CREATE TABLE IF NOT EXISTS default.{RAW_TABLE_NAME} (
-            {", ".join(cols_bks_with_type)},
-            first_name STRING,
-            last_name STRING,
-            city STRING,
-            email STRING,
-            status STRING,
-            dp_ts_from TIMESTAMP,
-            dp_loaded_at TIMESTAMP
-        )
-        USING ICEBERG
-        PARTITIONED BY (dp_loaded_at)
-        LOCATION 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/default/{RAW_TABLE_NAME}'
-        """
-
-        ctx.spark.sql(create_table_sql)
-        logger.debug(
-            f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
-        )
-
-    def _execute_insert(self, ins_stmt, ctx):
-        ctx.spark.sql(ins_stmt)
-
-    def execute_select(self, sel_stmt: str, ctx) -> pd.DataFrame:
-        df = ctx.spark.sql(sel_stmt).toPandas()
-        return df
-
-
 # ---------------------------------------------------------------------------
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
 
-_impl: TestCommonsBase = SparkTestCommons()
+_impl: TestCommonsBase = TrinoTestCommons()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
