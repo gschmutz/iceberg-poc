@@ -83,9 +83,7 @@ class SCD2Strategy(ABC):
             raw_table_name="raw_person",
             scd2_table_name="dim_person",
             cols_bks=["id"],
-            cols_bks_with_type=["id INT"],
             cols_val=["first_name", "last_name", "city"],
-            cols_val_with_type=["first_name VARCHAR", "last_name VARCHAR", "city VARCHAR"],
             load_ts_col="dp_loaded_at",
             use_delta_mode_for_raw_table=False,
             perform_merge_op=True,
@@ -100,9 +98,7 @@ class SCD2Strategy(ABC):
         self,
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
-        cols_bks_with_type: Optional[list] = None,
         cols_val: Optional[list] = None,
-        cols_val_with_type: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
         # TODO: have to change it to False as default
         materialize_data_before_merge: bool = True,
@@ -117,13 +113,8 @@ class SCD2Strategy(ABC):
                 and the MERGE statement.  Defaults to ``<scd2_table_name>_temp``.
             cols_bks: Business-key column names used to identify an entity across
                 versions (e.g. ``["id"]`` or ``["tenant_id", "user_id"]``).
-            cols_bks_with_type: Business-key columns with their engine-specific SQL
-                type declarations (e.g. ``["id INT"]``).  Used when (re)creating
-                the SCD2 table.
             cols_val: Value column names whose changes trigger a new SCD2 version
                 (e.g. ``["first_name", "last_name", "city"]``).
-            cols_val_with_type: Value columns with type declarations
-                (e.g. ``["first_name VARCHAR", "city VARCHAR"]``).
             use_delta_mode_for_raw_table: Controls how the absence of an entity
                 in the current raw batch is interpreted.
 
@@ -147,9 +138,7 @@ class SCD2Strategy(ABC):
         """
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
-        self.cols_bks_with_type = cols_bks_with_type
         self.cols_val = cols_val
-        self.cols_val_with_type = cols_val_with_type
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
