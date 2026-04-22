@@ -544,21 +544,6 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
 
-    def optimize_table(self, table_name: str) -> None:
-        stmt = f"""
-            ALTER TABLE {table_name}
-            EXECUTE optimize (file_size_threshold => '256MB')
-        """
-        print(stmt)
-        # execute_with_metrics(self.conn.cursor(), stmt)
-        logger.info(f"Optimize table for {table_name} executed successfully.")
-
-    def analyze_table(self, table_name: str) -> None:
-        stmt = f"ANALYZE {table_name}"
-        print(stmt)
-        # execute_with_metrics(self.conn.cursor(), stmt)
-        logger.info(f"Analyze table for {table_name} executed successfully.")
-
     def materialize_view(self, scd2_intermediary_table_name: str) -> str:
 
         stmt = f"DROP TABLE IF EXISTS {self._fqn(scd2_intermediary_table_name)}_mv"

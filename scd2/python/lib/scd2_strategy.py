@@ -450,27 +450,3 @@ class SCD2Strategy(ABC):
         Returns:
             A pandas DataFrame containing the requested table data.
         """
-
-    @abstractmethod
-    def optimize_table(self, table_name: str) -> None:
-        """Compact small data files in the specified Iceberg table.
-
-        Runs the engine-specific table optimization command (e.g.
-        ``ALTER TABLE … EXECUTE optimize`` for Trino, or the equivalent for
-        Spark) to merge small Parquet files produced by frequent MERGE operations
-        into larger, more efficient files.
-
-        Args:
-            table_name: Fully-qualified name of the table to optimize.
-        """
-
-    @abstractmethod
-    def analyze_table(self, table_name: str) -> None:
-        """Collect column-level statistics for the specified Iceberg table.
-
-        Runs the engine-specific ANALYZE command so that the query planner has
-        up-to-date statistics for cardinality estimation and join optimization.
-
-        Args:
-            table_name: Fully-qualified name of the table to analyse.
-        """
