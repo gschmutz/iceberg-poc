@@ -4,7 +4,7 @@ from typing import Optional
 
 import pandas as pd
 from scd2_strategy import SCD2Strategy, SCD2Table
-from util import execute_with_metrics, render_table
+from util import render_table
 from pyspark.sql import DataFrame
 
 logging.basicConfig(level=logging.INFO)
@@ -589,7 +589,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
             )
 
             logger.info(merge_stmt)
-            result = execute_with_metrics(self.conn.cursor(), merge_stmt)
+
+            cursor = self.conn.cursor()
+            result = cursor.execute(merge_stmt)
             logger.info(f"Merge result: {result}")        
 
     def merge_into_scd2_table_and_return_as_df(

@@ -7,8 +7,7 @@ import pytest
 import trino
 from pyspark.sql import SparkSession
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from util import get_credential, get_param
+from common_utils import get_credential, get_param
 
 TRINO_USER = get_credential("TRINO_USER", "trino")
 TRINO_PASSWORD = get_credential("TRINO_PASSWORD", "")
