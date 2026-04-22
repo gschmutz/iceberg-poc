@@ -4,6 +4,7 @@ from typing import Optional
 
 import pandas as pd
 from pyspark.sql.types import TimestampNTZType, TimestampType
+from pyspark.sql import DataFrame
 from scd2_strategy import SCD2Strategy, SCD2Table
 from util import render_table
 
@@ -585,7 +586,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> tuple:
+    ):
         view_stmt = self.format_view(
             load_ts=load_ts,
         )
@@ -621,9 +622,21 @@ class SparkSCD2Strategy(SCD2Strategy):
                 logger.error(f"Error executing merge statement: {e}")
                 result = None
 
-            return result, None  # Spark has no Iceberg metadata query equivalent
+    def merge_into_scd2_table_and_return_as_df(
+        self,
+        load_ts: datetime,
+        current_ts: Optional[datetime] = None,
+        show_input_to_merge: bool = False,
+        output_file_name: Optional[str] = None,
+    ) -> DataFrame:
+        self.merge_into_scd2_table(
+            load_ts=load_ts,
+            current_ts=current_ts,
+            show_input_to_merge=show_input_to_merge,
+            output_file_name=output_file_name,
+        )
+        return self.spark.table(self.scd2_table_fqn())
 
-        return None, None
 
     def get_table_data(
         self,

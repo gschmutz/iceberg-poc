@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from pyspark.sql import DataFrame
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -369,7 +370,7 @@ class SCD2Strategy(ABC):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> tuple:
+    ):
         """Execute the full SCD2 merge pipeline for one load batch.
 
         Orchestrates the complete view-then-merge workflow:
@@ -395,11 +396,41 @@ class SCD2Strategy(ABC):
                 provided, rendered output is appended to this file.
 
         Returns:
-            A ``(result, iceberg_metadata)`` tuple.  ``result`` is the raw engine
-            result of the MERGE statement (row-count record for Trino, DataFrame
-            for Spark).  ``iceberg_metadata`` is engine-specific snapshot
-            information or ``None``.  Both values are ``None`` when
-            ``self.perform_merge_op`` is ``False``.
+        """
+
+    @abstractmethod
+    def merge_into_scd2_table_and_return_as_df(
+        self,
+        load_ts: datetime,
+        current_ts: Optional[datetime] = None,
+        show_input_to_merge: bool = False,
+        output_file_name: Optional[str] = None,
+    ) -> DataFrame:
+        """Execute the full SCD2 merge pipeline for one load batch.
+
+        Orchestrates the complete view-then-merge workflow:
+
+        1. Calls :meth:`format_view` and registers the intermediary staging view.
+        2. If ``self.materialize_data_before_merge`` is ``True``, writes the view
+           to a physical table to avoid non-deterministic function issues in MERGE.
+        3. Optionally renders the staged records for debugging
+           (``show_input_to_merge``).
+        4. If ``self.perform_merge_op`` is ``True``, calls :meth:`format_merge`
+           and executes the MERGE statement against the SCD2 table.
+
+        Args:
+            load_ts: Timestamp identifying the raw-table batch to process.
+                Passed through to :meth:`format_view`.
+            current_ts: Wall-clock timestamp used as ``dp_created_at`` for new
+                version rows.  Defaults to ``None`` (implementations may default
+                to ``datetime.now()``).
+            show_input_to_merge: When ``True``, the contents of the intermediary
+                staging view are printed/rendered before the MERGE executes.
+                Useful for debugging.
+            output_file_name: Optional path for a Markdown report file.  When
+                provided, rendered output is appended to this file.
+
+        Returns:
         """
 
     @abstractmethod

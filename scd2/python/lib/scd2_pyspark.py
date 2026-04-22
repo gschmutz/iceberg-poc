@@ -39,6 +39,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         spark,
         database: str,
         raw_table_name: str,
+        raw_table_df: DataFrame,
         scd2_table_name: str,
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
@@ -65,6 +66,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             perform_merge_op=perform_merge_op,
             load_ts_col=load_ts_col,
         ) 
+
+        self.raw_table_df = raw_table_df
 
     # ── PySpark-only helpers ──────────────────────────────────────────────────
 
@@ -164,8 +167,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in all_cols]), 256)
         )
         src_df = (
-            self.spark.table(self.raw_table_fqn())
-            #self.raw_table_df
+            #self.spark.table(self.raw_table_fqn())
+            self.raw_table_df
             .filter(F.col(self.load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
             .select(
                 *[F.col(c) for c in self.cols_bks],
@@ -763,7 +766,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> tuple:
+    ):
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
             #source_df=self.source_df,
@@ -794,11 +797,23 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 result.show(truncate=False)
             except Exception as e:
                 logger.error(f"Error executing merge statement: {e}")
-                result = None
+                raise e
 
-            return result, None
-
-        return None, None
+    def merge_into_scd2_table_and_return_as_df(
+        self,
+        load_ts: datetime,
+        current_ts: Optional[datetime] = None,
+        show_input_to_merge: bool = False,
+        output_file_name: Optional[str] = None,
+    ) -> DataFrame:
+        """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL, returning the post-merge SCD2 table as a DataFrame."""
+        self.merge_into_scd2_table(
+            load_ts=load_ts,
+            current_ts=current_ts,
+            show_input_to_merge=show_input_to_merge,
+            output_file_name=output_file_name,
+        )
+        return self.spark.table(self.scd2_table_fqn())
 
     def get_table_data(
         self,

@@ -5,6 +5,7 @@ from typing import Optional
 import pandas as pd
 from scd2_strategy import SCD2Strategy, SCD2Table
 from util import execute_with_metrics, render_table
+from pyspark.sql import DataFrame
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -585,7 +586,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> tuple:
+    ):
         view_stmt = self.format_view(
             load_ts=load_ts,
         )
@@ -608,11 +609,17 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
             logger.info(merge_stmt)
             result = execute_with_metrics(self.conn.cursor(), merge_stmt)
-            logger.info(f"Merge result: {result}")
-            # iceberg_metadata = self.retrieve_iceberg_metadata(dim_table_name)
-            return result, None
+            logger.info(f"Merge result: {result}")        
 
-        return None, None
+    def merge_into_scd2_table_and_return_as_df(
+        self,
+        load_ts: datetime,
+        current_ts: Optional[datetime] = None,
+        show_input_to_merge: bool = False,
+        output_file_name: Optional[str] = None,
+    ) -> DataFrame:
+        raise NotImplementedError("This method is not implemented for Trino as we are not in a spark environment.")
+
 
     def get_table_data(
         self,

@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import pandas as pd
 import trino
+from pyspark.sql import DataFrame
 
 np.set_printoptions(threshold=np.inf)
 
@@ -259,14 +260,16 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        self._make_strategy(ctx, cols_bks=cols_bks,
+        df = self._make_strategy(ctx, cols_bks=cols_bks,
                             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                            perform_merge_op=perform_merge_op).merge_into_scd2_table(
+                            perform_merge_op=perform_merge_op).merge_into_scd2_table_and_return_as_df(
             load_ts=load_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
         )
+
+        assert df.count() > 0, "The DataFrame returned by merge_into_scd2_table_and_return_as_df should contain the input to the merge operation, which has more than 0 records."
 
         if display_result:
             df = self.get_table_data(
@@ -624,10 +627,12 @@ class PySparkTestCommons(SparkTestCommons):
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
                        load_ts_col: str = "dp_loaded_at"):
+        
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
             raw_table_name=RAW_TABLE_NAME,
+            raw_table_df=ctx.spark.table("default." + RAW_TABLE_NAME),
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_bks_with_type=cols_bks_with_type,
@@ -721,7 +726,7 @@ def scd2_merge_as_preparation(
     test_description: str = None,
     cols_bks: list = ["id"],
 ):
-    return _impl.scd2_merge_as_preparation(
+    _impl.scd2_merge_as_preparation(
         ctx,
         ins_stmts=ins_stmts,
         load_ts_list=load_ts_list,
@@ -752,7 +757,7 @@ def scd2_merge_as_test(
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
 ):
-    return _impl.scd2_merge_as_test(
+    _impl.scd2_merge_as_test(
         ctx,
         test_step=test_step,
         ins_stmt=ins_stmt,
@@ -769,7 +774,6 @@ def scd2_merge_as_test(
         cols_bks=cols_bks,
     )
 
-
 def scd2_merge_as_test2(
     ctx,
     test_step,
@@ -785,7 +789,7 @@ def scd2_merge_as_test2(
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
 ):
-    return _impl.scd2_merge_as_test2(
+    _impl.scd2_merge_as_test2(
         ctx,
         test_step=test_step,
         load_ts_list=load_ts_list,
@@ -801,6 +805,38 @@ def scd2_merge_as_test2(
         cols_bks=cols_bks,
     )
 
+def scd2_merge_as_test_return_as_df(
+    ctx,
+    test_step: int,
+    ins_stmt: str,
+    load_ts: datetime,
+    current_ts: datetime,
+    expected=None,
+    output_file_name: str = None,
+    test_description: str = None,
+    test_after_description: str = None,
+    perform_merge_op: bool = True,
+    use_delta_mode_for_raw_table: bool = False,
+    display_result: bool = True,
+    show_input_to_merge: bool = True,
+    cols_bks: list = ["id"],
+) -> DataFrame:
+    return _impl.scd2_merge_as_test_return_as_df(
+        ctx,
+        test_step=test_step,
+        ins_stmt=ins_stmt,
+        load_ts=load_ts,
+        current_ts=current_ts,
+        expected=expected,
+        output_file_name=output_file_name,
+        test_description=test_description,
+        test_after_description=test_after_description,
+        perform_merge_op=perform_merge_op,
+        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+        display_result=display_result,
+        show_input_to_merge=show_input_to_merge,
+        cols_bks=cols_bks,
+    )
 
 def scd2_sel_as_test(
     ctx,
