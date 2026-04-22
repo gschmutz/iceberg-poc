@@ -8,12 +8,8 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 
 from util import (
-    get_credential,
-    get_param,
     render_data,
     render_init,
-    render_table,
-    replace_vars_in_string,
 )
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))

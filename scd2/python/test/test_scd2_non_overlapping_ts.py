@@ -5,11 +5,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from util import (
-    get_credential,
-    get_param,
     render_data,
     render_init,
-    replace_vars_in_string,   
 )
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
