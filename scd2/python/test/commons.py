@@ -60,7 +60,7 @@ RAW_TABLE_NAME = "raw_person"
 SCD2_TABLE_NAME = "dim_person"
 SCD2_VIEW_NAME = "view_person_scd2"
 
-EXCLUDE_COLS = ["record_hash", "dp_load_timestamp", "change_type"]
+EXCLUDE_COLS = ["dp_record_hash", "dp_load_timestamp", "change_type"]
 LOAD_TS_COL = "dp_loaded_at"
 
 
@@ -454,7 +454,7 @@ class TrinoTestCommons(TestCommonsBase):
                 dp_is_latest BOOLEAN,
                 dp_created_at TIMESTAMP,
                 dp_replaced_at TIMESTAMP,
-                record_hash VARCHAR
+                dp_record_hash VARCHAR
             )
             WITH (
                 partitioning = ARRAY['dp_ts_from'],
@@ -558,7 +558,7 @@ class SparkTestCommons(TestCommonsBase):
                 dp_is_latest BOOLEAN,
                 dp_created_at TIMESTAMP,
                 dp_replaced_at TIMESTAMP,
-                record_hash STRING
+                dp_record_hash STRING
             )
             USING ICEBERG
             PARTITIONED BY (dp_ts_from)

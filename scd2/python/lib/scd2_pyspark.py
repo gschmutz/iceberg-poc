@@ -151,7 +151,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         Returns a DataFrame with columns::
 
-            merge_record_id, dp_record_id, <pk_cols>, <val_cols>, record_hash,
+            merge_record_id, dp_record_id, <pk_cols>, <val_cols>, dp_record_hash,
             load_ts, status, operation_type, case_name,
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
@@ -172,7 +172,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 F.col("dp_ts_from").alias("src_dp_ts_from"),
                 F.col(self.load_ts_col).alias("load_ts"),
                 F.col("status"),
-                hash_expr.alias("src_record_hash"),
+                hash_expr.alias("src_dp_record_hash"),
             )
         )
 
@@ -181,7 +181,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         overlap_df = scd2_df.select(
             *[F.col(c).alias(f"overlap_{c}") for c in self.cols_bks],
-            F.col("record_hash").alias("overlap_record_hash"),
+            F.col("dp_record_hash").alias("overlap_dp_record_hash"),
             F.col("dp_record_id").alias("overlap_dp_record_id"),
             F.col("dp_ts_from").alias("overlap_dp_ts_from"),
             F.col("dp_ts_to").alias("overlap_dp_ts_to"),
@@ -192,7 +192,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         prev_df = scd2_df.select(
             *[F.col(c).alias(f"prev_{c}") for c in self.cols_bks],
             F.col("dp_record_id").alias("prev_dp_record_id"),
-            F.col("record_hash").alias("prev_record_hash"),
+            F.col("dp_record_hash").alias("prev_dp_record_hash"),
             F.col("dp_ts_from").alias("prev_dp_ts_from"),
             F.col("dp_ts_to").alias("prev_dp_ts_to"),
             F.col("dp_is_active").alias("prev_dp_is_active"),
@@ -202,7 +202,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         next_df = scd2_df.filter(F.col("dp_is_active") == True).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
             F.col("dp_record_id").alias("next_dp_record_id"),
-            F.col("record_hash").alias("next_record_hash"),
+            F.col("dp_record_hash").alias("next_dp_record_hash"),
             F.col("dp_ts_from").alias("next_dp_ts_from"),
             F.col("dp_ts_to").alias("next_dp_ts_to"),
             F.col("dp_is_active").alias("next_dp_is_active"),
@@ -243,16 +243,16 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         def same_as_src(hash_col):
             return (
                 F.when(F.col(hash_col).isNull(), F.lit(None).cast("boolean"))
-                .when(F.col("src_record_hash") == F.col(hash_col), F.lit(True))
+                .when(F.col("src_dp_record_hash") == F.col(hash_col), F.lit(True))
                 .otherwise(F.lit(False))
             )
 
         records_df = (
             changed_df.withColumn(
-                "overlap_is_same_as_src", same_as_src("overlap_record_hash")
+                "overlap_is_same_as_src", same_as_src("overlap_dp_record_hash")
             )
-            .withColumn("prev_is_same_as_src", same_as_src("prev_record_hash"))
-            .withColumn("next_is_same_as_src", same_as_src("next_record_hash"))
+            .withColumn("prev_is_same_as_src", same_as_src("prev_dp_record_hash"))
+            .withColumn("next_is_same_as_src", same_as_src("next_dp_record_hash"))
             .withColumn(
                 "prev_with_gap",
                 F.col("prev_dp_ts_to") < (F.col("src_dp_ts_from") - F.expr(_ONE_SEC)),
@@ -669,7 +669,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             return [
                 *pk_cols,
                 *val_cols,
-                F.col("src_record_hash").alias("record_hash"),
+                F.col("src_dp_record_hash").alias("dp_record_hash"),
                 F.col("load_ts"),
                 F.col("status"),
                 F.lit(op_type).alias("operation_type"),

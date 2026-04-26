@@ -17,7 +17,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     All SQL is generated in Spark SQL dialect (STRING casts, <=> null-safe
     equality, regular LEFT JOINs with conditions in the ON clause,
-    upper(sha2(..., 256)) hashing, record_hash as surrogate key).
+    upper(sha2(..., 256)) hashing, dp_record_hash as surrogate key).
 
     The staging view is materialised as a Spark temp view via
     ``createOrReplaceTempView`` rather than as a catalog view.
@@ -140,7 +140,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                         concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
                         ), 256
                     )
-                ) AS record_hash
+                ) AS dp_record_hash
             FROM {self.raw_table_fqn()} AS t
             WHERE {self.load_ts_col} = TIMESTAMP '{load_ts_str}'
         )
@@ -148,32 +148,32 @@ class SparkSCD2Strategy(SCD2Strategy):
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
             src.dp_ts_from      AS src_dp_ts_from,
-            src.record_hash     AS src_record_hash,
+            src.dp_record_hash     AS src_dp_record_hash,
             src.{self.load_ts_col}   AS load_ts,
             src.status,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
             overlap.dp_record_id                                                                                                          AS overlap_dp_record_id,
-            CASE WHEN overlap.record_hash IS NULL THEN NULL WHEN src.record_hash = overlap.record_hash THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
+            CASE WHEN overlap.dp_record_hash IS NULL THEN NULL WHEN src.dp_record_hash = overlap.dp_record_hash THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
             overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
             prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
             prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
             prev.dp_record_id                                                                                                             AS prev_dp_record_id,
             prev.dp_is_active                                                                                                       AS prev_dp_is_active,
             prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
-            CASE WHEN prev.record_hash IS NULL THEN NULL WHEN src.record_hash = prev.record_hash THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
+            CASE WHEN prev.dp_record_hash IS NULL THEN NULL WHEN src.dp_record_hash = prev.dp_record_hash THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
             prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,      
             next.dp_ts_from                                                                                                         AS next_dp_ts_from,
             next.dp_ts_to                                                                                                           AS next_dp_ts_to,
             next.dp_record_id                                                                                                             AS next_dp_record_id,
             next.dp_is_active                                                                                                       AS next_dp_is_active,
             next.dp_is_latest                                                                                                       AS next_dp_is_latest,
-            CASE WHEN next.record_hash IS NULL THEN NULL WHEN src.record_hash = next.record_hash THEN TRUE ELSE FALSE END           AS next_is_same_as_src
+            CASE WHEN next.dp_record_hash IS NULL THEN NULL WHEN src.dp_record_hash = next.dp_record_hash THEN TRUE ELSE FALSE END           AS next_is_same_as_src
         FROM src_records AS src
         LEFT JOIN (
             SELECT
                 {cols_bks_str},
-                record_hash,
+                dp_record_hash,
                 dp_record_id,
                 dp_ts_to,
                 dp_ts_from,
@@ -187,7 +187,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             SELECT
                 dp_record_id,
                 {cols_bks_str},
-                record_hash,
+                dp_record_hash,
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
@@ -201,7 +201,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             SELECT
                 dp_record_id,
                 {cols_bks_str},
-                record_hash,
+                dp_record_hash,
                 dp_ts_from,
                 dp_ts_to,
                 dp_is_active,
@@ -373,7 +373,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             situation.upd_key                   AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
-            src_record_hash                     AS record_hash,
+            src_dp_record_hash                     AS dp_record_hash,
             load_ts,
             status,
             'UPDATE_VERSION'                    AS operation_type,
@@ -393,7 +393,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             situation.upd_key_2                 AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
-            src_record_hash                     AS record_hash,
+            src_dp_record_hash                     AS dp_record_hash,
             load_ts,
             status,
             'UPDATE_VERSION'                    AS operation_type,
@@ -413,7 +413,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             UUID()                              AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
-            src_record_hash                     AS record_hash,
+            src_dp_record_hash                     AS dp_record_hash,
             load_ts,
             status,
             'INSERT_NEW_VERSION'                AS operation_type,
@@ -433,7 +433,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             situation.del_key AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
-            src_record_hash                     AS record_hash,
+            src_dp_record_hash                     AS dp_record_hash,
             load_ts,
             status,
             'DELETE_VERSION'                    AS operation_type,
@@ -452,7 +452,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             situation.del_key_2 AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
-            src_record_hash                     AS record_hash,
+            src_dp_record_hash                     AS dp_record_hash,
             load_ts,
             status,
             'DELETE_VERSION'                    AS operation_type,
@@ -527,7 +527,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         dp_is_latest,
         dp_created_at,
         dp_replaced_at,
-        record_hash
+        dp_record_hash
     ) VALUES (
         source.dp_record_id,
         {fv(ap(self.cols_bks, "source"))},
@@ -538,7 +538,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         source.dp_is_latest,
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '9999-12-31 23:59:59',
-        source.record_hash
+        source.dp_record_hash
     )
     """
 

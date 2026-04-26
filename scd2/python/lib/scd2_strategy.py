@@ -71,7 +71,7 @@ class SCD2Strategy(ABC):
     * ``dp_is_latest``   – ``True`` for the most recent version (even if deleted).
     * ``dp_created_at``  – Timestamp when this version row was first inserted.
     * ``dp_replaced_at`` – Timestamp when this version was superseded (or NULL).
-    * ``record_hash``    – SHA-256 hash of all business columns for change detection.
+    * ``dp_record_hash`` – SHA-256 hash of all business columns for change detection.
 
     Typical usage
     --------------
@@ -340,7 +340,7 @@ class SCD2Strategy(ABC):
           ``dp_is_latest``.
         * **Unmatched rows** (``merge_key`` is NULL) → INSERT: writes a new
           version with ``dp_ts_from``, ``dp_ts_to = MAX_TS``, a new ``dp_record_id``
-          UUID, and the current SHA-256 ``record_hash``.
+          UUID, and the current SHA-256 ``dp_record_hash``.
 
         Args:
             current_ts: Wall-clock timestamp used as ``dp_created_at`` for newly
