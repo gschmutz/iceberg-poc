@@ -258,16 +258,14 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        df = self._make_strategy(ctx, cols_bks=cols_bks,
+        self._make_strategy(ctx, cols_bks=cols_bks,
                             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                            perform_merge_op=perform_merge_op).merge_into_scd2_table_and_return_as_df(
+                            perform_merge_op=perform_merge_op).merge_into_scd2_table(
             load_ts=load_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
         )
-
-        #assert df.count() > 0, "The DataFrame returned by merge_into_scd2_table_and_return_as_df should contain the input to the merge operation, which has more than 0 records."
 
         if display_result:
             df = self.get_table_data(
