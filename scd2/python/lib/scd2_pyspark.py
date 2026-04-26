@@ -769,14 +769,17 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             load_ts=load_ts,
         )
 
-        staging_df.show(truncate=False)
+        #staging_df.show(truncate=False)
+        # We register the staging DataFrame as a temp view to be used as the source in the MERGE statement.  We can't use the DataFrame directly in the MERGE.
         staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
         logger.info(
             f"SCD2 staging view '{self.scd2_intermediary_table_name}' registered."
         )
 
-        # have to materialize the view because of the UUID() function used for generating dp_key for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
-        self.materialize_view(self.scd2_intermediary_table_name)
+        # have to materialize the view because of the UUID() function used for generating dp_record_id for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
+        if self.materialize_data_before_merge:
+            self.materialize_view(self.scd2_intermediary_table_name)
+
 
         if show_input_to_merge:
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
