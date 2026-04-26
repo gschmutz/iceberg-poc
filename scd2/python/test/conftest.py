@@ -32,8 +32,8 @@ def spark():
     spark = (
         SparkSession.builder.master("local[*]")
         .appName("pytest-pyspark")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .config("spark.driver.host", "127.0.0.1")
+        .config("spark.driver.bindAddress", "dataplatform")
+        .config("spark.driver.host", "dataplatform")
         # Keep tests deterministic & reasonably fast
         .config("spark.ui.enabled", "false")
         .config("spark.driver.memory", "8g")
@@ -48,7 +48,7 @@ def spark():
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.sql.catalog.hiverest", "org.apache.iceberg.spark.SparkCatalog")
         .config("spark.sql.catalog.hiverest.type", "rest")
-        .config("spark.sql.catalog.hiverest.uri", "http://localhost:9084/iceberg")
+        .config("spark.sql.catalog.hiverest.uri", "http://dataplatform:9084/iceberg")
         .config("spark.sql.catalog.hiverest.token", "not_used")  # adjust as needed
         .config(
             "spark.sql.catalog.hiverest.warehouse",
@@ -61,7 +61,7 @@ def spark():
             "spark.sql.catalog.hiverest.s3.secret-access-key", "abc123abc123"
         )  # adjust as needed
         .config(
-            "spark.sql.catalog.hiverest.s3.endpoint", "http://localhost:9000"
+            "spark.sql.catalog.hiverest.s3.endpoint", "http://dataplatform:9000"
         )  # adjust as needed
         .config("spark.sql.catalog.hiverest.s3.path-style-access", "true")
         .config(
