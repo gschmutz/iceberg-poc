@@ -94,7 +94,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
     ):
         """PySpark Column equivalent of :meth:`_format_case_object`.
 
-        Column references (e.g. ``'overlap_dp_key'``) are resolved at
+        Column references (e.g. ``'overlap_dp_record_id'``) are resolved at
         evaluation time against the DataFrame the struct is applied to.
         SQL expressions (e.g. ``"TIMESTAMP '9999-12-31 23:59:59'"`` or
         ``"src_dp_ts_from - INTERVAL '1' SECOND"``) are handled via
@@ -151,7 +151,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         Returns a DataFrame with columns::
 
-            merge_key, dp_key, <pk_cols>, <val_cols>, record_hash,
+            merge_record_id, dp_record_id, <pk_cols>, <val_cols>, record_hash,
             load_ts, status, operation_type, case_name,
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
@@ -182,7 +182,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         overlap_df = scd2_df.select(
             *[F.col(c).alias(f"overlap_{c}") for c in self.cols_bks],
             F.col("record_hash").alias("overlap_record_hash"),
-            F.col("dp_key").alias("overlap_dp_key"),
+            F.col("dp_record_id").alias("overlap_dp_record_id"),
             F.col("dp_ts_from").alias("overlap_dp_ts_from"),
             F.col("dp_ts_to").alias("overlap_dp_ts_to"),
             F.col("dp_is_active").alias("overlap_dp_is_active"),
@@ -191,7 +191,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         prev_df = scd2_df.select(
             *[F.col(c).alias(f"prev_{c}") for c in self.cols_bks],
-            F.col("dp_key").alias("prev_dp_key"),
+            F.col("dp_record_id").alias("prev_dp_record_id"),
             F.col("record_hash").alias("prev_record_hash"),
             F.col("dp_ts_from").alias("prev_dp_ts_from"),
             F.col("dp_ts_to").alias("prev_dp_ts_to"),
@@ -201,7 +201,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         next_df = scd2_df.filter(F.col("dp_is_active") == True).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
-            F.col("dp_key").alias("next_dp_key"),
+            F.col("dp_record_id").alias("next_dp_record_id"),
             F.col("record_hash").alias("next_record_hash"),
             F.col("dp_ts_from").alias("next_dp_ts_from"),
             F.col("dp_ts_to").alias("next_dp_ts_to"),
@@ -294,7 +294,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_10",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=_MAX_TS,
                     upd_dp_is_active="True",
@@ -313,7 +313,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_11",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
@@ -340,7 +340,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_13",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
@@ -361,13 +361,13 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_14",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="False",
                     is_upd_2=True,
-                    upd_key_2="next_dp_key",
+                    upd_key_2="next_dp_record_id",
                     upd_dp_ts_from_2="src_dp_ts_from",
                     upd_dp_ts_to_2="next_dp_ts_to",
                 ),
@@ -389,7 +389,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_16",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to="overlap_dp_ts_to",
                     upd_dp_is_active="False",
@@ -405,13 +405,13 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_17",
                     is_upd=True,
-                    upd_key="next_dp_key",
+                    upd_key="next_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="next_dp_ts_to",
                     is_del=True,
-                    del_key="overlap_dp_key",
+                    del_key="overlap_dp_record_id",
                     is_del_2=True,
-                    del_key_2="prev_dp_key",
+                    del_key_2="prev_dp_record_id",
                 ),
             )
             .when(
@@ -423,7 +423,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_18",
                     is_upd=True,
-                    upd_key="next_dp_key",
+                    upd_key="next_dp_record_id",
                     upd_dp_ts_from="src_dp_ts_from",
                     upd_dp_ts_to="next_dp_ts_to",
                 ),
@@ -453,7 +453,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_20",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to=_MAX_TS,
                     upd_dp_is_active="True",
@@ -470,7 +470,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_21",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="prev_dp_ts_to",
                     upd_dp_is_active="False",
@@ -492,7 +492,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_22",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="prev_dp_ts_to",
                     upd_dp_is_active="False",
@@ -514,7 +514,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_23",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="prev_dp_ts_to",
                     upd_dp_is_active="False",
@@ -535,7 +535,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_24",
                     is_upd=True,
-                    upd_key="next_dp_key",
+                    upd_key="next_dp_record_id",
                     upd_dp_ts_from="src_dp_ts_from",
                     upd_dp_ts_to="next_dp_ts_to",
                 ),
@@ -549,7 +549,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_25",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to=f"next_dp_ts_from - {_ONE_SEC}",
                 ),
@@ -563,13 +563,13 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_26",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="next_dp_ts_to",
                     upd_dp_is_active="next_dp_is_active",
                     upd_dp_is_latest="next_dp_is_latest",
                     is_del=True,
-                    del_key="next_dp_key",
+                    del_key="next_dp_record_id",
                 ),
             )
             .when(
@@ -596,7 +596,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_30",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
@@ -612,7 +612,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_31",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
@@ -628,7 +628,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_32",
                     is_upd=True,
-                    upd_key="overlap_dp_key",
+                    upd_key="overlap_dp_record_id",
                     upd_dp_ts_from="overlap_dp_ts_from",
                     upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
                     upd_dp_is_active="False",
@@ -644,13 +644,13 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 s(
                     "CASE_33",
                     is_upd=True,
-                    upd_key="prev_dp_key",
+                    upd_key="prev_dp_record_id",
                     upd_dp_ts_from="prev_dp_ts_from",
                     upd_dp_ts_to="prev_dp_ts_to",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="True",
                     is_del=True,
-                    del_key="overlap_dp_key",
+                    del_key="overlap_dp_record_id",
                 ),
             )
             .otherwise(F.lit(None))
@@ -677,8 +677,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             ]
 
         updates_df = records_df.filter(F.col("situation.is_upd") == True).select(
-            F.col("situation.upd_key").alias("merge_key"),
-            F.col("situation.upd_key").alias("dp_key"),
+            F.col("situation.upd_key").alias("merge_record_id"),
+            F.col("situation.upd_key").alias("dp_record_id"),
             *_common("UPDATE_VERSION"),
             F.col("situation.upd_dp_ts_from").alias("dp_ts_from"),
             F.col("situation.upd_dp_ts_to").alias("dp_ts_to"),
@@ -687,8 +687,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         updates_2_df = records_df.filter(F.col("situation.is_upd_2") == True).select(
-            F.col("situation.upd_key_2").alias("merge_key"),
-            F.col("situation.upd_key_2").alias("dp_key"),
+            F.col("situation.upd_key_2").alias("merge_record_id"),
+            F.col("situation.upd_key_2").alias("dp_record_id"),
             *_common("UPDATE_VERSION"),
             F.col("situation.upd_dp_ts_from_2").alias("dp_ts_from"),
             F.col("situation.upd_dp_ts_to_2").alias("dp_ts_to"),
@@ -697,8 +697,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         inserts_df = records_df.filter(F.col("situation.is_ins") == True).select(
-            F.lit(None).cast("string").alias("merge_key"),
-            F.expr("uuid()").alias("dp_key"),
+            F.lit(None).cast("string").alias("merge_record_id"),
+            F.expr("uuid()").alias("dp_record_id"),
             *_common("INSERT_NEW_VERSION"),
             F.col("situation.ins_dp_ts_from").alias("dp_ts_from"),
             F.col("situation.ins_dp_ts_to").alias("dp_ts_to"),
@@ -707,8 +707,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         deletes_df = records_df.filter(F.col("situation.is_del") == True).select(
-            F.col("situation.del_key").alias("merge_key"),
-            F.col("situation.del_key").alias("dp_key"),
+            F.col("situation.del_key").alias("merge_record_id"),
+            F.col("situation.del_key").alias("dp_record_id"),
             *_common("DELETE_VERSION"),
             null_ts.alias("dp_ts_from"),
             null_ts.alias("dp_ts_to"),
@@ -717,8 +717,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         deletes_2_df = records_df.filter(F.col("situation.is_del_2") == True).select(
-            F.col("situation.del_key_2").alias("merge_key"),
-            F.col("situation.del_key_2").alias("dp_key"),
+            F.col("situation.del_key_2").alias("merge_record_id"),
+            F.col("situation.del_key_2").alias("dp_record_id"),
             *_common("DELETE_VERSION"),
             null_ts.alias("dp_ts_from"),
             null_ts.alias("dp_ts_to"),
@@ -782,7 +782,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
 
         if show_input_to_merge:
-            df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_key"])
+            df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
         if self.perform_merge_op:

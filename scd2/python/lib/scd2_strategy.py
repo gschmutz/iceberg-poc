@@ -64,7 +64,7 @@ class SCD2Strategy(ABC):
     --------------------------------
     Every row in the SCD2 table carries the following engine-managed columns:
 
-    * ``dp_key``         – UUID surrogate key (unique per version row).
+    * ``dp_record_id``   – UUID surrogate key (unique per version row).
     * ``dp_ts_from``     – Effective start timestamp of this version.
     * ``dp_ts_to``       – Effective end timestamp (``9999-12-31 23:59:59`` = open).
     * ``dp_is_active``   – ``True`` while the entity is not soft-deleted.
@@ -333,13 +333,13 @@ class SCD2Strategy(ABC):
         """Return the ``MERGE INTO`` statement that applies SCD2 changes.
 
         The MERGE matches rows from the intermediary staging view against the
-        SCD2 dimension table on ``merge_key = dp_key``:
+        SCD2 dimension table on ``merge_key = dp_record_id``:
 
         * **Matched rows** (``merge_key`` is not NULL) → UPDATE: closes the
           existing version by setting ``dp_ts_to``, ``dp_is_active``, and
           ``dp_is_latest``.
         * **Unmatched rows** (``merge_key`` is NULL) → INSERT: writes a new
-          version with ``dp_ts_from``, ``dp_ts_to = MAX_TS``, a new ``dp_key``
+          version with ``dp_ts_from``, ``dp_ts_to = MAX_TS``, a new ``dp_record_id``
           UUID, and the current SHA-256 ``record_hash``.
 
         Args:
