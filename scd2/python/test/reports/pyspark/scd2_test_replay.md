@@ -4,7 +4,7 @@ This test validates multiple operations on one entity over time producing many v
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-04-10 14:30:00`
+ * **Last Run:** `2026-04-26 20:40:36`
 ### Perform Preparation
 
 
@@ -27,15 +27,15 @@ This test validates multiple operations on one entity over time producing many v
 **Dimensional Table `dim_person`**
 
 
-| dp_key                               |   id | first_name   | last_name    | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+| dp_record_id                         |   id | first_name   | last_name    | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|--------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| ca15937f-de4a-4e52-a18f-1d089a071c3c |    1 | Alice        | Meyer        | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 5dd9311c-470f-4572-af1b-b334f550ab8a |    1 | Alice        | Meyer        | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          | 2026-01-06 00:00:00 | 2026-01-11 00:00:00 |
-| 77597df0-81c2-4c0e-a4c2-1de434c31249 |    1 | Alice        | Meyer        | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-19 23:59:59 | False          | False          | 2026-01-11 00:00:00 | 2026-01-21 00:00:00 |
-| 0ab7d77b-0cd6-4701-a339-c0b7f6c019fd |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-21 00:00:00 | 9999-12-31 23:59:59 |
-| 5f0cf41f-0daf-40fa-aa6e-0dd71270963b |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| ca368622-7b46-4926-8fd4-354a15935dc0 |    1 | Alice        | Meyer        | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| a2aa8052-9729-41cc-bed3-8b371c5e897c |    1 | Alice        | Meyer        | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          | 2026-01-06 00:00:00 | 2026-01-11 00:00:00 |
+| 0a69f923-6977-4fb3-b00c-5028aab48d06 |    1 | Alice        | Meyer        | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-19 23:59:59 | False          | False          | 2026-01-11 00:00:00 | 2026-01-21 00:00:00 |
+| f743b853-0fc5-4fca-bf55-3646ceb873d5 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-21 00:00:00 | 9999-12-31 23:59:59 |
+| 6ac4f216-9578-462c-bb56-7d3ed5527c6e |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
 
-_the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
+_the following columns where excluded from the result: `dp_record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 4
 At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD2 merge.
@@ -60,45 +60,45 @@ At 2026-01-20 00:00:00, update `last_name` of entity with `id=1` and perform SCD
 **Input to Merge**
 
 
-| merge_key   | dp_key   | id   | first_name   | last_name   | city   | email   | record_hash   | load_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
-|-------------|----------|------|--------------|-------------|--------|---------|---------------|-----------|----------|------------------|-------------|--------------|------------|----------------|----------------|
+| merge_record_id   | dp_record_id   | id   | first_name   | last_name   | city   | email   | dp_record_hash   | dp_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
+|-------------------|----------------|------|--------------|-------------|--------|---------|------------------|---------|----------|------------------|-------------|--------------|------------|----------------|----------------|
 
 
 
 **Input to Merge**
 
 
-| merge_key   | dp_key   | id   | first_name   | last_name   | city   | email   | record_hash   | load_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
-|-------------|----------|------|--------------|-------------|--------|---------|---------------|-----------|----------|------------------|-------------|--------------|------------|----------------|----------------|
+| merge_record_id   | dp_record_id   | id   | first_name   | last_name   | city   | email   | dp_record_hash   | dp_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
+|-------------------|----------------|------|--------------|-------------|--------|---------|------------------|---------|----------|------------------|-------------|--------------|------------|----------------|----------------|
 
 
 
 **Input to Merge**
 
 
-| merge_key   | dp_key   | id   | first_name   | last_name   | city   | email   | record_hash   | load_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
-|-------------|----------|------|--------------|-------------|--------|---------|---------------|-----------|----------|------------------|-------------|--------------|------------|----------------|----------------|
+| merge_record_id   | dp_record_id   | id   | first_name   | last_name   | city   | email   | dp_record_hash   | dp_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
+|-------------------|----------------|------|--------------|-------------|--------|---------|------------------|---------|----------|------------------|-------------|--------------|------------|----------------|----------------|
 
 
 
 **Input to Merge**
 
 
-| merge_key   | dp_key   | id   | first_name   | last_name   | city   | email   | record_hash   | load_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
-|-------------|----------|------|--------------|-------------|--------|---------|---------------|-----------|----------|------------------|-------------|--------------|------------|----------------|----------------|
+| merge_record_id   | dp_record_id   | id   | first_name   | last_name   | city   | email   | dp_record_hash   | dp_ts   | status   | operation_type   | case_name   | dp_ts_from   | dp_ts_to   | dp_is_active   | dp_is_latest   |
+|-------------------|----------------|------|--------------|-------------|--------|---------|------------------|---------|----------|------------------|-------------|--------------|------------|----------------|----------------|
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_key                               |   id | first_name   | last_name    | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+| dp_record_id                         |   id | first_name   | last_name    | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|--------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| ca15937f-de4a-4e52-a18f-1d089a071c3c |    1 | Alice        | Meyer        | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 5dd9311c-470f-4572-af1b-b334f550ab8a |    1 | Alice        | Meyer        | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          | 2026-01-06 00:00:00 | 2026-01-11 00:00:00 |
-| 77597df0-81c2-4c0e-a4c2-1de434c31249 |    1 | Alice        | Meyer        | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-19 23:59:59 | False          | False          | 2026-01-11 00:00:00 | 2026-01-21 00:00:00 |
-| 0ab7d77b-0cd6-4701-a339-c0b7f6c019fd |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-21 00:00:00 | 9999-12-31 23:59:59 |
-| 5f0cf41f-0daf-40fa-aa6e-0dd71270963b |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| ca368622-7b46-4926-8fd4-354a15935dc0 |    1 | Alice        | Meyer        | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| a2aa8052-9729-41cc-bed3-8b371c5e897c |    1 | Alice        | Meyer        | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          | 2026-01-06 00:00:00 | 2026-01-11 00:00:00 |
+| 0a69f923-6977-4fb3-b00c-5028aab48d06 |    1 | Alice        | Meyer        | Bern   | alice.meyer@newmail.com | 2026-01-10 00:00:00 | 2026-01-19 23:59:59 | False          | False          | 2026-01-11 00:00:00 | 2026-01-21 00:00:00 |
+| f743b853-0fc5-4fca-bf55-3646ceb873d5 |    1 | Alice        | Müller-Meyer | Bern   | alice.meyer@newmail.com | 2026-01-20 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-21 00:00:00 | 9999-12-31 23:59:59 |
+| 6ac4f216-9578-462c-bb56-7d3ed5527c6e |    2 | Bob          | Keller       | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
 
-_the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
+_the following columns where excluded from the result: `dp_record_hash, dp_load_timestamp, change_type`_
 

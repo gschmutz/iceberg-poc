@@ -107,7 +107,7 @@ def test_step_1(ctx):
     scd2_merge_as_preparation(
         ctx,
         ins_stmts=[insert_sql_1, insert_sql_2],
-        load_ts_list=[load_ts_1, load_ts_2],
+        dp_ts_list=[load_ts_1, load_ts_2],
         current_ts_list=[current_ts_1, current_ts_2],
         output_file_name=FILE_NAME,
         display_result=True,
@@ -122,7 +122,7 @@ def test_step_1(ctx):
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
                 dp_created_at, dp_replaced_at,
-                record_hash 
+                dp_record_hash 
         FROM {scd2_table_fqn(ctx)}
         WHERE dp_is_active = TRUE
         ORDER BY id

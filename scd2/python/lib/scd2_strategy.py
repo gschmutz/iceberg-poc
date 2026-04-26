@@ -48,7 +48,7 @@ class SCD2Strategy(ABC):
     Merge pipeline (view-then-merge pattern)
     -----------------------------------------
     1. Source records for the current batch are read from the **raw table**
-       filtered on ``load_ts_col``.
+       filtered on ``dp_ts_filter_col``.
     2. A SHA-256 row hash is computed over all business-key and value columns
        (``concat_ws('||', ...)`` + SHA-256) for change detection.
     3. Each source record is FULL OUTER JOINed against the existing SCD2 table
@@ -84,12 +84,12 @@ class SCD2Strategy(ABC):
             scd2_table_name="dim_person",
             cols_bks=["id"],
             cols_val=["first_name", "last_name", "city"],
-            load_ts_col="dp_loaded_at",
+            dp_ts_filter_col="dp_ts",
             use_delta_mode_for_raw_table=False,
             perform_merge_op=True,
         )
         result, metadata = strategy.merge_into_scd2_table(
-            load_ts=datetime(2024, 1, 15, 10, 0, 0),
+            dp_ts=datetime(2024, 1, 15, 10, 0, 0),
             current_ts=datetime.now(),
         )
     """
@@ -103,7 +103,8 @@ class SCD2Strategy(ABC):
         # TODO: have to change it to False as default
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
-        load_ts_col: str = "load_ts",
+        dp_ts_col: str = "dp_ts_version",
+        dp_ts_filter_col: str = "dp_ts",
     ):
         """Initialise the strategy with table names, column definitions, and behavior flags.
 
@@ -131,10 +132,14 @@ class SCD2Strategy(ABC):
             perform_merge_op: When ``False`` the pipeline stops after creating the
                 intermediary view, allowing callers to inspect the staged records
                 without modifying the SCD2 table.  Defaults to ``True``.
-            load_ts_col: Name of the timestamp column in the raw table that
+            dp_ts_col: Name of the timestamp column in the SCD2 table that
+                identifies the version start (e.g. ``"dp_ts_from"``).  Each call
+                to :meth:`merge_into_scd2_table` uses this column to track the
+                validity period of each version.  Defaults to ``"dp_ts_from"``.
+            dp_ts_filter_col: Name of the timestamp column in the raw table that
                 identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
                 to :meth:`merge_into_scd2_table` filters the raw table on
-                ``load_ts_col = load_ts``.  Defaults to ``"load_ts"``.
+                ``dp_ts_filter_col = dp_ts``.  Defaults to ``"dp_ts"``.
         """
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
@@ -142,7 +147,8 @@ class SCD2Strategy(ABC):
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
-        self.load_ts_col = load_ts_col
+        self.dp_ts_col = dp_ts_col
+        self.dp_ts_filter_col = dp_ts_filter_col
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -298,14 +304,14 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def format_view(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
     ) -> str:
         """Return the SQL statement that builds the intermediary SCD2 staging view.
 
         The generated SQL contains a chain of CTEs that:
 
         1. Reads and hashes source records from the raw table for the given
-           ``load_ts`` batch (filtered on ``self.load_ts_col``).
+           ``dp_ts`` batch (filtered on ``self.dp_ts_filter_col``).
         2. FULL OUTER JOINs each source record against the current, previous,
            and next SCD2 versions to detect overlaps and gaps.
         3. Classifies each record as NEW, CHANGED, DELETED, or UNCHANGED.
@@ -316,8 +322,8 @@ class SCD2Strategy(ABC):
         The resulting view is used as the MERGE source in :meth:`format_merge`.
 
         Args:
-            load_ts: Timestamp that identifies the raw-table batch to process.
-                Only rows where ``<load_ts_col> = load_ts`` are read.
+            dp_ts: Timestamp that identifies the raw-table batch to process.
+                Only rows where ``<dp_ts_filter_col> = dp_ts`` are read.
 
         Returns:
             A ``CREATE OR REPLACE VIEW … AS …`` SQL string (Trino) or the raw
@@ -355,7 +361,7 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def merge_into_scd2_table(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
@@ -373,7 +379,7 @@ class SCD2Strategy(ABC):
            and executes the MERGE statement against the SCD2 table.
 
         Args:
-            load_ts: Timestamp identifying the raw-table batch to process.
+            dp_ts: Timestamp identifying the raw-table batch to process.
                 Passed through to :meth:`format_view`.
             current_ts: Wall-clock timestamp used as ``dp_created_at`` for new
                 version rows.  Defaults to ``None`` (implementations may default
@@ -390,7 +396,7 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def merge_into_scd2_table_and_return_as_df(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
@@ -408,7 +414,7 @@ class SCD2Strategy(ABC):
            and executes the MERGE statement against the SCD2 table.
 
         Args:
-            load_ts: Timestamp identifying the raw-table batch to process.
+            dp_ts: Timestamp identifying the raw-table batch to process.
                 Passed through to :meth:`format_view`.
             current_ts: Wall-clock timestamp used as ``dp_created_at`` for new
                 version rows.  Defaults to ``None`` (implementations may default

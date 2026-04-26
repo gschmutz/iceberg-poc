@@ -82,7 +82,7 @@ def test_step_1(ctx):
     scd2_merge_as_preparation(
         ctx,
         ins_stmts=[insert_sql_1],
-        load_ts_list=[load_ts_1],
+        dp_ts_list=[load_ts_1],
         current_ts_list=[current_ts_1],
     )
 

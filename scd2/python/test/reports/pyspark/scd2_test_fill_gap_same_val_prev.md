@@ -4,7 +4,7 @@ This test validates filling the gap in a single entity. The record added into th
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-04-10 14:22:42`
+ * **Last Run:** `2026-04-26 20:30:11`
 At 2026-01-01 00:00:00, insert 3 records, at 2026-01-05 00:00:00 delete the one with id=3 and reinsert id=3 at 2026-01-10 00:00:00 into raw table and perform initial SCD2 merge.
 ### Perform Preparation
 
@@ -29,14 +29,14 @@ At 2026-01-01 00:00:00, insert 3 records, at 2026-01-05 00:00:00 delete the one 
 **Dimensional Table `dim_person`**
 
 
-| dp_key                               |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| fcc5634e-81aa-47b7-8b04-bf6c9b1e7c6b |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
-| 7129691e-a705-4316-a23f-697032fce06e |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
-| 27a3b4aa-f556-43f5-abf5-87f461115863 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-11 00:00:00 |
-| 88e59d8a-5d22-4165-ba1a-63f61c8b2a63 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-11 00:00:00 | 9999-12-31 23:59:59 |
+| e50e067c-e061-4f65-aaca-9ffd15afa95a |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| 019d7551-43c5-4dd9-a4c9-c04322f46c14 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| a2f02132-8af3-4233-8386-b6853ad204e3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-11 00:00:00 |
+| 85e36c97-0cdb-451e-90b1-e6eff9284813 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-11 00:00:00 | 9999-12-31 23:59:59 |
 
-_the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
+_the following columns where excluded from the result: `dp_record_hash, dp_load_timestamp, change_type`_
 
 ## Test Step 2
 Fill the gap at 2026-01-05 00:00:00 by adding a record with the same values as the version before the gap.
@@ -65,21 +65,21 @@ Fill the gap at 2026-01-05 00:00:00 by adding a record with the same values as t
 **Input to Merge**
 
 
-| merge_key                            | dp_key                               |   id | first_name   | last_name   | city   | email                    | record_hash                                                      | load_ts             | status   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+| merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_ts               | status   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------------|----------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 27a3b4aa-f556-43f5-abf5-87f461115863 | 27a3b4aa-f556-43f5-abf5-87f461115863 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | 2026-01-15 00:00:00 | ACTIVE   | UPDATE_VERSION   | CASE_25     | 2026-01-01 00:00:00 | 2026-01-09 23:59:59 |                |                |
+| a2f02132-8af3-4233-8386-b6853ad204e3 | a2f02132-8af3-4233-8386-b6853ad204e3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | 2026-01-15 00:00:00 | ACTIVE   | UPDATE_VERSION   | CASE_25     | 2026-01-01 00:00:00 | 2026-01-09 23:59:59 |                |                |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_key                               |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to                                                | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at                                          |
+| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to                                                | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at                                          |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------------------------------------------|----------------|----------------|---------------------|---------------------------------------------------------|
-| fcc5634e-81aa-47b7-8b04-bf6c9b1e7c6b |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
-| 7129691e-a705-4316-a23f-697032fce06e |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
-| 27a3b4aa-f556-43f5-abf5-87f461115863 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | <span style='color: orange;'>2026-01-09 23:59:59</span> | False          | False          | 2026-01-02 00:00:00 | <span style='color: orange;'>2026-01-16 00:00:00</span> |
-| 88e59d8a-5d22-4165-ba1a-63f61c8b2a63 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-10 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-11 00:00:00 | 9999-12-31 23:59:59                                     |
+| e50e067c-e061-4f65-aaca-9ffd15afa95a |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
+| 019d7551-43c5-4dd9-a4c9-c04322f46c14 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
+| a2f02132-8af3-4233-8386-b6853ad204e3 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-01 00:00:00 | <span style='color: orange;'>2026-01-09 23:59:59</span> | False          | False          | 2026-01-02 00:00:00 | <span style='color: orange;'>2026-01-16 00:00:00</span> |
+| 85e36c97-0cdb-451e-90b1-e6eff9284813 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 2026-01-10 00:00:00 | 9999-12-31 23:59:59                                     | True           | True           | 2026-01-11 00:00:00 | 9999-12-31 23:59:59                                     |
 
-_the following columns where excluded from the result: `record_hash, dp_load_timestamp, change_type`_
+_the following columns where excluded from the result: `dp_record_hash, dp_load_timestamp, change_type`_
 

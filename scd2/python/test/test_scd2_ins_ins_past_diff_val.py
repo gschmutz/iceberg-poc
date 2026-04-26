@@ -132,7 +132,7 @@ def test_step_1(ctx):
         ctx,
         test_step=1,
         ins_stmt=insert_sql_1,
-        load_ts=load_ts_2,
+        dp_ts=load_ts_2,
         current_ts=current_ts_2,
         expected=expected,
         output_file_name=FILE_NAME,
@@ -145,7 +145,7 @@ def test_step_2(ctx):
         "-------------------------------- Test Step 2 --------------------------------"
     )
 
-    test_description = f"At {load_ts_1}, insert the entity with `id=1` with a different value for `city` into the new partitions of the raw table and perform SCD2 merge."
+    test_description = f"At {load_ts_3}, insert the entity with `id=1` with a different value for `city` into the new partitions of the raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -232,7 +232,7 @@ def test_step_2(ctx):
         ctx,
         test_step=2,
         ins_stmt=insert_sql_2,
-        load_ts=load_ts_3,
+        dp_ts=load_ts_3,
         current_ts=current_ts_3,
         expected=expected,
         output_file_name=FILE_NAME,

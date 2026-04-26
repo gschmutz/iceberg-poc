@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class SparkSCD2Strategy(SCD2Strategy):
     """SCD2 strategy implementation for Apache Spark / Apache Iceberg.
 
-    All SQL is generated in Spark SQL dialect (STRING casts, <=> null-safe
+    All SQL is generated in Spark SQL dialect (STRING casts, <=> null-safe  
     equality, regular LEFT JOINs with conditions in the ON clause,
     upper(sha2(..., 256)) hashing, dp_record_hash as surrogate key).
 
@@ -41,7 +41,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         use_delta_mode_for_raw_table: bool = False,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
-        load_ts_col: str = "load_ts",
+        dp_ts_col: str = "dp_ts_version",
+        dp_ts_filter_col: str = "dp_ts",
     ):
         super().__init__(
             scd2_intermediary_table_name=(
@@ -52,7 +53,8 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
-            load_ts_col=load_ts_col,
+            dp_ts_col=dp_ts_col,
+            dp_ts_filter_col=dp_ts_filter_col,
         )
         self.spark = spark
         self.database = database
@@ -113,7 +115,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         self,
         cols_bks: list,
         cols_val: list,
-        load_ts: datetime,
+        dp_ts: datetime,
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
@@ -125,7 +127,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
         cast_cols_bks_str = fv(cs(cols_bks))
         cast_cols_val_str = fv(cs(cols_val))
-        load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
+        dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_src_overlap = self._format_join_condition(cols_bks, "src", "overlap")
         join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
@@ -134,7 +136,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         return f"""
     WITH changed_records AS (
         WITH src_records AS (
-            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{self.load_ts_col}, t.status,
+            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{self.dp_ts_filter_col}, t.status,
                 upper(
                     sha2(
                         concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
@@ -142,14 +144,14 @@ class SparkSCD2Strategy(SCD2Strategy):
                     )
                 ) AS dp_record_hash
             FROM {self.raw_table_fqn()} AS t
-            WHERE {self.load_ts_col} = TIMESTAMP '{load_ts_str}'
+            WHERE {self.dp_ts_filter_col} = TIMESTAMP '{dp_ts_str}'
         )
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
-            src.dp_ts_from      AS src_dp_ts_from,
+            src.{self.dp_ts_col}      AS src_dp_ts_from,
             src.dp_record_hash     AS src_dp_record_hash,
-            src.{self.load_ts_col}   AS load_ts,
+            src.{self.dp_ts_filter_col}   AS dp_ts,
             src.status,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
@@ -374,7 +376,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            load_ts,
+            dp_ts,
             status,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
@@ -394,7 +396,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            load_ts,
+            dp_ts,
             status,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
@@ -414,7 +416,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            load_ts,
+            dp_ts,
             status,
             'INSERT_NEW_VERSION'                AS operation_type,
             situation.name                      AS case_name,            
@@ -434,7 +436,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            load_ts,
+            dp_ts,
             status,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
@@ -453,7 +455,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            load_ts,
+            dp_ts,
             status,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
@@ -470,14 +472,14 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def format_view(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
     ) -> str:
         """Return the CTE + SELECT SQL to be run via spark.sql() and registered
         as a temp view with ``createOrReplaceTempView(scd2_view_name)``."""
         cte = self._format_cte(
             cols_bks=self.cols_bks,
             cols_val=self.cols_val,
-            load_ts=load_ts,
+            dp_ts=dp_ts,
         )
         return f"""
     CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
@@ -563,13 +565,13 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def merge_into_scd2_table(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ):
         view_stmt = self.format_view(
-            load_ts=load_ts,
+            dp_ts=dp_ts,
         )
 
         logger.info(f"Creating SCD2 view: {view_stmt}...")
@@ -605,13 +607,13 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def merge_into_scd2_table_and_return_as_df(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> DataFrame:
         self.merge_into_scd2_table(
-            load_ts=load_ts,
+            dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,

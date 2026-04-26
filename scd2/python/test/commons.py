@@ -61,7 +61,7 @@ SCD2_TABLE_NAME = "dim_person"
 SCD2_VIEW_NAME = "view_person_scd2"
 
 EXCLUDE_COLS = ["dp_record_hash", "dp_load_timestamp", "change_type"]
-LOAD_TS_COL = "dp_loaded_at"
+dp_ts_filter_col = "dp_loaded_at"
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ class TestCommonsBase:
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       load_ts_col: str = "dp_loaded_at"):
+                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -168,7 +168,7 @@ class TestCommonsBase:
         self,
         ctx,
         ins_stmts: list,
-        load_ts_list: list,
+        dp_ts_list: list,
         current_ts_list: list,
         perform_merge_op: bool = True,
         use_delta_mode_for_raw_table: bool = False,
@@ -186,7 +186,7 @@ class TestCommonsBase:
             self._make_strategy(ctx, cols_bks=cols_bks,
                                 use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                                 perform_merge_op=perform_merge_op).merge_into_scd2_table(
-                load_ts=load_ts_list[idx],
+                dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
                 show_input_to_merge=True,
             )
@@ -229,7 +229,7 @@ class TestCommonsBase:
         ctx,
         test_step: int,
         ins_stmt: str,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: datetime,
         expected=None,
         output_file_name: str = None,
@@ -261,7 +261,7 @@ class TestCommonsBase:
         self._make_strategy(ctx, cols_bks=cols_bks,
                             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                             perform_merge_op=perform_merge_op).merge_into_scd2_table(
-            load_ts=load_ts,
+            dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
@@ -300,7 +300,7 @@ class TestCommonsBase:
         self,
         ctx,
         test_step,
-        load_ts_list: list,
+        dp_ts_list: list,
         current_ts_list: list,
         expected=None,
         output_file_name: str = None,
@@ -330,9 +330,9 @@ class TestCommonsBase:
         strategy = self._make_strategy(ctx, cols_bks=cols_bks,
                                        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
                                        perform_merge_op=perform_merge_op)
-        for idx, load_ts in enumerate(load_ts_list):
+        for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
-                load_ts=load_ts_list[idx],
+                dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
                 show_input_to_merge=show_input_to_merge,
                 output_file_name=output_file_name,
@@ -419,7 +419,7 @@ class TrinoTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       load_ts_col: str = "dp_loaded_at"):
+                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -430,7 +430,8 @@ class TrinoTestCommons(TestCommonsBase):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            load_ts_col=load_ts_col,
+            dp_ts_col=dp_ts_col,
+            dp_ts_filter_col=dp_ts_filter_col,
         )
     
     def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list) -> None:
@@ -524,7 +525,7 @@ class SparkTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       load_ts_col: str = "dp_loaded_at"):
+                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -534,7 +535,8 @@ class SparkTestCommons(TestCommonsBase):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            load_ts_col=load_ts_col,
+            dp_ts_col=dp_ts_col,
+            dp_ts_filter_col=dp_ts_filter_col,
         )
 
     def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list) -> None:
@@ -618,7 +620,7 @@ class PySparkTestCommons(SparkTestCommons):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       load_ts_col: str = "dp_loaded_at"):
+                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
         
         return PySparkSCD2Strategy(
             ctx.spark,
@@ -630,7 +632,8 @@ class PySparkTestCommons(SparkTestCommons):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            load_ts_col=load_ts_col,
+            dp_ts_col=dp_ts_col,
+            dp_ts_filter_col=dp_ts_filter_col,
         )
 
     def get_strategy_name(self):
@@ -706,7 +709,7 @@ def insert_as_preparation(ctx, ins_stmts: list):
 def scd2_merge_as_preparation(
     ctx,
     ins_stmts: list,
-    load_ts_list: list,
+    dp_ts_list: list,
     current_ts_list: list,
     perform_merge_op: bool = True,
     use_delta_mode_for_raw_table: bool = False,
@@ -719,7 +722,7 @@ def scd2_merge_as_preparation(
     _impl.scd2_merge_as_preparation(
         ctx,
         ins_stmts=ins_stmts,
-        load_ts_list=load_ts_list,
+        dp_ts_list=dp_ts_list,
         current_ts_list=current_ts_list,
         perform_merge_op=perform_merge_op,
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
@@ -735,7 +738,7 @@ def scd2_merge_as_test(
     ctx,
     test_step: int,
     ins_stmt: str,
-    load_ts: datetime,
+    dp_ts: datetime,
     current_ts: datetime,
     expected=None,
     output_file_name: str = None,
@@ -751,7 +754,7 @@ def scd2_merge_as_test(
         ctx,
         test_step=test_step,
         ins_stmt=ins_stmt,
-        load_ts=load_ts,
+        dp_ts=dp_ts,
         current_ts=current_ts,
         expected=expected,
         output_file_name=output_file_name,
@@ -767,7 +770,7 @@ def scd2_merge_as_test(
 def scd2_merge_as_test2(
     ctx,
     test_step,
-    load_ts_list: list,
+    dp_ts_list: list,
     current_ts_list: list,
     expected=None,
     output_file_name: str = None,
@@ -782,7 +785,7 @@ def scd2_merge_as_test2(
     _impl.scd2_merge_as_test2(
         ctx,
         test_step=test_step,
-        load_ts_list=load_ts_list,
+        dp_ts_list=dp_ts_list,
         current_ts_list=current_ts_list,
         expected=expected,
         output_file_name=output_file_name,
@@ -799,7 +802,7 @@ def scd2_merge_as_test_return_as_df(
     ctx,
     test_step: int,
     ins_stmt: str,
-    load_ts: datetime,
+    dp_ts: datetime,
     current_ts: datetime,
     expected=None,
     output_file_name: str = None,
@@ -815,7 +818,7 @@ def scd2_merge_as_test_return_as_df(
         ctx,
         test_step=test_step,
         ins_stmt=ins_stmt,
-        load_ts=load_ts,
+        dp_ts=dp_ts,
         current_ts=current_ts,
         expected=expected,
         output_file_name=output_file_name,

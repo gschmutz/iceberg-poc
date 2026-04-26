@@ -194,7 +194,7 @@ def test_step_1(ctx):
     scd2_merge_as_preparation(
         ctx,
         ins_stmts=[insert_sql_1, insert_sql_2, insert_sql_3],
-        load_ts_list=[load_ts_1, load_ts_2, load_ts_4],
+        dp_ts_list=[load_ts_1, load_ts_2, load_ts_4],
         current_ts_list=[current_ts_1, current_ts_2, current_ts_4],
         expected=expected,
         output_file_name=FILE_NAME,
@@ -294,7 +294,7 @@ def test_step_2(ctx):
         ctx,
         test_step=2,
         ins_stmt=insert_sql_1,
-        load_ts=load_ts_5,
+        dp_ts=load_ts_5,
         current_ts=current_ts_5,
         expected=expected,
         output_file_name=FILE_NAME,

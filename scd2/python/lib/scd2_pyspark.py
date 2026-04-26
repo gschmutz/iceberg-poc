@@ -47,7 +47,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         use_delta_mode_for_raw_table: bool = False,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
-        load_ts_col: str = "load_ts",
+        dp_ts_col: str = "dp_ts_version",
+        dp_ts_filter_col: str = "dp_ts",
     ):
         super().__init__(
             spark=spark,
@@ -60,7 +61,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
-            load_ts_col=load_ts_col,
+            dp_ts_col=dp_ts_col,
+            dp_ts_filter_col=dp_ts_filter_col,
         ) 
 
         self.raw_table_df = raw_table_df
@@ -144,7 +146,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     def _build_staging_df(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
     ) -> DataFrame:
         """Build the staging DataFrame (PySpark equivalent of the SQL CTE chain
         ``changed_records → records_to_process → prepared_source``).
@@ -152,10 +154,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         Returns a DataFrame with columns::
 
             merge_record_id, dp_record_id, <pk_cols>, <val_cols>, dp_record_hash,
-            load_ts, status, operation_type, case_name,
+            dp_ts, status, operation_type, case_name,
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
-        load_ts_str = load_ts.strftime("%Y-%m-%d %H:%M:%S")
+        dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
         all_cols = self.cols_bks + self.cols_val
 
         # ── src_records ───────────────────────────────────────────────────────
@@ -165,12 +167,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         src_df = (
             #self.spark.table(self.raw_table_fqn())
             self.raw_table_df
-            .filter(F.col(self.load_ts_col) == F.expr(f"TIMESTAMP '{load_ts_str}'"))
+            .filter(F.col(self.dp_ts_filter_col) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
             .select(
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
-                F.col("dp_ts_from").alias("src_dp_ts_from"),
-                F.col(self.load_ts_col).alias("load_ts"),
+                F.col(self.dp_ts_col).alias("src_dp_ts_from"),
+                F.col(self.dp_ts_filter_col).alias("dp_ts"),
                 F.col("status"),
                 hash_expr.alias("src_dp_record_hash"),
             )
@@ -670,7 +672,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *pk_cols,
                 *val_cols,
                 F.col("src_dp_record_hash").alias("dp_record_hash"),
-                F.col("load_ts"),
+                F.col("dp_ts"),
                 F.col("status"),
                 F.lit(op_type).alias("operation_type"),
                 F.col("situation.name").alias("case_name"),
@@ -758,7 +760,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     def merge_into_scd2_table(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
@@ -766,7 +768,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
             #source_df=self.source_df,
-            load_ts=load_ts,
+            dp_ts=dp_ts,
         )
 
         #staging_df.show(truncate=False)
@@ -800,14 +802,14 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     def merge_into_scd2_table_and_return_as_df(
         self,
-        load_ts: datetime,
+        dp_ts: datetime,
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ) -> DataFrame:
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL, returning the post-merge SCD2 table as a DataFrame."""
         self.merge_into_scd2_table(
-            load_ts=load_ts,
+            dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
