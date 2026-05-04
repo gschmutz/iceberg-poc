@@ -5,8 +5,8 @@ from typing import Optional
 import pandas as pd
 from pyspark.sql.types import TimestampNTZType, TimestampType
 from pyspark.sql import DataFrame
-from scd2_strategy import SCD2Strategy, SCD2Table
-from util import render_table
+from .scd2_strategy import SCD2Strategy, SCD2Table
+from .util import render_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

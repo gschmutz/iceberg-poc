@@ -13,13 +13,12 @@ from common_utils import get_credential, get_param, replace_vars_in_string
 
 np.set_printoptions(threshold=np.inf)
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from constants import MAX_TS
-from scd2_pyspark import PySparkSCD2Strategy
-from scd2_spark import SparkSCD2Strategy
-from scd2_strategy import SCD2Strategy, SCD2Table
-from scd2_trino import TrinoSCD2Strategy
-from util import (
+from lib.constants import MAX_TS
+from lib.scd2_pyspark import PySparkSCD2Strategy
+from lib.scd2_spark import SparkSCD2Strategy
+from lib.scd2_strategy import SCD2Strategy, SCD2Table
+from lib.scd2_trino import TrinoSCD2Strategy
+from lib.util import (
     diff_with_color,
     render_data,
     render_table

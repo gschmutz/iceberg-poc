@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Optional
 
 import pandas as pd
-from scd2_strategy import SCD2Strategy, SCD2Table
-from util import render_table
+from .scd2_strategy import SCD2Strategy, SCD2Table
+from .util import render_table
 from pyspark.sql import DataFrame
 
 logging.basicConfig(level=logging.INFO)
@@ -156,7 +156,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                         )
                     )
                 ) AS dp_record_hash,
-                CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag
+                CASE WHEN {self.delta_mode_delete_expression} {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag
             FROM {self.raw_table_fqn()}
             WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'
         )

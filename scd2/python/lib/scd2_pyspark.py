@@ -6,9 +6,9 @@ from typing import Optional
 import pandas as pd
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from scd2_spark import SparkSCD2Strategy
-from scd2_strategy import SCD2Table
-from util import render_table
+from .scd2_spark import SparkSCD2Strategy
+from .scd2_strategy import SCD2Table
+from .util import render_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
