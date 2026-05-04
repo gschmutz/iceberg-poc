@@ -184,7 +184,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
                 F.col(self.col_dp_ts).alias("src_dp_ts_from"),
-                F.col(self.col_dp_ts_filter).alias("dp_ts"),
                 F.expr(f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END")
                     .alias("dp_del_flag") if self.delta_mode_delete_expression else F.col("status").alias("dp_del_flag"),
                 hash_expr.alias("src_dp_record_hash"),
@@ -685,7 +684,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *pk_cols,
                 *val_cols,
                 F.col("src_dp_record_hash").alias("dp_record_hash"),
-                F.col("dp_ts"),
                 F.col("dp_del_flag"),
                 F.lit(op_type).alias("operation_type"),
                 F.col("situation.name").alias("case_name"),
@@ -780,7 +778,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
     ):
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
-            #source_df=self.source_df,
             dp_ts=dp_ts,
         )
 
@@ -794,7 +791,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         # have to materialize the view because of the UUID() function used for generating dp_record_id for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
         if self.materialize_data_before_merge:
             self.materialize_view(self.scd2_intermediary_table_name)
-
 
         if show_input_to_merge:
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])

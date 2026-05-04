@@ -142,6 +142,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         join_src_overlap = self._format_join_condition(cols_bks, "src", "overlap")
         join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
         join_src_next = self._format_join_condition(cols_bks, "src", "next")
+        
+        dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter else ""
 
         return f"""
     WITH changed_records AS (
@@ -155,14 +157,13 @@ class SparkSCD2Strategy(SCD2Strategy):
                 ) AS dp_record_hash,
                 CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag
             FROM {self.raw_table_fqn()} AS t
-            WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'
+            {dp_ts_filter_expr}
         )
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
             src.{self.col_dp_ts}      AS src_dp_ts_from,
             src.dp_record_hash     AS src_dp_record_hash,
-            src.{self.col_dp_ts_filter}   AS dp_ts,
             src.dp_del_flag,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
@@ -387,7 +388,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            dp_ts,
             dp_del_flag,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
@@ -407,7 +407,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            dp_ts,
             dp_del_flag,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
@@ -427,7 +426,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            dp_ts,
             dp_del_flag,
             'INSERT_NEW_VERSION'                AS operation_type,
             situation.name                      AS case_name,            
@@ -447,7 +445,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            dp_ts,
             dp_del_flag,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
@@ -466,7 +463,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
-            dp_ts,
             dp_del_flag,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
@@ -520,11 +516,11 @@ class SparkSCD2Strategy(SCD2Strategy):
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
     THEN UPDATE SET
-        dp_ts_from = source.dp_ts_from,
-        dp_ts_to = source.dp_ts_to,
+        {self.col_dp_valid_from} = source.dp_ts_from,
+        {self.col_dp_valid_to} = source.dp_ts_to,
         dp_is_active = COALESCE(source.dp_is_active, target.dp_is_active),
         dp_is_latest = COALESCE(source.dp_is_latest, target.dp_is_latest),
-        dp_replaced_at = TIMESTAMP '{current_ts_str}'
+        {self.col_dp_replaced_at} = TIMESTAMP '{current_ts_str}'
     WHEN MATCHED
         AND source.operation_type = 'DELETE_VERSION'
     THEN DELETE
