@@ -100,7 +100,7 @@ class SCD2Strategy(ABC):
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
-        # TODO: have to change it to False as default
+        delta_mode_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -128,6 +128,7 @@ class SCD2Strategy(ABC):
                   treated as deleted and a soft-delete version is written.
                 * ``True`` (delta / CDC mode) – absent entities are ignored;
                   only records explicitly present in the raw batch are processed.
+            delta_mode_delete_expression: When ``use_delta_mode_for_raw_table`` is ``True`` this expression defines how to identify deleted records in the raw table (e.g. ``"status = 'INACTIVE'"``).  Required when delta mode is enabled.
             materialize_data_before_merge: When ``True`` the intermediary staging
                 view is written to a physical Iceberg table before the MERGE is
                 executed.  Required for engines (e.g. Spark) that do not allow
@@ -154,6 +155,7 @@ class SCD2Strategy(ABC):
         self.cols_bks = cols_bks
         self.cols_val = cols_val
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
+        self.delta_mode_delete_expression = delta_mode_delete_expression
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
         self.col_dp_valid_from = col_dp_valid_from

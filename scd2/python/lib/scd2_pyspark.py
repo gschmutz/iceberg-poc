@@ -45,6 +45,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
+        delta_mode_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -63,6 +64,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             cols_bks=cols_bks,
             cols_val=cols_val,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
+            delta_mode_delete_expression=delta_mode_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from=col_dp_valid_from,
@@ -162,7 +164,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         Returns a DataFrame with columns::
 
             merge_record_id, dp_record_id, <pk_cols>, <val_cols>, dp_record_hash,
-            dp_ts, status, operation_type, case_name,
+            dp_ts, dp_del_flag, operation_type, case_name,
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
@@ -181,7 +183,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *[F.col(c) for c in self.cols_val],
                 F.col(self.col_dp_ts).alias("src_dp_ts_from"),
                 F.col(self.col_dp_ts_filter).alias("dp_ts"),
-                F.col("status"),
+                F.expr(f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END")
+                    .alias("dp_del_flag") if self.delta_mode_delete_expression else F.col("status").alias("dp_del_flag"),
                 hash_expr.alias("src_dp_record_hash"),
             )
         )
@@ -279,7 +282,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & c("next_is_same_as_src").isNull()
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_1",
                     is_ins=True,
@@ -292,7 +295,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & c("next_is_same_as_src").isNull()
                 & (c("overlap_dp_is_active") == True)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s("CASE_9"),
             )
             .when(
@@ -300,7 +303,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & c("next_is_same_as_src").isNull()
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_10",
                     is_upd=True,
@@ -319,7 +322,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     (c("overlap_dp_is_active") == True)
                     | (c("overlap_dp_is_active") == False)
                 )
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_11",
                     is_upd=True,
@@ -338,7 +341,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & (c("next_is_same_as_src") == False)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s("CASE_12"),
             )
             .when(
@@ -346,7 +349,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & (c("next_is_same_as_src") == False)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_13",
                     is_upd=True,
@@ -367,7 +370,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & (c("next_is_same_as_src") == True)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_14",
                     is_upd=True,
@@ -387,7 +390,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & (c("next_is_same_as_src") == False)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s("CASE_15"),
             )
             .when(
@@ -395,7 +398,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & (c("next_is_same_as_src") == False)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_16",
                     is_upd=True,
@@ -411,7 +414,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & (c("next_is_same_as_src") == True)
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_17",
                     is_upd=True,
@@ -429,7 +432,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == True)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_18",
                     is_upd=True,
@@ -443,7 +446,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == False)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_19",
                     is_ins=True,
@@ -459,7 +462,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("next_is_same_as_src").isNull()
                 & c("overlap_dp_is_active").isNull()
                 & (c("prev_with_gap") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_20",
                     is_upd=True,
@@ -476,7 +479,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("next_is_same_as_src").isNull()
                 & c("overlap_dp_is_active").isNull()
                 & (c("prev_with_gap") == False)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_21",
                     is_upd=True,
@@ -498,7 +501,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("next_is_same_as_src").isNull()
                 & c("overlap_dp_is_active").isNull()
                 & (c("prev_with_gap") == True)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_22",
                     is_upd=True,
@@ -520,7 +523,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("next_is_same_as_src").isNull()
                 & c("overlap_dp_is_active").isNull()
                 & (c("prev_with_gap") == True)
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_23",
                     is_upd=True,
@@ -541,7 +544,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == True)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_24",
                     is_upd=True,
@@ -555,7 +558,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == False)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_25",
                     is_upd=True,
@@ -569,7 +572,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == True)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_26",
                     is_upd=True,
@@ -587,7 +590,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & c("overlap_is_same_as_src").isNull()
                 & (c("next_is_same_as_src") == False)
                 & c("overlap_dp_is_active").isNull()
-                & (c("status") == "ACTIVE"),
+                & (c("dp_del_flag") == "ACTIVE"),
                 s(
                     "CASE_27",
                     is_ins=True,
@@ -602,7 +605,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & c("next_is_same_as_src").isNull()
                 & (c("overlap_dp_is_active") == True)
-                & (c("status") == "INACTIVE"),
+                & (c("dp_del_flag") == "INACTIVE"),
                 s(
                     "CASE_30",
                     is_upd=True,
@@ -618,7 +621,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == True)
                 & c("next_is_same_as_src").isNull()
                 & (c("overlap_dp_is_active") == False)
-                & (c("status") == "INACTIVE"),
+                & (c("dp_del_flag") == "INACTIVE"),
                 s(
                     "CASE_31",
                     is_upd=True,
@@ -634,7 +637,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & c("next_is_same_as_src").isNull()
                 & (c("overlap_dp_is_active") == True)
-                & (c("status") == "INACTIVE"),
+                & (c("dp_del_flag") == "INACTIVE"),
                 s(
                     "CASE_32",
                     is_upd=True,
@@ -650,7 +653,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 & (c("overlap_is_same_as_src") == False)
                 & (c("next_is_same_as_src") == False)
                 & (c("overlap_dp_is_active") == True)
-                & (c("status") == "INACTIVE"),
+                & (c("dp_del_flag") == "INACTIVE"),
                 s(
                     "CASE_33",
                     is_upd=True,
@@ -681,7 +684,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *val_cols,
                 F.col("src_dp_record_hash").alias("dp_record_hash"),
                 F.col("dp_ts"),
-                F.col("status"),
+                F.col("dp_del_flag"),
                 F.lit(op_type).alias("operation_type"),
                 F.col("situation.name").alias("case_name"),
             ]
