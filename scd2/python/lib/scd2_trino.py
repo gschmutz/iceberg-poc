@@ -43,8 +43,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cols_val: Optional[list] = None,
         use_delta_mode_for_raw_table: bool = False,
         perform_merge_op: bool = True,
-        dp_ts_col: str = "dp_ts_version",
-        dp_ts_filter_col: str = "dp_ts",
+        col_dp_ts: str = "dp_ts_version",
+        col_dp_ts_filter: str = "dp_ts",
     ):
         super().__init__(
             scd2_intermediary_table_name,
@@ -52,8 +52,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
             cols_val=cols_val,
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            dp_ts_col=dp_ts_col,
-            dp_ts_filter_col=dp_ts_filter_col,
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
         )
         self.conn = conn
         self.catalog = catalog
@@ -147,14 +147,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     )
                 ) AS dp_record_hash
             FROM {self.raw_table_fqn()}
-            WHERE {self.dp_ts_filter_col} = TIMESTAMP '{dp_ts_str}'
+            WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'
         )
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},
-            src.{self.dp_ts_col}      AS src_dp_ts_from,
+            src.{self.col_dp_ts}      AS src_dp_ts_from,
             src.dp_record_hash     AS src_dp_record_hash,
-            src.{self.dp_ts_filter_col}   AS dp_ts,
+            src.{self.col_dp_ts_filter}   AS dp_ts,
             src.status,
             overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,

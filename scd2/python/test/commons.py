@@ -61,7 +61,7 @@ SCD2_TABLE_NAME = "dim_person"
 SCD2_VIEW_NAME = "view_person_scd2"
 
 EXCLUDE_COLS = ["dp_record_hash", "dp_load_timestamp", "change_type"]
-dp_ts_filter_col = "dp_loaded_at"
+col_dp_ts_filter = "dp_loaded_at"
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ class TestCommonsBase:
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -419,7 +419,7 @@ class TrinoTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -430,8 +430,8 @@ class TrinoTestCommons(TestCommonsBase):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            dp_ts_col=dp_ts_col,
-            dp_ts_filter_col=dp_ts_filter_col,
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
         )
     
     def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list) -> None:
@@ -525,7 +525,7 @@ class SparkTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -535,8 +535,8 @@ class SparkTestCommons(TestCommonsBase):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            dp_ts_col=dp_ts_col,
-            dp_ts_filter_col=dp_ts_filter_col,
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
         )
 
     def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list) -> None:
@@ -620,7 +620,7 @@ class PySparkTestCommons(SparkTestCommons):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
-                       dp_ts_col: str = "dp_ts_from", dp_ts_filter_col: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         
         return PySparkSCD2Strategy(
             ctx.spark,
@@ -632,8 +632,8 @@ class PySparkTestCommons(SparkTestCommons):
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             perform_merge_op=perform_merge_op,
-            dp_ts_col=dp_ts_col,
-            dp_ts_filter_col=dp_ts_filter_col,
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
         )
 
     def get_strategy_name(self):
@@ -642,8 +642,19 @@ class PySparkTestCommons(SparkTestCommons):
 # ---------------------------------------------------------------------------
 # Active implementation — switch here to run tests against a different engine
 # ---------------------------------------------------------------------------
+# Choose one of: "TRINO", "SPARK", "PYSPARK"
+TEST_ENGINE = os.environ.get("TEST_ENGINE", "PYSPARK").upper()
 
-_impl: TestCommonsBase = TrinoTestCommons()
+_ENGINES: dict[str, type[TestCommonsBase]] = {
+    "TRINO": TrinoTestCommons,
+    "SPARK": SparkTestCommons,
+    "PYSPARK": PySparkTestCommons,
+}
+
+if TEST_ENGINE not in _ENGINES:
+    raise ValueError(f"Unknown TEST_ENGINE={TEST_ENGINE!r}. Choose from: {list(_ENGINES)}")
+
+_impl: TestCommonsBase = _ENGINES[TEST_ENGINE]()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
 COLS_WITH_TYPE = _impl.COLS_WITH_TYPE

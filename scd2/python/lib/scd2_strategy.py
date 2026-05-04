@@ -48,7 +48,7 @@ class SCD2Strategy(ABC):
     Merge pipeline (view-then-merge pattern)
     -----------------------------------------
     1. Source records for the current batch are read from the **raw table**
-       filtered on ``dp_ts_filter_col``.
+       filtered on ``col_dp_ts_filter``.
     2. A SHA-256 row hash is computed over all business-key and value columns
        (``concat_ws('||', ...)`` + SHA-256) for change detection.
     3. Each source record is FULL OUTER JOINed against the existing SCD2 table
@@ -84,7 +84,7 @@ class SCD2Strategy(ABC):
             scd2_table_name="dim_person",
             cols_bks=["id"],
             cols_val=["first_name", "last_name", "city"],
-            dp_ts_filter_col="dp_ts",
+            col_dp_ts_filter="dp_ts",
             use_delta_mode_for_raw_table=False,
             perform_merge_op=True,
         )
@@ -103,8 +103,8 @@ class SCD2Strategy(ABC):
         # TODO: have to change it to False as default
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
-        dp_ts_col: str = "dp_ts_version",
-        dp_ts_filter_col: str = "dp_ts",
+        col_dp_ts: str = "dp_ts_version",
+        col_dp_ts_filter: str = "dp_ts",
     ):
         """Initialise the strategy with table names, column definitions, and behavior flags.
 
@@ -132,14 +132,14 @@ class SCD2Strategy(ABC):
             perform_merge_op: When ``False`` the pipeline stops after creating the
                 intermediary view, allowing callers to inspect the staged records
                 without modifying the SCD2 table.  Defaults to ``True``.
-            dp_ts_col: Name of the timestamp column in the SCD2 table that
+            col_dp_ts: Name of the timestamp column in the SCD2 table that
                 identifies the version start (e.g. ``"dp_ts_from"``).  Each call
                 to :meth:`merge_into_scd2_table` uses this column to track the
                 validity period of each version.  Defaults to ``"dp_ts_from"``.
-            dp_ts_filter_col: Name of the timestamp column in the raw table that
+            col_dp_ts_filter: Name of the timestamp column in the raw table that
                 identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
                 to :meth:`merge_into_scd2_table` filters the raw table on
-                ``dp_ts_filter_col = dp_ts``.  Defaults to ``"dp_ts"``.
+                ``col_dp_ts_filter = dp_ts``.  Defaults to ``"dp_ts"``.
         """
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
@@ -147,8 +147,8 @@ class SCD2Strategy(ABC):
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
-        self.dp_ts_col = dp_ts_col
-        self.dp_ts_filter_col = dp_ts_filter_col
+        self.col_dp_ts = col_dp_ts
+        self.col_dp_ts_filter = col_dp_ts_filter
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -311,7 +311,7 @@ class SCD2Strategy(ABC):
         The generated SQL contains a chain of CTEs that:
 
         1. Reads and hashes source records from the raw table for the given
-           ``dp_ts`` batch (filtered on ``self.dp_ts_filter_col``).
+           ``dp_ts`` batch (filtered on ``self.col_dp_ts_filter``).
         2. FULL OUTER JOINs each source record against the current, previous,
            and next SCD2 versions to detect overlaps and gaps.
         3. Classifies each record as NEW, CHANGED, DELETED, or UNCHANGED.
@@ -323,7 +323,7 @@ class SCD2Strategy(ABC):
 
         Args:
             dp_ts: Timestamp that identifies the raw-table batch to process.
-                Only rows where ``<dp_ts_filter_col> = dp_ts`` are read.
+                Only rows where ``<col_dp_ts_filter> = dp_ts`` are read.
 
         Returns:
             A ``CREATE OR REPLACE VIEW … AS …`` SQL string (Trino) or the raw

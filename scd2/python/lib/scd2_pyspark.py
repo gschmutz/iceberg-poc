@@ -47,8 +47,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         use_delta_mode_for_raw_table: bool = False,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
-        dp_ts_col: str = "dp_ts_version",
-        dp_ts_filter_col: str = "dp_ts",
+        col_dp_ts: str = "dp_ts_version",
+        col_dp_ts_filter: str = "dp_ts",
     ):
         super().__init__(
             spark=spark,
@@ -61,8 +61,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
-            dp_ts_col=dp_ts_col,
-            dp_ts_filter_col=dp_ts_filter_col,
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
         ) 
 
         self.raw_table_df = raw_table_df
@@ -167,12 +167,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         src_df = (
             #self.spark.table(self.raw_table_fqn())
             self.raw_table_df
-            .filter(F.col(self.dp_ts_filter_col) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+            .filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
             .select(
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
-                F.col(self.dp_ts_col).alias("src_dp_ts_from"),
-                F.col(self.dp_ts_filter_col).alias("dp_ts"),
+                F.col(self.col_dp_ts).alias("src_dp_ts_from"),
+                F.col(self.col_dp_ts_filter).alias("dp_ts"),
                 F.col("status"),
                 hash_expr.alias("src_dp_record_hash"),
             )
