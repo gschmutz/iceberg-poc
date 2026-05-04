@@ -174,10 +174,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         hash_expr = F.upper(
             F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in all_cols]), 256)
         )
+        #src_df = self.spark.table(self.raw_table_fqn())
+        src_df = self.raw_table_df
+        if self.col_dp_ts_filter is not None:
+            src_df = src_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
         src_df = (
-            #self.spark.table(self.raw_table_fqn())
-            self.raw_table_df
-            .filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+            src_df
             .select(
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
