@@ -103,6 +103,10 @@ class SCD2Strategy(ABC):
         # TODO: have to change it to False as default
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
+        col_dp_valid_from: str = "dp_ts_from",
+        col_dp_valid_to: str = "dp_ts_to",
+        col_dp_created_at: str = "dp_created_at",
+        col_dp_replaced_at: str = "dp_replaced_at",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
@@ -132,6 +136,11 @@ class SCD2Strategy(ABC):
             perform_merge_op: When ``False`` the pipeline stops after creating the
                 intermediary view, allowing callers to inspect the staged records
                 without modifying the SCD2 table.  Defaults to ``True``.
+            col_dp_valid_from: Name of the timestamp column in the SCD2 table that
+                identifies the version start (e.g. ``"dp_ts_from"``).  Defaults to ``"dp_ts_from"``.
+            col_dp_valid_to: Name of the timestamp column in the SCD2 table that identifies the version end (e.g. ``"dp_ts_to"``).  Defaults to ``"dp_ts_to"``.
+            col_dp_created_at: Name of the timestamp column in the SCD2 table that identifies when a version was created (e.g. ``"dp_created_at"``).  Defaults to ``"dp_created_at"``.
+            col_dp_replaced_at: Name of the timestamp column in the SCD2 table that identifies when a version was superseded (e.g. ``"dp_replaced_at"``).  Defaults to ``"dp_replaced_at"``.
             col_dp_ts: Name of the timestamp column in the SCD2 table that
                 identifies the version start (e.g. ``"dp_ts_from"``).  Each call
                 to :meth:`merge_into_scd2_table` uses this column to track the
@@ -147,6 +156,10 @@ class SCD2Strategy(ABC):
         self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
+        self.col_dp_valid_from = col_dp_valid_from
+        self.col_dp_valid_to = col_dp_valid_to
+        self.col_dp_created_at = col_dp_created_at
+        self.col_dp_replaced_at = col_dp_replaced_at
         self.col_dp_ts = col_dp_ts
         self.col_dp_ts_filter = col_dp_ts_filter
 

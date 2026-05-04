@@ -41,6 +41,10 @@ class SparkSCD2Strategy(SCD2Strategy):
         use_delta_mode_for_raw_table: bool = False,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
+        col_dp_valid_from: str = "dp_ts_from",
+        col_dp_valid_to: str = "dp_ts_to",
+        col_dp_created_at: str = "dp_created_at",
+        col_dp_replaced_at: str = "dp_replaced_at",        
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
@@ -53,6 +57,10 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
+            col_dp_valid_from=col_dp_valid_from,
+            col_dp_valid_to=col_dp_valid_to,
+            col_dp_created_at=col_dp_created_at,
+            col_dp_replaced_at=col_dp_replaced_at,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
@@ -523,12 +531,12 @@ class SparkSCD2Strategy(SCD2Strategy):
         dp_record_id,
         {cols_bks_str},
         {cols_val_str},
-        dp_ts_from,
-        dp_ts_to,
+        {self.col_dp_valid_from},
+        {self.col_dp_valid_to},
         dp_is_active,
         dp_is_latest,
-        dp_created_at,
-        dp_replaced_at,
+        {self.col_dp_created_at},
+        {self.col_dp_replaced_at},
         dp_record_hash
     ) VALUES (
         source.dp_record_id,
