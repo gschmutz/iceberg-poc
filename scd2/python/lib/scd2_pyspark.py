@@ -174,21 +174,78 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         hash_expr = F.upper(
             F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in all_cols]), 256)
         )
-        #src_df = self.spark.table(self.raw_table_fqn())
-        src_df = self.raw_table_df
-        if self.col_dp_ts_filter is not None:
-            src_df = src_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
-        src_df = (
-            src_df
-            .select(
+        dp_ts_col = (
+            F.col(self.col_dp_ts_filter).alias("dp_ts")
+            if self.col_dp_ts_filter is not None
+            else F.lit(None).cast("timestamp").alias("dp_ts")
+        )
+
+        if self.delta_mode_delete_expression is not None:
+            # Delta mode: use delete expression to derive dp_del_flag
+            src_df = self.raw_table_df
+            if self.col_dp_ts_filter is not None:
+                src_df = src_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+            src_df = src_df.select(
                 *[F.col(c) for c in self.cols_bks],
                 *[F.col(c) for c in self.cols_val],
                 F.col(self.col_dp_ts).alias("src_dp_ts_from"),
-                F.expr(f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END")
-                    .alias("dp_del_flag") if self.delta_mode_delete_expression else F.col("status").alias("dp_del_flag"),
+                dp_ts_col,
+                F.expr(f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END").alias("dp_del_flag"),
                 hash_expr.alias("src_dp_record_hash"),
             )
-        )
+        else:
+            # Full-load mode: detect implicit deletes by comparing current batch with previous batch
+            src_curr_df = self.raw_table_df
+            if self.col_dp_ts_filter is not None:
+                src_curr_df = src_curr_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+
+            curr_df = src_curr_df.select(
+                *[F.col(c) for c in self.cols_bks],
+                *[F.col(c) for c in self.cols_val],
+                F.col(self.col_dp_ts).alias("src_dp_ts_from"),
+                dp_ts_col,
+                F.lit("ACTIVE").alias("dp_del_flag"),
+                hash_expr.alias("src_dp_record_hash"),
+            )
+
+            prev_dp_ts_row = None
+            if self.col_dp_ts_filter is not None:
+                prev_dp_ts_row = (
+                    self.raw_table_df
+                    .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                    .agg(F.max(self.col_dp_ts_filter))
+                    .collect()[0][0]
+                )
+
+            if prev_dp_ts_row is not None:
+                prev_src_df = self.raw_table_df.filter(
+                    F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row)
+                )
+                curr_bks_df = src_curr_df.select(*[F.col(c).alias(f"curr_{c}") for c in self.cols_bks])
+                join_cond = reduce(
+                    lambda a, b: a & b,
+                    [F.col(c).eqNullSafe(F.col(f"curr_{c}")) for c in self.cols_bks],
+                )
+                null_cond = reduce(
+                    lambda a, b: a & b,
+                    [F.col(f"curr_{c}").isNull() for c in self.cols_bks],
+                )
+                inactive_df = (
+                    prev_src_df
+                    .join(curr_bks_df, join_cond, "left")
+                    .filter(null_cond)
+                    .select(
+                        *[F.col(c) for c in self.cols_bks],
+                        *[F.col(c) for c in self.cols_val],
+                        F.expr(f"TIMESTAMP '{dp_ts_str}'").alias("src_dp_ts_from"),
+                        F.expr(f"TIMESTAMP '{dp_ts_str}'").alias("dp_ts"),
+                        F.lit("INACTIVE").alias("dp_del_flag"),
+                        hash_expr.alias("src_dp_record_hash"),
+                    )
+                )
+                src_df = curr_df.unionByName(inactive_df)
+            else:
+                src_df = curr_df
 
         # ── sub-DataFrames from scd2 table (all conflicting columns pre-renamed) ─
         scd2_df = self.spark.table(self.scd2_table_fqn())
