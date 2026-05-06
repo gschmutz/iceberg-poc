@@ -124,7 +124,7 @@ def test_step_1(ctx):
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
-                dp_created_at, dp_replaced_at,
+                dp_load_ts, dp_replace_ts,
                 dp_record_hash 
         FROM {scd2_table_fqn(ctx)}
         WHERE dp_is_active = TRUE
@@ -167,6 +167,5 @@ def test_step_1(ctx):
         sel_stmt=sel_stmt,
         expected=expected,
         output_file_name=FILE_NAME,
-        test_description=test_description,
-        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
+        test_description=test_description
     )

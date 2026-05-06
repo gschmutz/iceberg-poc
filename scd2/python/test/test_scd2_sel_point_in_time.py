@@ -120,7 +120,7 @@ def test_step_1(ctx):
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
-                dp_created_at, dp_replaced_at,
+                dp_load_ts, dp_replace_ts,
                 dp_record_hash  
         FROM {scd2_table_fqn(ctx)}
         WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_ts_from AND dp_ts_to

@@ -60,7 +60,7 @@ RAW_TABLE_NAME = "raw_person"
 SCD2_TABLE_NAME = "dim_person"
 SCD2_VIEW_NAME = "view_person_scd2"
 
-EXCLUDE_COLS = ["dp_record_hash", "dp_load_timestamp", "change_type"]
+EXCLUDE_COLS = ["dp_record_hash"]
 col_dp_ts_filter = "dp_loaded_at"
 
 DELTA_MODE_DELETE_EXPRESSION="status = 'INACTIVE'"
@@ -145,7 +145,7 @@ class TestCommonsBase:
     def assert_df(
         self, actual_df: pd.DataFrame, expected_df: pd.DataFrame, output_file_name: str
     ):
-        for col in ["dp_ts_to", "dp_ts_from", "dp_created_at", "dp_replaced_at"]:
+        for col in ["dp_ts_to", "dp_ts_from", "dp_load_ts", "dp_replace_ts"]:
             if col in actual_df.columns and col in expected_df.columns:
                 actual_df[col] = actual_df[col].apply(
                     TestCommonsBase.normalize_ts_for_assert
@@ -461,8 +461,8 @@ class TrinoTestCommons(TestCommonsBase):
                 dp_ts_to TIMESTAMP,
                 dp_is_active BOOLEAN,
                 dp_is_latest BOOLEAN,
-                dp_created_at TIMESTAMP,
-                dp_replaced_at TIMESTAMP,
+                dp_load_ts TIMESTAMP,
+                dp_replace_ts TIMESTAMP,
                 dp_record_hash VARCHAR
             )
             WITH (
@@ -567,8 +567,8 @@ class SparkTestCommons(TestCommonsBase):
                 dp_ts_to TIMESTAMP,
                 dp_is_active BOOLEAN,
                 dp_is_latest BOOLEAN,
-                dp_created_at TIMESTAMP,
-                dp_replaced_at TIMESTAMP,
+                dp_load_ts TIMESTAMP,
+                dp_replace_ts TIMESTAMP,
                 dp_record_hash STRING
             )
             USING ICEBERG
@@ -642,6 +642,10 @@ class PySparkTestCommons(SparkTestCommons):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             delta_mode_delete_expression=delta_mode_delete_expression,
             perform_merge_op=perform_merge_op,
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
+            col_dp_created_at="dp_load_ts",
+            col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
