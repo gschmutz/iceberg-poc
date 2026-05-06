@@ -152,12 +152,10 @@ class SparkSCD2Strategy(SCD2Strategy):
         SRC_DATA_DELTA_CTE = f"""
             src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        to_hex(
-                            sha256(
-                                CAST(
-                                    concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}])
-                                    AS VARBINARY
-                                )
+                        upper(
+                            sha2(
+                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
+                                ), 256
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
