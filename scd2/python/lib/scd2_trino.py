@@ -157,7 +157,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         SRC_DATA_DELTA_CTE = f"""
             src_records AS (
-                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{self.col_dp_ts_filter},
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         to_hex(
                             sha256(
                                 CAST(
@@ -583,7 +583,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         dp_ts_to = source.dp_ts_to,
         dp_is_active = COALESCE(source.dp_is_active, target.dp_is_active),
         dp_is_latest = COALESCE(source.dp_is_latest, target.dp_is_latest),
-        dp_replaced_at = TIMESTAMP '{current_ts_str}'
+        {self.col_dp_replaced_at} = TIMESTAMP '{current_ts_str}'
     WHEN MATCHED
         AND source.operation_type = 'DELETE_VERSION'
     THEN DELETE
