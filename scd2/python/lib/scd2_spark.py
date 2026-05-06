@@ -143,7 +143,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
         join_src_next = self._format_join_condition(cols_bks, "src", "next")
         
-        dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter else ""
+        dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+        if (self.delta_mode_delete_expression is not None):
+            dp_del_flag_expr = f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
+        else:
+            dp_del_flag_expr = "'ACTIVE' AS dp_del_flag"
 
         return f"""
     WITH changed_records AS (
@@ -155,7 +159,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                         ), 256
                     )
                 ) AS dp_record_hash,
-                CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag
+                {dp_del_flag_expr}
             FROM {self.raw_table_fqn()} AS t
             {dp_ts_filter_expr}
         )
