@@ -14,6 +14,7 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
+    DELTA_MODE_DELETE_EXPRESSION,
     COLS_WITH_TYPE,
     EXCLUDE_COLS,
     S3_WAREHOUSE_BUCKET,
@@ -112,6 +113,8 @@ def test_step_1(ctx):
         output_file_name=FILE_NAME,
         display_result=True,
         test_description=f"Performing two batch inserts with load timestamps {load_ts_1} and {load_ts_2} and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara.",
+        perform_merge_op=True,
+        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
 
     # Run SELECT test
@@ -165,4 +168,5 @@ def test_step_1(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
+        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )

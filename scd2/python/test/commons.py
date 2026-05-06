@@ -63,7 +63,7 @@ SCD2_VIEW_NAME = "view_person_scd2"
 EXCLUDE_COLS = ["dp_record_hash", "dp_load_timestamp", "change_type"]
 col_dp_ts_filter = "dp_loaded_at"
 
-delta_mode_delete_expression="status = 'INACTIVE'"
+DELTA_MODE_DELETE_EXPRESSION="status = 'INACTIVE'"
 
 
 # ---------------------------------------------------------------------------
@@ -734,6 +734,7 @@ def scd2_merge_as_preparation(
     current_ts_list: list,
     perform_merge_op: bool = True,
     use_delta_mode_for_raw_table: bool = False,
+    delta_mode_delete_expression: Optional[str] = None,
     display_result: bool = True,
     expected=None,
     output_file_name: str = None,
@@ -747,7 +748,7 @@ def scd2_merge_as_preparation(
         current_ts_list=current_ts_list,
         perform_merge_op=perform_merge_op,
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression if use_delta_mode_for_raw_table else None,
+        delta_mode_delete_expression=delta_mode_delete_expression,
         display_result=display_result,
         expected=expected,
         output_file_name=output_file_name,
@@ -768,6 +769,7 @@ def scd2_merge_as_test(
     test_after_description: str = None,
     perform_merge_op: bool = True,
     use_delta_mode_for_raw_table: bool = False,
+    delta_mode_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -784,7 +786,7 @@ def scd2_merge_as_test(
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression if use_delta_mode_for_raw_table else None,
+        delta_mode_delete_expression=delta_mode_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
@@ -801,6 +803,7 @@ def scd2_merge_as_test2(
     test_after_description: str = None,
     perform_merge_op: bool = True,
     use_delta_mode_for_raw_table: bool = False,
+    delta_mode_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -816,7 +819,7 @@ def scd2_merge_as_test2(
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression if use_delta_mode_for_raw_table else None,
+        delta_mode_delete_expression=delta_mode_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
@@ -834,6 +837,7 @@ def scd2_merge_as_test_return_as_df(
     test_after_description: str = None,
     perform_merge_op: bool = True,
     use_delta_mode_for_raw_table: bool = False,
+    delta_mode_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -850,7 +854,7 @@ def scd2_merge_as_test_return_as_df(
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
         use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression if use_delta_mode_for_raw_table else None,
+        delta_mode_delete_expression=delta_mode_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,

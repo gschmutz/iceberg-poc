@@ -11,6 +11,7 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
+    DELTA_MODE_DELETE_EXPRESSION,
     COLS_WITH_TYPE,
     EXCLUDE_COLS,
     RAW_TABLE_NAME,
@@ -199,6 +200,8 @@ def test_step_1(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
+        perform_merge_op=True,
+        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
 
 
@@ -301,4 +304,5 @@ def test_step_2(ctx):
         test_description=test_description,
         perform_merge_op=True,
         use_delta_mode_for_raw_table=False,
+        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
