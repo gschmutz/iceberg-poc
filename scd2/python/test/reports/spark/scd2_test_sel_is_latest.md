@@ -4,7 +4,7 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-04-26 19:24:18`
+ * **Last Run:** `2026-05-06 18:51:36`
 ### Perform Preparation
 
 
@@ -24,14 +24,14 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 **Dimensional Table `dim_person`**
 
 
-| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      |
+| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_load_ts          | dp_replace_ts       |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| 6e382a75-0ba0-4372-8b06-b39deda12eaf |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 83474df4-b393-4757-8de9-33538dd93463 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
-| e80a0ec1-7160-49f3-9011-f28a5efc30a9 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| aee9a2e9-d9dc-489b-8302-89bd4190aefd |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| 18f23770-3214-4212-b0c9-98e8ab10064e |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| 528a122c-17df-4a0c-a4e5-a7d782db829c |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| 45d43135-06bd-4cde-96ee-c948b518b5fa |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| 86abe147-3d4c-4744-9071-45d5bde95069 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
 
-_the following columns where excluded from the result: `dp_record_hash, dp_load_timestamp, change_type`_
+_the following columns where excluded from the result: `dp_record_hash`_
 
 ### Perform Test
 Select all the latest data. Even though Bob has been deleted it will still be shown because we are selecting the latest records as of today.
@@ -40,7 +40,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 `
         SELECT id, first_name, last_name, city, email,
                 dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
-                dp_created_at, dp_replaced_at,
+                dp_load_ts, dp_replace_ts,
                 dp_record_hash  
         FROM default.dim_person
         WHERE dp_is_latest = TRUE
@@ -52,7 +52,7 @@ Select all the latest data. Even though Bob has been deleted it will still be sh
 **Dimensional Table `dim_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_created_at       | dp_replaced_at      | dp_record_hash                                                   |
+|   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_load_ts          | dp_replace_ts       | dp_record_hash                                                   |
 |------|--------------|-------------|--------|--------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|------------------------------------------------------------------|
 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com  | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 | 6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 |
