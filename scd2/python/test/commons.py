@@ -438,6 +438,10 @@ class TrinoTestCommons(TestCommonsBase):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             delta_mode_delete_expression=delta_mode_delete_expression,
             perform_merge_op=perform_merge_op,
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
+            col_dp_created_at="dp_load_ts",
+            col_dp_replaced_at="dp_replace_ts",            
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
@@ -544,6 +548,10 @@ class SparkTestCommons(TestCommonsBase):
             use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
             delta_mode_delete_expression=delta_mode_delete_expression,
             perform_merge_op=perform_merge_op,
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
+            col_dp_created_at="dp_load_ts",
+            col_dp_replaced_at="dp_replace_ts",  
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
