@@ -81,10 +81,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         return f"{self.database}.{object_name}"
 
     @staticmethod
-    def _cast_to_string(values: list) -> list:
-        return [f"CAST({v} AS STRING)" for v in values]
-
-    @staticmethod
     def _format_join_condition(
         cols_bks: list, prefix_left: str, prefix_right: str
     ) -> str:
@@ -139,30 +135,86 @@ class SparkSCD2Strategy(SCD2Strategy):
         cast_cols_val_str = fv(cs(cols_val))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
+        join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
         join_src_overlap = self._format_join_condition(cols_bks, "src", "overlap")
         join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
         join_src_next = self._format_join_condition(cols_bks, "src", "next")
+        where_curr_is_null = " AND ".join(f"curr.{col} IS NULL" for col in cols_bks)
         
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+        dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.raw_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+
         if (self.delta_mode_delete_expression is not None):
             dp_del_flag_expr = f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
         else:
-            dp_del_flag_expr = "'ACTIVE' AS dp_del_flag"
+            dp_del_flag_expr = "'N.A.' AS dp_del_flag"
+
+        SRC_DATA_DELTA_CTE = f"""
+            src_records AS (
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
+                        to_hex(
+                            sha256(
+                                CAST(
+                                    concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}])
+                                    AS VARBINARY
+                                )
+                            )
+                        ) AS dp_record_hash,
+                    {dp_del_flag_expr}
+                FROM {self.raw_table_fqn()} AS t
+                {dp_ts_filter_expr}
+            )
+        """
+
+        SRC_DATA_FULL_CTE = f"""
+            src_curr_records AS (
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
+                        upper(
+                            sha2(
+                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
+                                ), 256
+                            )
+                        ) AS dp_record_hash,
+                    {dp_del_flag_expr}
+                FROM {self.raw_table_fqn()} AS t
+                {dp_ts_filter_expr} 
+            ),       
+            prev_src_records AS (
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
+                        upper(
+                            sha2(
+                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
+                                ), 256
+                            )
+                        ) AS dp_record_hash,
+                    {dp_del_flag_expr}
+                FROM {self.raw_table_fqn()} AS t
+                {dp_ts_filter_prev_expr} 
+            ),
+            src_records AS (
+                SELECT
+                    {fv(ap(cols_bks, "curr"))}, {fv(ap(cols_val, "curr"))}, curr.{self.col_dp_ts}, curr.{self.col_dp_ts_filter},
+                    curr.dp_record_hash,
+                    'ACTIVE'              AS dp_del_flag
+                FROM src_curr_records    curr
+                UNION ALL
+                SELECT
+                    {fv(ap(cols_bks, "prev"))}, {fv(ap(cols_val, "prev"))}, TIMESTAMP '{dp_ts_str}', TIMESTAMP '{dp_ts_str}',
+                    prev.dp_record_hash,
+                    'INACTIVE'            AS dp_del_flag
+                FROM prev_src_records prev
+                LEFT JOIN src_curr_records curr
+                ON ({join_curr_prev})
+                WHERE {where_curr_is_null}
+            )            
+        """
+
+        src_data_cte = SRC_DATA_DELTA_CTE if self.delta_mode_delete_expression != None else SRC_DATA_FULL_CTE
 
         return f"""
     WITH changed_records AS (
-        WITH src_records AS (
-            SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.dp_ts_from, t.{self.col_dp_ts_filter},
-                upper(
-                    sha2(
-                        concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
-                        ), 256
-                    )
-                ) AS dp_record_hash,
-                {dp_del_flag_expr}
-            FROM {self.raw_table_fqn()} AS t
-            {dp_ts_filter_expr}
-        )
+        WITH 
+            {src_data_cte}
         SELECT
             {prefixed_cols_bks_str},
             {prefixed_cols_val_str},

@@ -292,6 +292,10 @@ class SCD2Strategy(ABC):
             return self.scd2_intermediary_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
         raise ValueError(f"Unknown SCD2Table value: {table}")
 
+    @staticmethod
+    def _cast_to_string(values: list) -> list:
+        return [f"CAST({v} AS STRING)" for v in values]
+
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
     @abstractmethod
