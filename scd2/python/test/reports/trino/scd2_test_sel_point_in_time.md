@@ -4,7 +4,7 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 
  * **Strategy:** `trino`
- * **Last Run:** `2026-05-06 19:41:50`
+ * **Last Run:** `2026-05-07 08:19:09`
 ### Perform Preparation
 
 
@@ -25,9 +25,9 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 | dp_record_id                         |   id | first_name   | last_name   | city   | email                   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   | dp_load_ts          | dp_replace_ts       |
 |--------------------------------------|------|--------------|-------------|--------|-------------------------|---------------------|---------------------|----------------|----------------|---------------------|---------------------|
-| 52d120a3-f2a5-4281-87a6-0e4fe7e382f6 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
-| 67f765e4-bdc7-4009-9a38-1763a607e004 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
-| 0db3f188-9c57-4b7f-b8fe-0535c505cd74 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
+| ba62005e-de93-4894-b351-25ef7dde3c1a |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          | 2026-01-02 00:00:00 | 2026-01-06 00:00:00 |
+| f6922198-806f-42aa-87a4-6fbdfeecb0e4 |    1 | Alice        | Meyer       | Bern   | alice.meyer@example.com | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-06 00:00:00 | 9999-12-31 23:59:59 |
+| 9c42d578-f081-40f8-9cfb-b0589e9bc31a |    2 | Bob          | Keller      | Bern   | bob.keller@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59 |
 
 _the following columns where excluded from the result: `dp_record_hash`_
 
