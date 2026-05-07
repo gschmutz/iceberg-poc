@@ -49,7 +49,7 @@ Python environment setup: `cd scd2/python && python3 -m venv venv && source venv
 - **SHA-256 row hashing**: `concat_ws('||', ...)` + SHA-256 for change detection instead of column-by-column comparison
 - **`merge_key = NULL` trick**: Standard Iceberg/Trino pattern for emitting both UPDATE and INSERT from a single changed record
 - **`dp_is_active` vs `dp_is_latest`**: `dp_is_latest=TRUE` = most recent version (even if deleted); `dp_is_active=TRUE` = not deleted. Supports different query patterns
-- **Delta mode**: `use_delta_mode_for_raw_table` flag controls whether absent entities are treated as deleted (full-snapshot mode) or ignored (CDC/delta mode)
+- **Delta mode**: `use_logical_delete_for_source_table` flag controls whether absent entities are treated as deleted (full-snapshot mode) or ignored (CDC/delta mode)
 
 ### SCD2 Dimension Metadata Columns
 

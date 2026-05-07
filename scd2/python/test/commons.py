@@ -77,7 +77,7 @@ class TestCommonsBase:
     COLS_WITH_TYPE: list  # defined in each concrete subclass
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
-                       use_delta_mode_for_raw_table: bool = False, perform_merge_op: bool = True,
+                       use_logical_delete_for_source_table: bool = False, perform_merge_op: bool = True,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         raise NotImplementedError
 
@@ -173,8 +173,8 @@ class TestCommonsBase:
         dp_ts_list: list,
         current_ts_list: list,
         perform_merge_op: bool = True,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         display_result: bool = True,
         expected=None,
         output_file_name: str = None,
@@ -187,8 +187,8 @@ class TestCommonsBase:
             self._execute_insert(ins_stmt, ctx)
 
             self._make_strategy(ctx, cols_bks=cols_bks,
-                                use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                                delta_mode_delete_expression=delta_mode_delete_expression,
+                                use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+                                logical_delete_expression=logical_delete_expression,
                                 perform_merge_op=perform_merge_op).merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
@@ -240,8 +240,8 @@ class TestCommonsBase:
         test_description: str = None,
         test_after_description: str = None,
         perform_merge_op: bool = True,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         display_result: bool = True,
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
@@ -264,7 +264,7 @@ class TestCommonsBase:
         )
 
         self._make_strategy(ctx, cols_bks=cols_bks,
-                            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table, delta_mode_delete_expression=delta_mode_delete_expression,
+                            use_logical_delete_for_source_table=use_logical_delete_for_source_table, logical_delete_expression=logical_delete_expression,
                             perform_merge_op=perform_merge_op).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
@@ -312,8 +312,8 @@ class TestCommonsBase:
         test_description: str = None,
         test_after_description: str = None,
         perform_merge_op: bool = True,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         display_result: bool = True,
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
@@ -334,8 +334,8 @@ class TestCommonsBase:
         )
 
         strategy = self._make_strategy(ctx, cols_bks=cols_bks,
-                                       use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-                                       delta_mode_delete_expression=delta_mode_delete_expression,
+                                       use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+                                       logical_delete_expression=logical_delete_expression,
                                        perform_merge_op=perform_merge_op)
         for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
@@ -425,7 +425,7 @@ class TrinoTestCommons(TestCommonsBase):
     COLS_WITH_TYPE = COLS_WITH_TYPE_TRINO
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
-                       use_delta_mode_for_raw_table: bool = False, delta_mode_delete_expression: Optional[str] = None, 
+                       use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None, 
                        perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
@@ -435,8 +435,8 @@ class TrinoTestCommons(TestCommonsBase):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            delta_mode_delete_expression=delta_mode_delete_expression,
+            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+            logical_delete_expression=logical_delete_expression,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
@@ -536,7 +536,7 @@ class SparkTestCommons(TestCommonsBase):
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
-                       use_delta_mode_for_raw_table: bool = False, delta_mode_delete_expression: Optional[str] = None, 
+                       use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None, 
                        perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
@@ -545,8 +545,8 @@ class SparkTestCommons(TestCommonsBase):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            delta_mode_delete_expression=delta_mode_delete_expression,
+            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+            logical_delete_expression=logical_delete_expression,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
@@ -636,7 +636,7 @@ class PySparkTestCommons(SparkTestCommons):
     COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
-                       use_delta_mode_for_raw_table: bool = False, delta_mode_delete_expression: Optional[str] = None, 
+                       use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None, 
                        perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         
         return PySparkSCD2Strategy(
@@ -647,8 +647,8 @@ class PySparkTestCommons(SparkTestCommons):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            delta_mode_delete_expression=delta_mode_delete_expression,
+            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+            logical_delete_expression=logical_delete_expression,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
@@ -745,8 +745,8 @@ def scd2_merge_as_preparation(
     dp_ts_list: list,
     current_ts_list: list,
     perform_merge_op: bool = True,
-    use_delta_mode_for_raw_table: bool = False,
-    delta_mode_delete_expression: Optional[str] = None,
+    use_logical_delete_for_source_table: bool = False,
+    logical_delete_expression: Optional[str] = None,
     display_result: bool = True,
     expected=None,
     output_file_name: str = None,
@@ -759,8 +759,8 @@ def scd2_merge_as_preparation(
         dp_ts_list=dp_ts_list,
         current_ts_list=current_ts_list,
         perform_merge_op=perform_merge_op,
-        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression,
+        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+        logical_delete_expression=logical_delete_expression,
         display_result=display_result,
         expected=expected,
         output_file_name=output_file_name,
@@ -780,8 +780,8 @@ def scd2_merge_as_test(
     test_description: str = None,
     test_after_description: str = None,
     perform_merge_op: bool = True,
-    use_delta_mode_for_raw_table: bool = False,
-    delta_mode_delete_expression: Optional[str] = None,
+    use_logical_delete_for_source_table: bool = False,
+    logical_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -797,8 +797,8 @@ def scd2_merge_as_test(
         test_description=test_description,
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
-        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression,
+        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+        logical_delete_expression=logical_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
@@ -814,8 +814,8 @@ def scd2_merge_as_test2(
     test_description: str = None,
     test_after_description: str = None,
     perform_merge_op: bool = True,
-    use_delta_mode_for_raw_table: bool = False,
-    delta_mode_delete_expression: Optional[str] = None,
+    use_logical_delete_for_source_table: bool = False,
+    logical_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -830,8 +830,8 @@ def scd2_merge_as_test2(
         test_description=test_description,
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
-        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression,
+        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+        logical_delete_expression=logical_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
@@ -848,8 +848,8 @@ def scd2_merge_as_test_return_as_df(
     test_description: str = None,
     test_after_description: str = None,
     perform_merge_op: bool = True,
-    use_delta_mode_for_raw_table: bool = False,
-    delta_mode_delete_expression: Optional[str] = None,
+    use_logical_delete_for_source_table: bool = False,
+    logical_delete_expression: Optional[str] = None,
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
@@ -865,8 +865,8 @@ def scd2_merge_as_test_return_as_df(
         test_description=test_description,
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
-        use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-        delta_mode_delete_expression=delta_mode_delete_expression,
+        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+        logical_delete_expression=logical_delete_expression,
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,

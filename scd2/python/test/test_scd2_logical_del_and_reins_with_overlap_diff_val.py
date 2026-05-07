@@ -139,7 +139,8 @@ def test_step_1(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
+        use_logical_delete_for_source_table=True,
+        logical_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
 
 
@@ -226,7 +227,8 @@ def test_step_2(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
+        use_logical_delete_for_source_table=True,
+        logical_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
 
 
@@ -328,5 +330,6 @@ def test_step_3(ctx):
         output_file_name=FILE_NAME,
         test_description=test_description,
         perform_merge_op=True,
-        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
+        use_logical_delete_for_source_table=True,
+        logical_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )

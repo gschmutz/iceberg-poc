@@ -130,6 +130,7 @@ def test_step_1(ctx):
         ins_stmt=insert_sql_1,
         dp_ts=load_ts_1,
         current_ts=current_ts_1,
+        use_logical_delete_for_source_table=False,
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
@@ -215,9 +216,9 @@ def test_step_2(ctx):
         ins_stmt=insert_sql_2,
         dp_ts=load_ts_2,
         current_ts=current_ts_2,
+        use_logical_delete_for_source_table=False,
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        perform_merge_op=True,
-        use_delta_mode_for_raw_table=False,
+        perform_merge_op=True
     )

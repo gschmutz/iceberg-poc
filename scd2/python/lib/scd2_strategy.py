@@ -85,7 +85,7 @@ class SCD2Strategy(ABC):
             cols_bks=["id"],
             cols_val=["first_name", "last_name", "city"],
             col_dp_ts_filter="dp_ts",
-            use_delta_mode_for_raw_table=False,
+            use_logical_delete_for_source_table=False,
             perform_merge_op=True,
         )
         result, metadata = strategy.merge_into_scd2_table(
@@ -99,8 +99,8 @@ class SCD2Strategy(ABC):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -120,7 +120,7 @@ class SCD2Strategy(ABC):
                 versions (e.g. ``["id"]`` or ``["tenant_id", "user_id"]``).
             cols_val: Value column names whose changes trigger a new SCD2 version
                 (e.g. ``["first_name", "last_name", "city"]``).
-            use_delta_mode_for_raw_table: Controls how the absence of an entity
+            use_logical_delete_for_source_table: Controls how the absence of an entity
                 in the current raw batch is interpreted.
 
                 * ``False`` (default, full-snapshot mode) – an entity that is
@@ -128,7 +128,7 @@ class SCD2Strategy(ABC):
                   treated as deleted and a soft-delete version is written.
                 * ``True`` (delta / CDC mode) – absent entities are ignored;
                   only records explicitly present in the raw batch are processed.
-            delta_mode_delete_expression: When ``use_delta_mode_for_raw_table`` is ``True`` this expression defines how to identify deleted records in the raw table (e.g. ``"status = 'INACTIVE'"``).  Required when delta mode is enabled.
+            logical_delete_expression: When ``use_logical_delete_for_source_table`` is ``True`` this expression defines how to identify deleted records in the raw table (e.g. ``"status = 'INACTIVE'"``).  Required when delta mode is enabled.
             materialize_data_before_merge: When ``True`` the intermediary staging
                 view is written to a physical Iceberg table before the MERGE is
                 executed.  Required for engines (e.g. Spark) that do not allow
@@ -145,7 +145,7 @@ class SCD2Strategy(ABC):
             col_dp_ts: Name of the timestamp column in the SCD2 table that
                 identifies the version start (e.g. ``"dp_ts_from"``).  Each call
                 to :meth:`merge_into_scd2_table` uses this column to track the
-                validity period of each version.  Defaults to ``"dp_ts_from"``.
+                validity period of each version.  Defaults to ``"dp_ts_from"``, if passed "" explicitly, then the value of col_dp_ts_filter is used.
             col_dp_ts_filter: Name of the timestamp column in the raw table that
                 identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
                 to :meth:`merge_into_scd2_table` filters the raw table on
@@ -154,16 +154,46 @@ class SCD2Strategy(ABC):
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
         self.cols_val = cols_val
-        self.use_delta_mode_for_raw_table = use_delta_mode_for_raw_table
-        self.delta_mode_delete_expression = delta_mode_delete_expression
+        self.use_logical_delete_for_source_table = use_logical_delete_for_source_table
+        self.logical_delete_expression = logical_delete_expression
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
         self.col_dp_valid_from = col_dp_valid_from
         self.col_dp_valid_to = col_dp_valid_to
         self.col_dp_created_at = col_dp_created_at
         self.col_dp_replaced_at = col_dp_replaced_at
-        self.col_dp_ts = col_dp_ts
+        self.col_dp_ts = col_dp_ts if col_dp_ts else col_dp_ts_filter
         self.col_dp_ts_filter = col_dp_ts_filter
+
+        self._validate_parameters()
+
+    def _validate_parameters(self) -> None:
+        """Validate the combination of constructor parameters.
+
+        Raises:
+            ValueError: If ``use_logical_delete_for_source_table`` is ``True``
+                but ``logical_delete_expression`` is ``None`` or empty — the
+                engine has no way to identify deleted records in the raw table.
+            ValueError: If ``use_logical_delete_for_source_table`` is ``False``
+                (full-snapshot mode) but ``col_dp_ts`` and ``col_dp_ts_filter``
+                differ — in full-snapshot mode both columns must refer to the
+                same load-batch timestamp so that the filter and the version
+                column stay in sync.
+        """
+        if self.use_logical_delete_for_source_table and not self.logical_delete_expression:
+            raise ValueError(
+                "logical_delete_expression must be provided when "
+                "use_logical_delete_for_source_table is True."
+            )
+        
+        # Warning and auto-fix for inconsistent timestamp column configuration in full-snapshot mode
+        if not self.use_logical_delete_for_source_table and self.col_dp_ts != self.col_dp_ts_filter:
+#            self.col_dp_ts = self.col_dp_ts_filter  # Force them to be the same for consistency
+            logger.warning(
+                f"col_dp_ts ('{self.col_dp_ts}') and col_dp_ts_filter ('{self.col_dp_ts_filter}') "
+                "must be the same column when use_logical_delete_for_source_table is False "
+                "(full-snapshot mode). Automatically fixed col_dp_ts to match col_dp_ts_filter."
+            )
 
     # ── Shared utility methods ──────────────────────────────────────────────
 
@@ -295,7 +325,7 @@ class SCD2Strategy(ABC):
     @staticmethod
     def _cast_to_string(values: list) -> list:
         return [f"CAST({v} AS STRING)" for v in values]
-
+    
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
     @abstractmethod

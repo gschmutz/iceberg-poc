@@ -41,8 +41,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
@@ -55,8 +55,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
             scd2_intermediary_table_name,
             cols_bks=cols_bks,
             cols_val=cols_val,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            delta_mode_delete_expression=delta_mode_delete_expression,
+            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+            logical_delete_expression=logical_delete_expression,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from=col_dp_valid_from,
             col_dp_valid_to=col_dp_valid_to,
@@ -150,8 +150,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
         dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.raw_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
 
-        if (self.delta_mode_delete_expression is not None):
-            dp_del_flag_expr = f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
+        if (self.use_logical_delete_for_source_table):
+            dp_del_flag_expr = f"CASE WHEN {self.logical_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
         else:
             dp_del_flag_expr = "'N.A.' AS dp_del_flag"
 
@@ -219,7 +219,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             )            
         """
 
-        src_data_cte = SRC_DATA_DELTA_CTE if self.delta_mode_delete_expression != None else SRC_DATA_FULL_CTE
+        src_data_cte = SRC_DATA_DELTA_CTE if self.use_logical_delete_for_source_table else SRC_DATA_FULL_CTE
 
         return f"""
     WITH changed_records AS (

@@ -44,8 +44,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        use_delta_mode_for_raw_table: bool = False,
-        delta_mode_delete_expression: Optional[str] = None,
+        use_logical_delete_for_source_table: bool = False,
+        logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -63,8 +63,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             scd2_intermediary_table_name=scd2_intermediary_table_name,
             cols_bks=cols_bks,
             cols_val=cols_val,
-            use_delta_mode_for_raw_table=use_delta_mode_for_raw_table,
-            delta_mode_delete_expression=delta_mode_delete_expression,
+            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
+            logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from=col_dp_valid_from,
@@ -180,8 +180,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             else F.lit(None).cast("timestamp").alias("dp_ts")
         )
 
-        if self.delta_mode_delete_expression is not None:
-            # Delta mode: use delete expression to derive dp_del_flag
+        if self.use_logical_delete_for_source_table:
+            # Logical Delete mode: use delete expression to derive dp_del_flag
             src_df = self.raw_table_df
             if self.col_dp_ts_filter is not None:
                 src_df = src_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
@@ -190,11 +190,11 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 *[F.col(c) for c in self.cols_val],
                 F.col(self.col_dp_ts).alias("src_dp_ts_from"),
                 dp_ts_col,
-                F.expr(f"CASE WHEN {self.delta_mode_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END").alias("dp_del_flag"),
+                F.expr(f"CASE WHEN {self.logical_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END").alias("dp_del_flag"),
                 hash_expr.alias("src_dp_record_hash"),
             )
         else:
-            # Full-load mode: detect implicit deletes by comparing current batch with previous batch
+            # Physical Delete mode: detect implicit deletes by comparing current batch with previous batch
             src_curr_df = self.raw_table_df
             if self.col_dp_ts_filter is not None:
                 src_curr_df = src_curr_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))

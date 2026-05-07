@@ -114,7 +114,8 @@ def test_step_1(ctx):
         display_result=True,
         test_description=f"Performing two batch inserts with load timestamps {load_ts_1} and {load_ts_2} and merge them into the dimension table. The second batch contains an update for Bob (status changes to INACTIVE) and a new record for Clara.",
         perform_merge_op=True,
-        delta_mode_delete_expression=DELTA_MODE_DELETE_EXPRESSION
+        use_logical_delete_for_source_table=True,
+        logical_delete_expression=DELTA_MODE_DELETE_EXPRESSION
     )
 
     # Run SELECT test
