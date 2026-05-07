@@ -96,8 +96,8 @@ class TestCommonsBase:
     def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
         raise NotImplementedError
 
-    def raw_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
-        return self._make_strategy(ctx).raw_table_fqn(
+    def source_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
+        return self._make_strategy(ctx).source_table_fqn(
             iceberg_meta_tablename=iceberg_meta_tablename
         )
 
@@ -431,7 +431,7 @@ class TrinoTestCommons(TestCommonsBase):
             ctx.conn,
             catalog=TRINO_CATALOG,
             schema=TRINO_SCHEMA,
-            raw_table_name=RAW_TABLE_NAME,
+            source_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
@@ -541,7 +541,7 @@ class SparkTestCommons(TestCommonsBase):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
-            raw_table_name=RAW_TABLE_NAME,
+            source_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
@@ -642,8 +642,8 @@ class PySparkTestCommons(SparkTestCommons):
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
-            raw_table_name=RAW_TABLE_NAME,
-            raw_table_df=ctx.spark.table("default." + RAW_TABLE_NAME),
+            source_table_name=RAW_TABLE_NAME,
+            source_table_df=ctx.spark.table("default." + RAW_TABLE_NAME),
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
@@ -709,8 +709,8 @@ def get_table_data(
     )
 
 
-def raw_table_fqn(ctx, iceberg_meta_tablename: str = None):
-    return _impl.raw_table_fqn(ctx, iceberg_meta_tablename=iceberg_meta_tablename)
+def source_table_fqn(ctx, iceberg_meta_tablename: str = None):
+    return _impl.source_table_fqn(ctx, iceberg_meta_tablename=iceberg_meta_tablename)
 
 
 def scd2_table_fqn(ctx, iceberg_meta_tablename: str = None):

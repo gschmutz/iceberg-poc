@@ -28,7 +28,7 @@ from commons import (
     get_table_data,
     insert_as_preparation,
     optimize_table,
-    raw_table_fqn,
+    source_table_fqn,
     scd2_merge_as_test,
 )
 from constants import MAX_TS
@@ -61,7 +61,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql_1 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -69,7 +69,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_2 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (10, 'David', 'Fischer', 'Lucerne', 'david.fischer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (12, 'Emma', 'Weber', 'Geneva', 'emma.weber@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -77,7 +77,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_3 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (21, 'Hannah', 'Roth', 'St. Gallen', 'hannah.roth@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (22, 'Ivan', 'Baumann', 'Winterthur', 'ivan.baumann@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -85,7 +85,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_4 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (31, 'Klaus', 'Vogel', 'Zug', 'klaus.vogel@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (32, 'Laura', 'Meier', 'Schaffhausen', 'laura.meier@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -93,7 +93,7 @@ def test_step_1(ctx):
     """
 
     insert_sql_5 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (41, 'Nina', 'Steiner', 'Chur', 'nina.steiner@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (42, 'Oliver', 'Brunner', 'Sion', 'oliver.brunner@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -123,7 +123,7 @@ def test_step_1(ctx):
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(ctx, table_name=raw_table_fqn(ctx))
+    optimize_table(ctx, table_name=source_table_fqn(ctx))
 
     # Verify and Visualize results
     df = get_table_data(ctx=ctx, table=SCD2Table.SCD2, iceberg_meta_tablename="files", order_by_cols=[])

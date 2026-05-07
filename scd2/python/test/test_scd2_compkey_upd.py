@@ -20,7 +20,7 @@ from commons import (
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
-    raw_table_fqn,
+    source_table_fqn,
     scd2_merge_as_test,
 )
 from constants import MAX_TS
@@ -58,7 +58,7 @@ def test_step_1(ctx):
 
     # --- Insert statement (batch 1) ---
     insert_sql_1 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         SELECT *
         FROM (
             VALUES
@@ -149,7 +149,7 @@ def test_step_2(ctx):
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         SELECT *
         FROM (
             VALUES

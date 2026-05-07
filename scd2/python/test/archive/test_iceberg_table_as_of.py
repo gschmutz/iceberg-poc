@@ -29,7 +29,7 @@ from commons import (
     execute_select,
     get_strategy_name,
     insert_as_preparation,
-    raw_table_fqn,
+    source_table_fqn,
     scd2_merge_as_test,
     scd2_sel_as_test,
 )
@@ -64,7 +64,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -73,7 +73,7 @@ def test_step_1(ctx):
 
     # Prepare --- Update statement to add value to new_col ---
     update_sql = f"""
-        UPDATE {raw_table_fqn(ctx)}
+        UPDATE {source_table_fqn(ctx)}
         SET email = 'alice.meyer@newcorp.com'
         WHERE id = 1
     """
@@ -89,7 +89,7 @@ def test_step_1(ctx):
     # Run SELECT test
     sel_stmt = f"""
         SELECT * 
-        FROM {raw_table_fqn(ctx)}
+        FROM {source_table_fqn(ctx)}
         ORDER BY id
         """
 
@@ -144,7 +144,7 @@ def test_step_2(ctx):
 
     sel_snapshot_id = f"""
         SELECT parent_id 
-        FROM {raw_table_fqn(ctx, iceberg_meta_tablename="snapshots")} 
+        FROM {source_table_fqn(ctx, iceberg_meta_tablename="snapshots")} 
         ORDER BY committed_at DESC
         LIMIT 1
         """
@@ -155,7 +155,7 @@ def test_step_2(ctx):
     # Run SELECT test
     sel_stmt = f"""
         SELECT * 
-        FROM {raw_table_fqn(ctx)}
+        FROM {source_table_fqn(ctx)}
         FOR VERSION AS OF {snapshot_id}
         ORDER BY id
         """

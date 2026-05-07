@@ -80,7 +80,7 @@ class SCD2Strategy(ABC):
         strategy = TrinoSCD2Strategy(
             conn, s3_client,
             catalog="iceberg_hive", schema="default",
-            raw_table_name="raw_person",
+            source_table_name="raw_person",
             scd2_table_name="dim_person",
             cols_bks=["id"],
             cols_val=["first_name", "last_name", "city"],
@@ -251,7 +251,7 @@ class SCD2Strategy(ABC):
         except Exception as e:
             logger.warning(f"Failed to delete S3 folder: {e}")
 
-    def raw_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
+    def source_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
         """Return the engine-qualified name for the raw staging table.
 
         Args:
@@ -264,16 +264,16 @@ class SCD2Strategy(ABC):
             Fully-qualified table name ready for use in SQL statements.
         """
         if iceberg_meta_tablename:
-            return self._fqn(f'"{self.raw_table_name}{self._iceberg_meta_table_sep()}{iceberg_meta_tablename}"')
+            return self._fqn(f'"{self.source_table_name}{self._iceberg_meta_table_sep()}{iceberg_meta_tablename}"')
         else:
-            return self._fqn(self.raw_table_name)
+            return self._fqn(self.source_table_name)
 
     def scd2_table_fqn(self, iceberg_meta_tablename: str = None) -> str:
         """Return the engine-qualified name for the SCD2 dimension table.
 
         Args:
             iceberg_meta_tablename: Optional Iceberg metadata table suffix
-                (see :meth:`raw_table_fqn` for details).
+                (see :meth:`source_table_fqn` for details).
 
         Returns:
             Fully-qualified table name ready for use in SQL statements.
@@ -288,7 +288,7 @@ class SCD2Strategy(ABC):
 
         Args:
             iceberg_meta_tablename: Optional Iceberg metadata table suffix
-                (see :meth:`raw_table_fqn` for details).
+                (see :meth:`source_table_fqn` for details).
 
         Returns:
             Fully-qualified name ready for use in SQL statements.
@@ -315,7 +315,7 @@ class SCD2Strategy(ABC):
             ValueError: If ``table`` is not a recognized :class:`SCD2Table` member.
         """
         if table == SCD2Table.RAW:
-            return self.raw_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
+            return self.source_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
         if table == SCD2Table.SCD2:
             return self.scd2_table_fqn(iceberg_meta_tablename=iceberg_meta_tablename)
         if table == SCD2Table.INTERMEDIARY:

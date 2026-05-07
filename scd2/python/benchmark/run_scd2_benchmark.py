@@ -267,7 +267,7 @@ def run_merge_all(
 ):
     table_name = "person"
     dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
-    raw_table_name = f"raw_{table_name}_{tshirt}"
+    source_table_name = f"raw_{table_name}_{tshirt}"
 
     conn = get_trino_connection()
     create_scd2_table(
@@ -292,7 +292,7 @@ def run_merge_all(
             conn=conn,
             trino_catalog=TRINO_CATALOG,
             trino_schema=TRINO_SCHEMA,
-            raw_table_name=raw_table_name,
+            source_table_name=source_table_name,
             dim_table_name=dim_table_name,
             scd2_view_name=f"view_person_{tshirt}_scd2",
             load_ts=load_date,

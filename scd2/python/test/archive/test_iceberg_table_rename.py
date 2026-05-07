@@ -27,7 +27,7 @@ from commons import (
     TRINO_SCHEMA,
     create_raw_table,
     get_strategy_name,
-    raw_table_fqn,
+    source_table_fqn,
     scd2_merge_as_test,
 )
 from constants import MAX_TS
@@ -64,7 +64,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -81,8 +81,8 @@ def test_step_1(ctx):
     )
 
     rename_stmt = f"""
-                    ALTER TABLE {raw_table_fqn(ctx)}
-                    RENAME TO {raw_table_fqn(ctx)}_renamed
+                    ALTER TABLE {source_table_fqn(ctx)}
+                    RENAME TO {source_table_fqn(ctx)}_renamed
                     """
     print(rename_stmt)
     render_data(
@@ -91,10 +91,10 @@ def test_step_1(ctx):
     )
     ctx.conn.cursor().execute(rename_stmt)
 
-    df_after = get_table_data(ctx.conn, f"{raw_table_fqn(ctx)}_renamed")
+    df_after = get_table_data(ctx.conn, f"{source_table_fqn(ctx)}_renamed")
     render_table(
         df_after,
-        title=f"### Table {raw_table_fqn(ctx)}_renamed",
+        title=f"### Table {source_table_fqn(ctx)}_renamed",
         output_file_name=FILE_NAME,
     )
 

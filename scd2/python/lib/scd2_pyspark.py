@@ -28,7 +28,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
     Usage::
 
         strategy = PySparkSCD2Strategy(spark, s3_client, database="default",
-                                        raw_table_name="raw_person",
+                                        source_table_name="raw_person",
                                         scd2_table_name="dim_person")
         strategy.create_scd2_table(...)
         result, _ = strategy.merge_into_scd2_table(...)
@@ -38,8 +38,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         self,
         spark,
         database: str,
-        raw_table_name: str,
-        raw_table_df: DataFrame,
+        source_table_name: str,
+        source_table_df: DataFrame,
         scd2_table_name: str,
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
@@ -58,7 +58,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         super().__init__(
             spark=spark,
             database=database,
-            raw_table_name=raw_table_name,
+            source_table_name=source_table_name,
             scd2_table_name=scd2_table_name,
             scd2_intermediary_table_name=scd2_intermediary_table_name,
             cols_bks=cols_bks,
@@ -75,7 +75,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_ts_filter=col_dp_ts_filter,
         ) 
 
-        self.raw_table_df = raw_table_df
+        self.source_table_df = source_table_df
 
     # ── PySpark-only helpers ──────────────────────────────────────────────────
 
@@ -182,7 +182,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         if self.use_logical_delete_for_source_table:
             # Logical Delete mode: use delete expression to derive dp_del_flag
-            src_df = self.raw_table_df
+            src_df = self.source_table_df
             if self.col_dp_ts_filter is not None:
                 src_df = src_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
             src_df = src_df.select(
@@ -195,7 +195,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
         else:
             # Physical Delete mode: detect implicit deletes by comparing current batch with previous batch
-            src_curr_df = self.raw_table_df
+            src_curr_df = self.source_table_df
             if self.col_dp_ts_filter is not None:
                 src_curr_df = src_curr_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
 
@@ -211,14 +211,14 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             prev_dp_ts_row = None
             if self.col_dp_ts_filter is not None:
                 prev_dp_ts_row = (
-                    self.raw_table_df
+                    self.source_table_df
                     .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
                     .agg(F.max(self.col_dp_ts_filter))
                     .collect()[0][0]
                 )
 
             if prev_dp_ts_row is not None:
-                prev_src_df = self.raw_table_df.filter(
+                prev_src_df = self.source_table_df.filter(
                     F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row)
                 )
                 curr_bks_df = src_curr_df.select(*[F.col(c).alias(f"curr_{c}") for c in self.cols_bks])

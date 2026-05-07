@@ -28,7 +28,7 @@ from commons import (
     create_raw_table,
     get_strategy_name,
     insert_as_preparation,
-    raw_table_fqn,
+    source_table_fqn,
     scd2_merge_as_test,
     scd2_sel_as_test,
 )
@@ -63,7 +63,7 @@ def test_step_1(ctx):
 
     # Prepare --- Insert statements ---
     insert_sql = f"""
-        INSERT INTO {raw_table_fqn(ctx)}
+        INSERT INTO {source_table_fqn(ctx)}
         VALUES
             (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
             (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
@@ -72,7 +72,7 @@ def test_step_1(ctx):
 
     insert_as_preparation(ctx, [insert_sql])
 
-    df_before = get_table_data(ctx.conn, f"{raw_table_fqn(ctx)}", order_by_cols=[])
+    df_before = get_table_data(ctx.conn, f"{source_table_fqn(ctx)}", order_by_cols=[])
     render_table(
         df_before,
         title=f"Table {RAW_TABLE_NAME} before ADD COLUMN",
@@ -85,14 +85,14 @@ def test_step_1(ctx):
         text_dt = "STRING"  # Spark does not support TEXT type
 
     rename_stmt = f"""
-                    ALTER TABLE {raw_table_fqn(ctx)}
+                    ALTER TABLE {source_table_fqn(ctx)}
                     ADD COLUMN new_col {text_dt} AFTER email
                     """
     print(rename_stmt)
     render_data(f"Executing ADD COLUMN", output_file_name=FILE_NAME)
 
     update_sql = f"""
-        UPDATE {raw_table_fqn(ctx)}
+        UPDATE {source_table_fqn(ctx)}
         SET new_col = 'New Value'
     """
     insert_as_preparation(ctx, [rename_stmt, update_sql])
@@ -103,7 +103,7 @@ def test_step_1(ctx):
     # Run SELECT test
     sel_stmt = f"""
         SELECT * 
-        FROM {raw_table_fqn(ctx)}
+        FROM {source_table_fqn(ctx)}
         ORDER BY id
         """
 

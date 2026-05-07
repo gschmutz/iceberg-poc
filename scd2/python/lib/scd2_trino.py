@@ -19,7 +19,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
     surrogate key generation).
 
     Args:
-        raw_table_name: Unqualified name of the raw staging table that receives
+        source_table_name: Unqualified name of the raw staging table that receives
             source records for each load batch (e.g. ``"raw_person"``).
         scd2_table_name: Unqualified name of the SCD2 dimension table
             (e.g. ``"dim_person"``).    
@@ -28,7 +28,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         strategy = TrinoSCD2Strategy(conn, catalog="iceberg_hive", schema="default")
         strategy.create_scd2_table(dim_table_name, ...)
-        result, metadata = strategy.merge_into_scd2_table(raw_table_name, ...)
+        result, metadata = strategy.merge_into_scd2_table(source_table_name, ...)
     """
 
     def __init__(
@@ -36,7 +36,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         conn,
         catalog: str,
         schema: str,
-        raw_table_name: str,
+        source_table_name: str,
         scd2_table_name: str,
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
@@ -68,7 +68,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.conn = conn
         self.catalog = catalog
         self.schema = schema
-        self.raw_table_name = raw_table_name
+        self.source_table_name = source_table_name
         self.scd2_table_name = scd2_table_name        
 
     # ── Internal helpers ────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         where_curr_is_null = " AND ".join(f"curr.{col} IS NULL" for col in cols_bks)
 
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
-        dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.raw_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+        dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.source_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
 
         if (self.use_logical_delete_for_source_table):
             dp_del_flag_expr = f"CASE WHEN {self.logical_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
@@ -167,7 +167,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
-                FROM {self.raw_table_fqn()} AS t
+                FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr}
             )
         """
@@ -184,7 +184,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
-                FROM {self.raw_table_fqn()} AS t
+                FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr} 
             ),       
             prev_src_records AS (
@@ -198,7 +198,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
-                FROM {self.raw_table_fqn()} AS t
+                FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_prev_expr} 
             ),
             src_records AS (
