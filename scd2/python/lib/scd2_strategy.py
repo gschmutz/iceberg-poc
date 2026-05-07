@@ -102,6 +102,7 @@ class SCD2Strategy(ABC):
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
+        check_physical_delete_against_source_table: bool = False,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
@@ -129,6 +130,7 @@ class SCD2Strategy(ABC):
                 * ``True`` (delta / CDC mode) – absent entities are ignored;
                   only records explicitly present in the raw batch are processed.
             logical_delete_expression: When ``use_logical_delete_for_source_table`` is ``True`` this expression defines how to identify deleted records in the raw table (e.g. ``"status = 'INACTIVE'"``).  Required when delta mode is enabled.
+            check_physical_delete_against_source_table: check physical deletes against source table or scd2 table?
             materialize_data_before_merge: When ``True`` the intermediary staging
                 view is written to a physical Iceberg table before the MERGE is
                 executed.  Required for engines (e.g. Spark) that do not allow
@@ -156,6 +158,7 @@ class SCD2Strategy(ABC):
         self.cols_val = cols_val
         self.use_logical_delete_for_source_table = use_logical_delete_for_source_table
         self.logical_delete_expression = logical_delete_expression
+        self.check_physical_delete_against_source_table = check_physical_delete_against_source_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
         self.col_dp_valid_from = col_dp_valid_from

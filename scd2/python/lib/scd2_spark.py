@@ -41,6 +41,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = True,
+        check_physical_delete_against_source_table: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
@@ -58,6 +59,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
+            check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from=col_dp_valid_from,
             col_dp_valid_to=col_dp_valid_to,
@@ -142,7 +144,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         where_curr_is_null = " AND ".join(f"curr.{col} IS NULL" for col in cols_bks)
         
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
-        dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.source_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+
+        if (self.check_physical_delete_against_source_table):
+            dp_ts_filter_prev_expr = f"WHERE {self.col_dp_ts_filter} = (SELECT MAX({self.col_dp_ts_filter}) FROM {self.source_table_fqn()} WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}')" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
+        else:
+            dp_ts_filter_prev_expr = f"WHERE TIMESTAMP '{dp_ts_str}' BETWEEN {self.col_dp_valid_from} AND {self.col_dp_valid_to}"
 
         if (self.use_logical_delete_for_source_table):
             dp_del_flag_expr = f"CASE WHEN {self.logical_delete_expression} THEN 'INACTIVE' ELSE 'ACTIVE' END AS dp_del_flag"
@@ -164,6 +170,36 @@ class SparkSCD2Strategy(SCD2Strategy):
             )
         """
 
+        PREV_DATA_FROM_SOURCE_CTE = f"""
+            prev_src_records AS (
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
+                        upper(
+                            sha2(
+                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
+                                ), 256
+                            )
+                        ) AS dp_record_hash,
+                    {dp_del_flag_expr}
+                FROM {self.source_table_fqn()} AS t
+                {dp_ts_filter_prev_expr}
+            )
+        """
+
+        PREV_DATA_FROM_SCD2_CTE = f"""
+            prev_src_records AS (
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, NULL AS {self.col_dp_ts}, NULL AS {self.col_dp_ts_filter},
+                    dp_record_hash,
+                    {dp_del_flag_expr}
+                FROM {self.scd2_table_fqn()} AS t
+                {dp_ts_filter_prev_expr}
+            )
+        """
+
+        if self.check_physical_delete_against_source_table:
+            PREV_DATA_CTE = PREV_DATA_FROM_SOURCE_CTE
+        else:
+            PREV_DATA_CTE = PREV_DATA_FROM_SCD2_CTE
+
         SRC_DATA_FULL_CTE = f"""
             src_curr_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
@@ -175,20 +211,9 @@ class SparkSCD2Strategy(SCD2Strategy):
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
-                {dp_ts_filter_expr} 
-            ),       
-            prev_src_records AS (
-                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        upper(
-                            sha2(
-                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
-                                ), 256
-                            )
-                        ) AS dp_record_hash,
-                    {dp_del_flag_expr}
-                FROM {self.source_table_fqn()} AS t
-                {dp_ts_filter_prev_expr} 
+                {dp_ts_filter_expr}
             ),
+            {PREV_DATA_CTE},
             src_records AS (
                 SELECT
                     {fv(ap(cols_bks, "curr"))}, {fv(ap(cols_val, "curr"))}, curr.{self.col_dp_ts}, curr.{self.col_dp_ts_filter},

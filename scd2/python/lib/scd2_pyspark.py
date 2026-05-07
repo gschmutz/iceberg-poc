@@ -46,6 +46,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         cols_val: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
+        check_physical_delete_against_source_table: bool = True,
         materialize_data_before_merge: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -65,6 +66,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             cols_val=cols_val,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
+            check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             col_dp_valid_from=col_dp_valid_from,
@@ -208,19 +210,27 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 hash_expr.alias("src_dp_record_hash"),
             )
 
-            prev_dp_ts_row = None
-            if self.col_dp_ts_filter is not None:
-                prev_dp_ts_row = (
-                    self.source_table_df
-                    .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
-                    .agg(F.max(self.col_dp_ts_filter))
-                    .collect()[0][0]
+            if self.check_physical_delete_against_source_table:
+                prev_src_df = None
+                if self.col_dp_ts_filter is not None:
+                    prev_dp_ts_row = (
+                        self.source_table_df
+                        .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                        .agg(F.max(self.col_dp_ts_filter))
+                        .collect()[0][0]
+                    )
+                    if prev_dp_ts_row is not None:
+                        prev_src_df = self.source_table_df.filter(
+                            F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row)
+                        )
+            else:
+                prev_src_df = self.spark.table(self.scd2_table_fqn()).filter(
+                    F.expr(f"TIMESTAMP '{dp_ts_str}'").between(
+                        F.col(self.col_dp_valid_from), F.col(self.col_dp_valid_to)
+                    )
                 )
 
-            if prev_dp_ts_row is not None:
-                prev_src_df = self.source_table_df.filter(
-                    F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row)
-                )
+            if prev_src_df is not None:
                 curr_bks_df = src_curr_df.select(*[F.col(c).alias(f"curr_{c}") for c in self.cols_bks])
                 join_cond = reduce(
                     lambda a, b: a & b,
