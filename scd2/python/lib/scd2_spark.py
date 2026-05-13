@@ -40,7 +40,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
-        materialize_data_before_merge: bool = True,
+        materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
@@ -501,7 +501,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         -- Duplicate records for inserts
         SELECT
             NULL AS merge_record_id,
-            UUID()                              AS dp_record_id,
+            regexp_replace(lower(sha2(concat_ws('||', {cast_cols_bks_str}, CAST(src_dp_ts_from AS STRING)), 256)), '^(.{{8}})(.{{4}})(.{{4}})(.{{4}})(.{{12}}).*$', '$1-$2-$3-$4-$5') AS dp_record_id,
             {cols_bks_str},
             {cols_val_str},
             src_dp_record_hash                     AS dp_record_hash,
@@ -638,7 +638,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         self.spark.sql(stmt)
 
         # Drop the S3 folder for the dimension table
-        s3_path = f"warehouse/{scd2_intermediary_table_name}_mv"
+        #s3_path = f"warehouse/{scd2_intermediary_table_name}_mv"
         #self.delete_s3_location(
         #    s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
         #)
@@ -662,15 +662,21 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         logger.info(f"Creating SCD2 view: {view_stmt}...")
 
-        df = self.spark.sql(view_stmt)
-        df.show(truncate=False)
-        df.createOrReplaceTempView(self.scd2_intermediary_table_name)
+        self.spark.sql(view_stmt)
+
+        # Read the catalog view content into a DataFrame and cache it.
+        # This breaks the self-referential plan that arises when MERGE's source
+        # view reads from the same table MERGE is writing to, which causes hangs.
+        staging_df = self.spark.table(self.scd2_intermediary_table_fqn())
+        staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
+        staging_df.count()  # materialize cache
+        
+        staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
         logger.info(
             f"SCD2 view {self.scd2_intermediary_table_name} created successfully."
         )
 
         if self.materialize_data_before_merge:
-            # have to materialize the view because of the UUID() function used for generating dp_record_id for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
             self.materialize_view(self.scd2_intermediary_table_name)
 
         if show_input_to_merge:
@@ -679,7 +685,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
-                source_view_name=self.scd2_intermediary_table_fqn() + ("_mv" if self.materialize_data_before_merge else ""),
+                source_view_name=(self.scd2_intermediary_table_fqn() + "_mv") if self.materialize_data_before_merge else self.scd2_intermediary_table_name,
                 current_ts=current_ts,
             )
 

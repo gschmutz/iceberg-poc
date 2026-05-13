@@ -47,7 +47,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
-        materialize_data_before_merge: bool = True,
+        materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
@@ -778,7 +778,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         inserts_df = records_df.filter(F.col("situation.is_ins") == True).select(
             F.lit(None).cast("string").alias("merge_record_id"),
-            F.expr("uuid()").alias("dp_record_id"),
+            F.regexp_replace(
+                F.lower(F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in self.cols_bks], F.col("src_dp_ts_from").cast("string")), 256)),
+                    r'^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', '$1-$2-$3-$4-$5'
+            ).alias("dp_record_id"),
             *_common("INSERT_NEW_VERSION"),
             F.col("situation.ins_dp_ts_from").alias("dp_ts_from"),
             F.col("situation.ins_dp_ts_to").alias("dp_ts_to"),
@@ -848,14 +851,14 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             dp_ts=dp_ts,
         )
 
-        #staging_df.show(truncate=False)
-        # We register the staging DataFrame as a temp view to be used as the source in the MERGE statement.  We can't use the DataFrame directly in the MERGE.
+        staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
+        staging_df.count()  # materialize cache
+
         staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
         logger.info(
             f"SCD2 staging view '{self.scd2_intermediary_table_name}' registered."
         )
 
-        # have to materialize the view because of the UUID() function used for generating dp_record_id for inserts - Spark doesn't allow non-deterministic functions in MERGE source!
         if self.materialize_data_before_merge:
             self.materialize_view(self.scd2_intermediary_table_name)
 
@@ -865,7 +868,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
-                source_view_name=self.scd2_intermediary_table_fqn() + ("_mv" if self.materialize_data_before_merge else ""),
+                source_view_name=(self.scd2_intermediary_table_fqn() + "_mv") if self.materialize_data_before_merge else self.scd2_intermediary_table_name,
                 current_ts=current_ts,
             )
             logger.info(merge_stmt)
