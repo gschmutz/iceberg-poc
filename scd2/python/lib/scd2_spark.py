@@ -46,10 +46,56 @@ class SparkSCD2Strategy(SCD2Strategy):
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
         col_dp_created_at: str = "dp_created_at",
-        col_dp_replaced_at: str = "dp_replaced_at",        
+        col_dp_replaced_at: str = "dp_replaced_at",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
+        """
+        Args:
+            spark: Active SparkSession.
+            database: Spark catalog database that owns all tables (e.g. ``"default"``).
+            source_table_name: Catalog name of the source/staging table that holds
+                incoming raw records (e.g. ``"raw_person"``).
+            scd2_table_name: Catalog name of the SCD2 target dimension table
+                (e.g. ``"dim_person"``).
+            scd2_intermediary_table_name: Name for the temporary staging view / table
+                built before the MERGE. Defaults to ``"{scd2_table_name}_temp"``. Only needed if ``materialize_data_before_merge=True``.
+            cols_bks: Business-key column names that uniquely identify an entity. An array of column names whose values uniquely identify an entity (e.g. ``["person_id"]``).
+            cols_val: Value/attribute column names whose changes trigger new SCD2
+                versions (e.g. ``["first_name", "last_name", "city"]``).
+            use_logical_delete_for_source_table: When ``True`` the source table
+                contains an explicit deleted/inactive flag; ``logical_delete_expression``
+                is used to derive ``dp_del_flag``.  When ``False`` (default) deletes
+                are detected by comparing the current batch against the previous one
+                (physical-delete / full-snapshot mode).
+            logical_delete_expression: SQL expression that evaluates to ``True`` for
+                logically-deleted rows (e.g. ``"is_deleted = true"``).  Required when
+                ``use_logical_delete_for_source_table=True``.
+            materialize_data_before_merge: When ``True`` the intermediary staging view
+                is written to a physical Iceberg table (``{intermediary}_mv``) before
+                the MERGE runs.  Use this if your Spark version does not support the
+                cached temp-view path.  Defaults to ``False``.
+            check_physical_delete_against_source_table: When ``True`` (default) missing
+                entities are detected by comparing the current batch with the previous
+                batch in the *source* table.  When ``False`` the currently-active rows
+                in the *SCD2 table* are used as the reference for deletes instead.
+            perform_merge_op: Set to ``False`` to skip the ``MERGE INTO`` statement
+                (useful for inspecting the staging data without modifying the target).
+            col_dp_valid_from: Column name for the validity-start timestamp in the SCD2
+                table.  Defaults to ``"dp_ts_from"``.
+            col_dp_valid_to: Column name for the validity-end timestamp in the SCD2
+                table.  Defaults to ``"dp_ts_to"``.
+            col_dp_created_at: Column name recording when the SCD2 row was first
+                inserted.  Defaults to ``"dp_created_at"``.
+            col_dp_replaced_at: Column name recording when the SCD2 row was last
+                updated or superseded.  Defaults to ``"dp_replaced_at"``.
+            col_dp_ts: Column name in the source table that holds the record's own
+                version timestamp (used as ``dp_ts_from`` for new SCD2 rows).
+                Defaults to ``"dp_ts_version"``.
+            col_dp_ts_filter: Column name used to filter the source table to a single
+                batch/snapshot (e.g. ``"dp_ts"``).  Set to ``None`` to disable
+                filtering and process the entire source table.  Defaults to ``"dp_ts"``.
+        """
         super().__init__(
             scd2_intermediary_table_name=(
                     scd2_intermediary_table_name or f"{scd2_table_name}_temp"
