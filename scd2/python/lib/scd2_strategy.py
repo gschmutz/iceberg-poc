@@ -101,7 +101,7 @@ class SCD2Strategy(ABC):
         cols_val: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
-        materialize_data_before_merge: bool = True,
+        materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = False,
         perform_merge_op: bool = True,
         col_dp_valid_from: str = "dp_ts_from",

@@ -861,7 +861,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         if self.materialize_data_before_merge:
             self.materialize_view(self.scd2_intermediary_table_name)
-
+            logger.info(
+                f"SCD2 staging view '{self.scd2_intermediary_table_name}' materialized to temporary table."
+            )
+    
         if show_input_to_merge:
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
