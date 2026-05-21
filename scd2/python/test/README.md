@@ -12,16 +12,6 @@ pytest ./test_scd_ins.py -v --log-cli-level=INFO -s -vv
 
 The last columns point to the markdown which is being generated in the test and shows both the initial data as well as the result in the SCD2 table.
 
-## Generic Iceberg
-
-| # | Python Script | Description | Trino Report | Spark Report | PySpark Report |
-|---|------|------------|---------------------|---------------------|---------------------|
-| 1 | test_iceberg_table_add_col.py | Add a column to an existing table and time travel to system time before. | [trino](./reports/trino/test_iceberg_table_add_col.md) | [spark](./reports/spark/test_iceberg_table_add_col.md) | [pyspark](./reports/pyspark/test_iceberg_table_add_col.md) |
-| 2 | test_iceberg_table_rename.py | Rename an Iceberg table. | [trino](./reports/trino/test_iceberg_table_rename.md) | [spark](./reports/spark/test_iceberg_table_rename.md) | [pyspark](./reports/pyspark/test_iceberg_table_rename.md) |
-| 3 | test_iceberg_table_as_of.py | Test time travel in Iceberg table with the VERSION AS OF clause | [trino](./reports/trino/test_iceberg_table_as_of.md) | [spark](./reports/spark/test_iceberg_table_as_of.md) | [pyspark](./reports/pyspark/test_iceberg_table_as_of.md) |
-| 4 | test_iceberg_optimize.py | Optimize an iceberg table so that many small files are merged into larger ones. | [trino](./reports/trino/test_iceberg_optimize.md) | [spark](./reports/spark/test_iceberg_optimize.md) | [pyspark](./reports/pyspark/test_iceberg_optimize.md) |
-
-
 ## SCD2 (Full Source)
 
 ### Select
@@ -49,7 +39,7 @@ The last columns point to the markdown which is being generated in the test and 
 | # | Python Script | Description | Trino Report | Spark Report | PySpark Report |
 |---|------|------------|---------------------|---------------------|---------------------|
 | 1 | test_scd2_upd.py | Performs a single update of one entity | [trino](./reports/trino/scd2_test_upd.md) | [spark](./reports/spark/scd2_test_upd.md) | [pyspark](./reports/pyspark/scd2_test_upd.md) |
-| 2 | test_scd2_upd_upd_.py | Performs multiple updates on a single entity over time | [trino](./reports/trino/scd2_test_upd_upd.md) | [spark](./reports/spark/scd2_test_upd_upd.md) | [pyspark](./reports/pyspark/scd2_test_upd_upd.md) |
+| 2 | test_scd2_upd_upd.py | Performs multiple updates on a single entity over time | [trino](./reports/trino/scd2_test_upd_upd.md) | [spark](./reports/spark/scd2_test_upd_upd.md) | [pyspark](./reports/pyspark/scd2_test_upd_upd.md) |
 | 3 | test_scd2_upd_two_entities.py | Performs a single update of two entities | [trino](./reports/trino/scd2_test_upd_two_entities.md) | [spark](./reports/spark/scd2_test_upd_two_entities.md) | [pyspark](./reports/pyspark/scd2_test_upd_two_entities.md) |
 | 4 | test_scd2_upd_past_diff_val.py | Performs a back-dated correction of an entity with a different value | [trino](./reports/trino/scd2_test_upd_past_diff_val.md) | [spark](./reports/spark/scd2_test_upd_past_diff_val.md) | [pyspark](./reports/pyspark/scd2_test_upd_past_diff_val.md) |
 | 5 | test_scd2_upd_past_same_val.py | Performs a back-dated correction of an entity with the same value (no effective change) | [trino](./reports/trino/scd2_test_upd_past_same_val.md) | [spark](./reports/spark/scd2_test_upd_past_same_val.md) | [pyspark](./reports/pyspark/scd2_test_upd_past_same_val.md) |
@@ -70,6 +60,13 @@ The last columns point to the markdown which is being generated in the test and 
 | 9 | test_scd2_logical_del_and_reins_with_gap_same_val.py | Performs a re-insert after a logical delete with a time gap and the same value | [trino](./reports/trino/scd2_test_logical_del_and_reins_with_gap_same_val.md) | [spark](./reports/spark/scd2_test_logical_del_and_reins_with_gap_same_val.md) | [pyspark](./reports/pyspark/scd2_test_logical_del_and_reins_with_gap_same_val.md) |
 | 10 | test_scd2_logical_del_and_reins_with_gap_diff_val.py | Performs a re-insert after a logical delete with a time gap and a different value | [trino](./reports/trino/scd2_test_logical_del_and_reins_with_gap_diff_val.md) | [spark](./reports/spark/scd2_test_logical_del_and_reins_with_gap_diff_val.md) | [pyspark](./reports/pyspark/scd2_test_logical_del_and_reins_with_gap_diff_val.md) |
 
+
+### Physical Delete
+
+| # | Python Script | Description | Trino Report | Spark Report | PySpark Report |
+|---|------|------------|---------------------|---------------------|---------------------|
+| 1 | test_scd2_del.py | Performs a physical delete operation on an entity | [trino](./reports/trino/scd2_test_del.md) | [spark](./reports/spark/scd2_test_del.md) | [pyspark](./reports/pyspark/scd2_test_del.md) |
+| 2 | test_scd2_full_del_checkscd2.py | Performs a physical delete operation by checking against the SCD2 table | [trino](./reports/trino/scd2_test_full_del_checkscd2.md) | [spark](./reports/spark/scd2_test_full_del_checkscd2.md) | [pyspark](./reports/pyspark/scd2_test_full_del_checkscd2.md) |
 
 ### Fill Gap
 
