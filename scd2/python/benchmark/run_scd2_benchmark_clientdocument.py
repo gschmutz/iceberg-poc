@@ -22,11 +22,11 @@ from trino.auth import BasicAuthentication
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../benchmark"))
 )
-from benchmark_commons import fmt_checksum_cols
+from benchmark_commons import fmt_checksum_cols, optimize_table, create_scd2_table, merge_into_scd2_table_with_metrics
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from scd2_trino import create_scd2_table, merge_into_scd2_table, optimize_table
-from util import (
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from lib.scd2_trino import TrinoSCD2Strategy
+from lib.util import (
     execute_with_metrics,
     get_credential,
     get_param,
@@ -91,7 +91,7 @@ if S3_ENDPOINT_URL:
 s3 = boto3.client(**s3_config)
 
 # without pk column!!
-cols_val_with_type = [
+COLS_WITH_TYPE = [
     "clientdocumentcreationdate TIMESTAMP(6)",
     "clientdocumentpriorityid BIGINT",
     "clientdocumentpriorityenum VARCHAR",
@@ -124,7 +124,7 @@ cols_val_with_type = [
     "clientdocumentfirstactivation TIMESTAMP(6)",
     "clientdocumentcrscarftype VARCHAR",
 ]
-cols_val = [col.split()[0] for col in cols_val_with_type]
+COLS_VAL = [col.split()[0] for col in COLS_WITH_TYPE]
 
 
 def get_trino_connection():
@@ -177,7 +177,7 @@ def format_create_benchmark_table():
             case_id VARCHAR,
             day_number INT,
             tshirt_size VARCHAR,
-            dim_table_name VARCHAR,
+            scd2_table_name VARCHAR,
             statement_key VARCHAR,
             statement_name VARCHAR,
             query_id VARCHAR,
@@ -226,7 +226,7 @@ def insert_benchmark_metrics(
     case_id: str,
     day_number: int,
     tshirt_size: str,
-    dim_table_name: str,
+    scd2_table_name: str,
     statement_key: str,
     statement_name: str,
     result: dict,
@@ -234,7 +234,7 @@ def insert_benchmark_metrics(
 ):
 
     INSERT_SQL = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, dim_table_name, statement_key, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
+        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, scd2_table_name, statement_key, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
         VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
@@ -247,7 +247,7 @@ def insert_benchmark_metrics(
             case_id,
             day_number,
             tshirt_size,
-            dim_table_name,
+            scd2_table_name,
             statement_key,
             statement_name,
             result["query_id"],
@@ -277,40 +277,50 @@ def run_merge_all(
     number_of_days: int = NOF_DAYS,
 ):
     table_name = "crm_clientdocument"
-    dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
+    scd2_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
     source_table_name = f"raw_{table_name}_{tshirt}"
 
     conn = get_trino_connection()
     create_scd2_table(
-        conn,
-        TRINO_CATALOG,
-        TRINO_SCHEMA,
-        f"dim_{table_name}_{case_id}_{tshirt}",
+        conn=conn,
+        catalog_name=TRINO_CATALOG,
+        schema_name=TRINO_SCHEMA,
+        table_name=f"dim_{table_name}_{case_id}_{tshirt}",
         s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
         s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-        pk_col_with_type=f"clientdocumentid BIGINT",
-        cols_val_with_type=cols_val_with_type,
+        pk_columns_with_type=[f"clientdocumentid BIGINT"],
+        cols_with_type=COLS_WITH_TYPE,
         partition_cols=partition_cols,
         sort_cols=sort_cols,
     )
+
+    scd2 = TrinoSCD2Strategy(
+            conn,
+            catalog=TRINO_CATALOG,
+            schema=TRINO_SCHEMA,
+            source_table_name=source_table_name,
+            scd2_table_name=scd2_table_name,
+            cols_bks=["clientdocumentid"],
+            cols_val=COLS_VAL,
+            use_logical_delete_for_source_table=False,
+            logical_delete_expression="1=0",  # we don't have deletes in our source table, so this expression will never be true. This means that we will never set the dp_is_active to false based on a delete from the source table, but only based on the validity timestamps. This allows us to benchmark the performance of the merge statement without having to care about deletes in the source table.
+            check_physical_delete_against_source_table=False, # for the same reason as above, we set this to false to not have a performance impact from checking deletes against the source table.
+            perform_merge_op=True,
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
+            col_dp_created_at="dp_created_at",
+            col_dp_replaced_at="dp_replaced_at",            
+            col_dp_ts=col_dp_ts,
+            col_dp_ts_filter=col_dp_ts_filter,
+        )
 
     start_ts = datetime(2025, 10, 13, 0, 0, 0)
     for day in range(number_of_days):
         load_date = start_ts + timedelta(days=day)
         logger.info(f"Processing load date: {load_date}")
 
-        result, iceberg_metadata = merge_into_scd2_table(
-            conn=conn,
-            trino_catalog=TRINO_CATALOG,
-            trino_schema=TRINO_SCHEMA,
-            source_table_name=source_table_name,
-            dim_table_name=dim_table_name,
-            scd2_view_name=f"{table_name}_{tshirt}_scd2",
-            load_ts=load_date,
-            load_ts_col="dp_exported_at",
-            pk_col="clientdocumentid",
-            cols_val_with_type=cols_val_with_type,
-            current_ts=(start_ts + timedelta(days=day)),
+        result = merge_into_scd2_table_with_metrics(
+            dp_ts=(start_ts + timedelta(days=day)),
         )
 
         insert_benchmark_metrics(
@@ -319,19 +329,19 @@ def run_merge_all(
             case_id=f"{case_id}",
             day_number=day,
             tshirt_size=tshirt,
-            dim_table_name=dim_table_name,
+            scd2_table_name=scd2_table_name,
             statement_key=f"SCD2_MERGE_{case_id}_{tshirt}",
             statement_name=case_description,
             result=result,
-            iceberg_metadata=iceberg_metadata,
+            iceberg_metadata=iceberg_metadata
         )
 
         # run optimize every 5 days
         if day > 0 and day % 5 == 0:
-            optimize_table(conn, table_name=dim_table_name)
+            optimize_table(conn, table_name=scd2_table_name)
 
     # run optimize for dim table and benchmark at the end as well
-    optimize_table(conn, table_name=dim_table_name)
+    optimize_table(conn, table_name=scd2_table_name)
     optimize_table(conn, table_name="benchmark")
 
 
@@ -355,7 +365,7 @@ def run_select_one(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}",
         statement_name="select one clientdocument by PK",
         result=result,
@@ -381,10 +391,11 @@ def run_select_over_time(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}",
         statement_name="select clientdocuments over time",
         result=result,
+        iceberg_metadata=[],
     )
 
 
@@ -395,7 +406,7 @@ def run_select_over_time_and_active(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(cols_val)}
+        , {fmt_checksum_cols(COLS_VAL)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_ts_from <= CAST('2025-10-25' as TIMESTAMP) and dp_ts_to >= CAST('2025-11-25' as TIMESTAMP)
         AND {restrict_active_expression}
@@ -408,7 +419,7 @@ def run_select_over_time_and_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}",
         statement_name="select active clientdocuments over time",
         result=result,
@@ -422,7 +433,7 @@ def run_select_count_active(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(cols_val)}
+        , {fmt_checksum_cols(COLS_VAL)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE {restrict_active_expression}
     """
@@ -434,7 +445,7 @@ def run_select_count_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}",
         statement_name="count all active clientdocuments",
         result=result,
@@ -448,7 +459,7 @@ def run_select_count_latest(
 
     query = f"""
         SELECT count(*) AS rows_over_time
-        , {fmt_checksum_cols(cols_val)}
+        , {fmt_checksum_cols(COLS_VAL)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_crm_clientdocument_{case_id}_{tshirt}
         WHERE dp_is_latest = TRUE
     """
@@ -460,7 +471,7 @@ def run_select_count_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}",
         statement_name="count all latest clientdocuments",
         result=result,
@@ -486,7 +497,7 @@ def run_select_count_by_grouping_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_ACTIVE_{case_id}_{tshirt}",
         statement_name="count by grouping for all active clientdocuments",
         result=result,
@@ -513,7 +524,7 @@ def run_select_count_by_grouping_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_BY_GROUPING_FOR_LATEST_{case_id}_{tshirt}",
         statement_name="count by grouping for all latest clientdocuments",
         result=result,
@@ -541,7 +552,7 @@ def run_select_nof_entities_in_grouping_at_5th_of_jan(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_crm_clientdocument_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_NOF_CLIENTDOCUMENTS_IN_GROUPING_ON_DAY_{case_id}_{tshirt}",
         statement_name="count all clientdocuments in grouping which where active on 5 jan",
         result=result,

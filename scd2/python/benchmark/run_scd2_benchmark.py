@@ -13,21 +13,18 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import trino
-from benchmark_commons import fmt_checksum_cols
 from faker import Faker
 from pyiceberg.catalog import load_catalog
 from pyiceberg.schema import Schema
 from pyiceberg.types import DateType, DoubleType, IntegerType, StringType, TimestampType
 from trino.auth import BasicAuthentication
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from scd2_trino import create_scd2_table, merge_into_scd2_table, optimize_table
-from util import (
+from benchmark_commons import fmt_checksum_cols, optimize_table, create_scd2_table, merge_into_scd2_table_with_metrics, get_credential, get_zone_name, get_param, replace_vars_in_string
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from lib.scd2_trino import TrinoSCD2Strategy
+from lib.util import (
     execute_with_metrics,
-    get_credential,
-    get_param,
-    get_zone_name,
-    replace_vars_in_string,
 )
 
 # Set up logging
@@ -137,6 +134,7 @@ def get_trino_connection():
             BasicAuthentication(TRINO_USER, TRINO_PASSWORD) if TRINO_PASSWORD else None
         ),
         verify=False,  # Disable SSL verification for self-signed certificates,
+        request_timeout=1800.0,
     )
 
     return conn
@@ -167,7 +165,7 @@ def format_create_benchmark_table():
             case_id VARCHAR,
             day_number INT,
             tshirt_size VARCHAR,
-            dim_table_name VARCHAR,
+            scd2_table_name VARCHAR,
             statement_key VARCHAR,
             statement_name VARCHAR,
             query_id VARCHAR,
@@ -216,7 +214,7 @@ def insert_benchmark_metrics(
     case_id: str,
     day_number: int,
     tshirt_size: str,
-    dim_table_name: str,
+    scd2_table_name: str,
     statement_key: str,
     statement_name: str,
     result: dict,
@@ -224,7 +222,7 @@ def insert_benchmark_metrics(
 ):
 
     INSERT_SQL = f"""
-        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, dim_table_name, statement_key, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
+        INSERT INTO {TRINO_CATALOG}.{TRINO_SCHEMA}.benchmark (run_id, case_id, day_number, tshirt_size, scd2_table_name, statement_key, statement_name, query_id, elapsed_ms, cpu_ms, processed_rows, processed_bytes, success, error_message, executed_at, iceberg_snapshot_id, iceberg_nof_files, iceberg_status_list, iceberg_file_list)
         VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
@@ -237,7 +235,7 @@ def insert_benchmark_metrics(
             case_id,
             day_number,
             tshirt_size,
-            dim_table_name,
+            scd2_table_name,
             statement_key,
             statement_name,
             result["query_id"],
@@ -264,42 +262,55 @@ def run_merge_all(
     case_description: str,
     partition_cols: list = None,
     sort_cols: list = None,
+    number_of_days: int = NOF_DAYS,
 ):
     table_name = "person"
-    dim_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
+    scd2_table_name = f"dim_{table_name}_{case_id}_{tshirt}"
     source_table_name = f"raw_{table_name}_{tshirt}"
 
     conn = get_trino_connection()
     create_scd2_table(
-        conn,
-        TRINO_CATALOG,
-        TRINO_SCHEMA,
-        f"dim_{table_name}_{case_id}_{tshirt}",
+        conn=conn,
+        catalog_name=TRINO_CATALOG,
+        schema_name=TRINO_SCHEMA,
+        table_name=f"dim_{table_name}_{case_id}_{tshirt}",
         s3_warehouse_bucket=S3_WAREHOUSE_BUCKET,
         s3_warehouse_prefix=S3_WAREHOUSE_PREFIX,
-        pk_col_with_type=f"{table_name}_id VARCHAR",
-        cols_val_with_type=cols_val_with_type,
+        pk_columns_with_type=["person_id VARCHAR"],
+        cols_with_type=cols_val_with_type,
         partition_cols=partition_cols,
         sort_cols=sort_cols,
     )
 
-    start_ts = datetime(2024, 1, 1, 0, 0, 0)
-    for day in range(NOF_DAYS):
-        load_date = start_ts + timedelta(days=day)
-        print(load_date)
+    scd2 = TrinoSCD2Strategy(
+        conn,
+        catalog=TRINO_CATALOG,
+        schema=TRINO_SCHEMA,
+        source_table_name=source_table_name,
+        scd2_table_name=scd2_table_name,
+        cols_bks=["person_id"],
+        cols_val=cols_val,
+        use_logical_delete_for_source_table=False,
+        logical_delete_expression="1=0",
+        check_physical_delete_against_source_table=False,
+        perform_merge_op=True,
+        col_dp_valid_from="dp_ts_from",
+        col_dp_valid_to="dp_ts_to",
+        col_dp_created_at="dp_created_at",
+        col_dp_replaced_at="dp_replaced_at",
+        col_dp_ts="load_timestamp",
+        col_dp_ts_filter="load_timestamp",
+    )
 
-        result, iceberg_metadata = merge_into_scd2_table(
-            conn=conn,
-            trino_catalog=TRINO_CATALOG,
-            trino_schema=TRINO_SCHEMA,
-            source_table_name=source_table_name,
-            dim_table_name=dim_table_name,
-            scd2_view_name=f"view_person_{tshirt}_scd2",
-            load_ts=load_date,
-            load_ts_col="export_at",
-            pk_col="person_id",
-            cols_val_with_type=cols_val_with_type,
-            current_ts=(start_ts + timedelta(days=day)),
+    start_ts = datetime(2024, 1, 1, 0, 0, 0)
+    for day in range(number_of_days):
+        load_date = start_ts + timedelta(days=day)
+        logger.info(f"Processing load date: {load_date}")
+
+        result = merge_into_scd2_table_with_metrics(
+            cursor=conn.cursor(),
+            scd2=scd2,
+            dp_ts=(start_ts + timedelta(days=day)),
         )
 
         insert_benchmark_metrics(
@@ -308,19 +319,19 @@ def run_merge_all(
             case_id=f"{case_id}",
             day_number=day,
             tshirt_size=tshirt,
-            dim_table_name=dim_table_name,
+            scd2_table_name=scd2_table_name,
             statement_key=f"SCD2_MERGE_{case_id}_{tshirt}",
             statement_name=case_description,
             result=result,
-            iceberg_metadata=iceberg_metadata,
+            iceberg_metadata=[],
         )
 
         # run optimize every 5 days
         if day > 0 and day % 5 == 0:
-            optimize_table(conn, table_name=dim_table_name)
+            optimize_table(conn, table_name=scd2_table_name)
 
     # run optimize for dim table and benchmark at the end as well
-    optimize_table(conn, table_name=dim_table_name)
+    optimize_table(conn, table_name=scd2_table_name)
     optimize_table(conn, table_name="benchmark")
 
 
@@ -346,7 +357,7 @@ def run_select_one(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_ONE_{case_id}_{tshirt}",
         statement_name="select one person by PK",
         result=result,
@@ -372,7 +383,7 @@ def run_select_over_time(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_{case_id}_{tshirt}",
         statement_name="select persons over time",
         result=result,
@@ -399,7 +410,7 @@ def run_select_over_time_and_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_OVER_TIME_ACTIVE_{case_id}_{tshirt}",
         statement_name="select active persons over time",
         result=result,
@@ -425,7 +436,7 @@ def run_select_count_active(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_ACTIVE_{case_id}_{tshirt}",
         statement_name="count all active persons",
         result=result,
@@ -451,7 +462,7 @@ def run_select_count_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_LATEST_{case_id}_{tshirt}",
         statement_name="count all active persons",
         result=result,
@@ -477,7 +488,7 @@ def run_select_count_by_gender(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_{case_id}_{tshirt}",
         statement_name="count by gender for all active persons",
         result=result,
@@ -504,7 +515,7 @@ def run_select_count_by_gender_latest(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_COUNT_BY_GENDER_FOR_LATEST_{case_id}_{tshirt}",
         statement_name="count by gender for all latest persons",
         result=result,
@@ -521,7 +532,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
         , {fmt_checksum_cols(cols_val)}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.dim_person_{case_id}_{tshirt}
         WHERE cast('2024-01-05' as date) BETWEEN dp_ts_from AND dp_ts_to
-        AND {restrict_active_expression} 
+        AND {restrict_active_expression}
         AND dp_is_active = TRUE
         AND country = 'CH'
     """
@@ -533,7 +544,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
         case_id=f"{case_id}",
         day_number=0,
         tshirt_size=tshirt,
-        dim_table_name=f"dim_person_{case_id}_{tshirt}",
+        scd2_table_name=f"dim_person_{case_id}_{tshirt}",
         statement_key=f"SCD2_SELECT_NOF_PERSONS_IN_CH_ON_DAY_{case_id}_{tshirt}",
         statement_name="count all persons in CH which where active on 5 jan",
         result=result,
@@ -543,6 +554,7 @@ def run_select_nof_person_in_ch_at_5th_of_jan(
 def run_test_cases(
     number_of_runs: int,
     run_for_test_cases: list,
+    number_of_days: int,
     run_select_only: bool = False,
     drop_benchmark_table_first: bool = False,
 ):
@@ -595,6 +607,7 @@ def run_test_cases(
                     case_description=test_case["description"],
                     partition_cols=test_case.get("partition_cols"),
                     sort_cols=test_case.get("sort_cols"),
+                    number_of_days=number_of_days,
                 )
 
             # At the end let's perform some selects to benchmark read performance
@@ -670,6 +683,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run")
     parser.add_argument("--number_of_runs", default=1, type=int)
+    parser.add_argument("--number_of_days", default=30, type=int)
     parser.add_argument("--run_for_test_cases", default=[], type=list)
     parser.add_argument("--run_select_only", default=False, type=bool)
     parser.add_argument("--drop_benchmark_table_first", default=False, type=bool)
@@ -678,8 +692,9 @@ if __name__ == "__main__":
 
     if args.command == "run_test_cases":
         run_test_cases(
-            args.number_of_runs,
-            args.run_for_test_cases,
+            number_of_runs=args.number_of_runs,
+            number_of_days=args.number_of_days,
+            run_for_test_cases=args.run_for_test_cases,
             run_select_only=False,
             drop_benchmark_table_first=args.drop_benchmark_table_first,
         )

@@ -24,14 +24,7 @@ from pyiceberg.types import (
 )
 from trino.auth import BasicAuthentication
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from util import (
-    execute_with_metrics,
-    get_credential,
-    get_param,
-    get_zone_name,
-    replace_vars_in_string,
-)
+from benchmark_commons import fmt_checksum_cols, optimize_table, create_scd2_table, merge_into_scd2_table_with_metrics, get_credential, get_zone_name, get_param, replace_vars_in_string
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
