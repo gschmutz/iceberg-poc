@@ -136,6 +136,18 @@ class TrinoSCD2Strategy(SCD2Strategy):
     @staticmethod
     def _cast_to_varchar(values: list) -> list:
         return [f"CAST({v} AS VARCHAR)" for v in values]
+    
+    @staticmethod
+    def _cast_to_json(values: list) -> list:
+        return [f"json_format(CAST({v} AS JSON))" for v in values]
+    
+    @staticmethod
+    def _cast_values(values: list, structured_cols: list) -> list:
+        return [
+            TrinoSCD2Strategy._cast_to_json([v])[0] if v in structured_cols
+            else TrinoSCD2Strategy._cast_to_varchar([v])[0]
+            for v in values
+        ]
 
     @staticmethod
     def _format_join_condition(
@@ -183,16 +195,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
-        cv = self._cast_to_varchar
-        cs = self._cast_to_string
-        cj = self._cast_to_json
+        cv = self._cast_values
 
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cj(cols_bks))
-        cast_cols_val_str = fv(cj(cols_val))
+        cast_cols_bks_str = fv(cv(cols_bks, []))
+        cast_cols_val_str = fv(cv(cols_val, ["user_info"]))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")

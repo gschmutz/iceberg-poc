@@ -26,6 +26,7 @@ from commons import (
     scd2_sel_as_test,
     scd2_table_fqn,
 )
+from common_utils import dict_to_tuple_in_rows
 from constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +42,6 @@ current_ts_2 = datetime.strptime("2026-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
 
 TEST_ENGINE = os.getenv("TEST_ENGINE", "SPARK").upper()
 OBJECT_DATATYPE = "STRUCT" if (TEST_ENGINE == "SPARK" or TEST_ENGINE == "PYSPARK") else "ROW"
-
 
 def test_step_1(ctx):
     logger.info(
@@ -84,7 +84,7 @@ def test_step_1(ctx):
     expected = [
         (
             1,
-            ("Alice", "Meyer", "Zurich", "alice.meyer@example.com"),  # user_info
+            {"first_name": "Alice", "last_name": "Meyer", "city": "Zurich", "email": "alice.meyer@example.com"},  # user_info
             load_ts_1,
             MAX_TS,
             True,
@@ -95,7 +95,7 @@ def test_step_1(ctx):
         ),
         (
             2,
-            ("Bob", "Keller", "Bern", "bob.keller@example.com"),      # user_info
+            {"first_name": "Bob", "last_name": "Keller", "city": "Bern", "email": "bob.keller@example.com"},      # user_info
             load_ts_1,
             MAX_TS,
             True,
@@ -106,7 +106,7 @@ def test_step_1(ctx):
         ),
         (
             3,
-            ("Clara", "Schmid", "Basel", "clara.schmid@example.com"), # user_info
+            {"first_name": "Clara", "last_name": "Schmid", "city": "Basel", "email": "clara.schmid@example.com"}, # user_info
             load_ts_1,
             MAX_TS,
             True,
@@ -116,6 +116,9 @@ def test_step_1(ctx):
             "42E013F11875C7C485E0080FFD38BE6C27A978342DE9346F1D8CD189BF0894E0",
         ),
     ]
+    
+    if (TEST_ENGINE == "TRINO"):
+        expected = dict_to_tuple_in_rows(expected)
 
     # run test
     scd2_merge_as_test(
@@ -161,7 +164,7 @@ def test_step_2(ctx):
     expected = [
         (
             1,
-            ("Alice", "Meyer", "Zurich", "alice.meyer@example.com"),  # user_info (no status)
+            {"first_name": "Alice", "last_name": "Meyer", "city": "Zurich", "email": "alice.meyer@example.com"},  # user_info (no status)
             load_ts_1,
             MAX_TS,
             True,
@@ -172,7 +175,7 @@ def test_step_2(ctx):
         ),
         (
             2,
-            ("Bob", "Keller", "Bern", "bob.keller@example.com"),      # user_info (no status)
+            {"first_name": "Bob", "last_name": "Keller", "city": "Bern", "email": "bob.keller@example.com"},      # user_info (no status)
             load_ts_1,
             MAX_TS,
             True,
@@ -183,7 +186,7 @@ def test_step_2(ctx):
         ),
         (
             3,
-            ("Clara", "Schmid", "Basel", "clara.schmid@example.com"), # user_info (no status)
+            {"first_name": "Clara", "last_name": "Schmid", "city": "Basel", "email": "clara.schmid@example.com"}, # user_info (no status)
             load_ts_1,
             MAX_TS,
             True,
@@ -194,7 +197,7 @@ def test_step_2(ctx):
         ),
         (
             10,
-            ("Kevin", "Loosli", "Bern", "kevin.loosli@example.com"),  # user_info (no status)
+            {"first_name": "Kevin", "last_name": "Loosli", "city": "Bern", "email": "kevin.loosli@example.com"},  # user_info (no status)
             load_ts_2,
             MAX_TS,
             True,
@@ -204,6 +207,9 @@ def test_step_2(ctx):
             "BBDC7F9E78A87D2F0CCE5106F1735616B93F60FA3C442BFC2A792BFAA11F3CC1",
         ),
     ]
+
+    if (TEST_ENGINE == "TRINO"):
+        expected = dict_to_tuple_in_rows(expected)
 
     # run test
     scd2_merge_as_test(

@@ -78,3 +78,9 @@ def replace_vars_in_string(s, variables):
     print(f"Replacing variables in string: {s} with {variables}")
     # Replace {var} with value from variables dict
     return re.sub(r"\{(\w+)\}", lambda m: str(variables.get(m.group(1), m.group(0))), s)
+
+def dict_to_tuple_in_rows(rows):
+    return [
+        tuple(tuple(v.values()) if isinstance(v, dict) else v for v in row)
+        for row in rows
+    ]

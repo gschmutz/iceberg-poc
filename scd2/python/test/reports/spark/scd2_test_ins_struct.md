@@ -4,7 +4,7 @@ This test validates an INSERT operation of one new entity (with a 1st version) i
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 20:16:22`
+ * **Last Run:** `2026-05-29 21:32:36`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 
@@ -25,9 +25,9 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 
 | merge_record_id   | dp_record_id                         |   id | user_info                                                                                            | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | {'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'}  | 6299ED89FEEB382C27779740151CF032871576EE501D60D7AF0D86883115E037 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | {'first_name': 'Bob', 'last_name': 'Keller', 'city': 'Bern', 'email': 'bob.keller@example.com'}      | 5DC05104E356B34E7063F9B4B1AF0D08A49392E1D18F01252BD370CB3BFB867A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | {'first_name': 'Clara', 'last_name': 'Schmid', 'city': 'Basel', 'email': 'clara.schmid@example.com'} | 2D7BE7D73577B6A7373E485EF76FD98B1B5C05F1140B3C12C8C13A5741DA0C41 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | {'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'}  | F379F42F805729CFC146CDA0164C5E898C7AD060C07D291F692DA97B3823A7D9 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | {'first_name': 'Bob', 'last_name': 'Keller', 'city': 'Bern', 'email': 'bob.keller@example.com'}      | 228993688DBB10E60E1CAC8F1D0AA141FDEADB2FC38B9C8A3483DC61655F6B3B | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | {'first_name': 'Clara', 'last_name': 'Schmid', 'city': 'Basel', 'email': 'clara.schmid@example.com'} | 42E013F11875C7C485E0080FFD38BE6C27A978342DE9346F1D8CD189BF0894E0 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -41,18 +41,6 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 | <span style='color: green;'>af503a22-602c-adb7-cf8d-ca124df6fcf8</span> | <span style='color: green;'>3</span> | <span style='color: green;'>{'first_name': 'Clara', 'last_name': 'Schmid', 'city': 'Basel', 'email': 'clara.schmid@example.com'}</span> | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 
 _the following columns where excluded from the result: `dp_record_hash`_
-
-### Assertion Error
-
-```
-DataFrame.iloc[:, 1] (column name="user_info") are different
-
-DataFrame.iloc[:, 1] (column name="user_info") values are different (100.0 %)
-[index]: [0, 1, 2]
-[left]:  [{'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'}, {'first_name': 'Bob', 'last_name': 'Keller', 'city': 'Bern', 'email': 'bob.keller@example.com'}, {'first_name': 'Clara', 'last_name': 'Schmid', 'city': 'Basel', 'email': 'clara.schmid@example.com'}]
-[right]: [(Alice, Meyer, Zurich, alice.meyer@example.com), (Bob, Keller, Bern, bob.keller@example.com), (Clara, Schmid, Basel, clara.schmid@example.com)]
-At positional index 0, first diff: {'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'} != ('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')
-```
 
 ## Test Step 2
 At 2026-01-05 00:00:00, insert the new entity with `id=10` into the new partition of the raw table and perform SCD2 merge.
@@ -78,7 +66,7 @@ At 2026-01-05 00:00:00, insert the new entity with `id=10` into the new partitio
 
 | merge_record_id   | dp_record_id                         |   id | user_info                                                                                           | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|-----------------------------------------------------------------------------------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | e4059a02-b48e-fc90-b4e8-42b7ad0de301 |   10 | {'first_name': 'Kevin', 'last_name': 'Loosli', 'city': 'Bern', 'email': 'kevin.loosli@example.com'} | D97BBA13E99644B617E27769E05867876D272182D4F218A157ABC05D13F7AD6D | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | e4059a02-b48e-fc90-b4e8-42b7ad0de301 |   10 | {'first_name': 'Kevin', 'last_name': 'Loosli', 'city': 'Bern', 'email': 'kevin.loosli@example.com'} | BBDC7F9E78A87D2F0CCE5106F1735616B93F60FA3C442BFC2A792BFAA11F3CC1 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -93,16 +81,4 @@ At 2026-01-05 00:00:00, insert the new entity with `id=10` into the new partitio
 | <span style='color: green;'>e4059a02-b48e-fc90-b4e8-42b7ad0de301</span> | <span style='color: green;'>10</span> | <span style='color: green;'>{'first_name': 'Kevin', 'last_name': 'Loosli', 'city': 'Bern', 'email': 'kevin.loosli@example.com'}</span> | <span style='color: green;'>2026-01-05 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-06 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 
 _the following columns where excluded from the result: `dp_record_hash`_
-
-### Assertion Error
-
-```
-DataFrame.iloc[:, 1] (column name="user_info") are different
-
-DataFrame.iloc[:, 1] (column name="user_info") values are different (100.0 %)
-[index]: [0, 1, 2, 3]
-[left]:  [{'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'}, {'first_name': 'Bob', 'last_name': 'Keller', 'city': 'Bern', 'email': 'bob.keller@example.com'}, {'first_name': 'Clara', 'last_name': 'Schmid', 'city': 'Basel', 'email': 'clara.schmid@example.com'}, {'first_name': 'Kevin', 'last_name': 'Loosli', 'city': 'Bern', 'email': 'kevin.loosli@example.com'}]
-[right]: [(Alice, Meyer, Zurich, alice.meyer@example.com), (Bob, Keller, Bern, bob.keller@example.com), (Clara, Schmid, Basel, clara.schmid@example.com), (Kevin, Loosli, Bern, kevin.loosli@example.com)]
-At positional index 0, first diff: {'first_name': 'Alice', 'last_name': 'Meyer', 'city': 'Zurich', 'email': 'alice.meyer@example.com'} != ('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')
-```
 

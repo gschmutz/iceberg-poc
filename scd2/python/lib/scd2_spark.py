@@ -129,6 +129,22 @@ class SparkSCD2Strategy(SCD2Strategy):
         return f"{self.database}.{object_name}"
 
     @staticmethod
+    def _cast_to_string(values: list) -> list:
+        return [f"CAST({v} AS STRING)" for v in values]
+    
+    @staticmethod
+    def _cast_to_json(values: list) -> list:
+        return [f"to_json({v})" for v in values]
+
+    @staticmethod
+    def _cast_values(values: list, structured_cols: list) -> list:
+        return [
+            SparkSCD2Strategy._cast_to_json([v])[0] if v in structured_cols
+            else SparkSCD2Strategy._cast_to_string([v])[0]
+            for v in values
+        ]
+
+    @staticmethod
     def _format_join_condition(
         cols_bks: list, prefix_left: str, prefix_right: str
     ) -> str:
@@ -173,14 +189,14 @@ class SparkSCD2Strategy(SCD2Strategy):
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
-        cs = self._cast_to_string
+        cv = self._cast_values
 
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cs(cols_bks))
-        cast_cols_val_str = fv(cs(cols_val))
+        cast_cols_bks_str = fv(cv(cols_bks, []))
+        cast_cols_val_str = fv(cv(cols_val, ["user_info"]))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
@@ -206,8 +222,8 @@ class SparkSCD2Strategy(SCD2Strategy):
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         upper(
                             sha2(
-                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
-                                ), 256
+                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
+                                , 256
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
@@ -221,8 +237,8 @@ class SparkSCD2Strategy(SCD2Strategy):
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         upper(
                             sha2(
-                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
-                                ), 256
+                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
+                                , 256
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}
@@ -251,8 +267,8 @@ class SparkSCD2Strategy(SCD2Strategy):
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         upper(
                             sha2(
-                                concat_ws('||', {fv(cs(ap(cols_bks, "t")))}, {fv(cs(ap(cols_val, "t")))}
-                                ), 256
+                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
+                                , 256
                             )
                         ) AS dp_record_hash,
                     {dp_del_flag_expr}

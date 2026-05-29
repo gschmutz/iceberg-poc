@@ -571,7 +571,7 @@ class SparkTestCommons(TestCommonsBase):
         else:
             raise ValueError(f"Unknown table form: {table_shape}")
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True, 
                        perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
@@ -581,7 +581,7 @@ class SparkTestCommons(TestCommonsBase):
             source_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
-            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -672,9 +672,19 @@ class PySparkTestCommons(SparkTestCommons):
         "city STRING",
         "email STRING",
     ]
-    COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
+    COLS_WITH_TYPE_STRUCT = [
+        "user_info STRUCT<first_name: STRING, last_name: STRING, city: STRING, email: STRING>",
+    ]
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+    def _cols_with_type(self, table_shape: str = "flat") -> list:
+        if table_shape == "flat":
+            return self.COLS_WITH_TYPE_FLAT
+        elif table_shape == "struct":
+            return self.COLS_WITH_TYPE_STRUCT
+        else:
+            raise ValueError(f"Unknown table form: {table_shape}")    
+
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None, 
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         
@@ -685,7 +695,7 @@ class PySparkTestCommons(SparkTestCommons):
             source_table_df=ctx.spark.table("default." + RAW_TABLE_NAME),
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
-            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -697,10 +707,7 @@ class PySparkTestCommons(SparkTestCommons):
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
-
-    def cols_with_type(self, _table_form: str = "flat") -> list:
-        return self.COLS_WITH_TYPE_SPARK
-
+    
     def get_strategy_name(self):
         return self.STRATEGY
 
