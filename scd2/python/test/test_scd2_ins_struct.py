@@ -18,7 +18,7 @@ from commons import (
     create_raw_table,
     get_strategy_name,
     source_table_fqn,
-    scd2_merge_as_test
+    scd2_merge_as_test,
 )
 from constants import MAX_TS
 
@@ -32,6 +32,9 @@ current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
 
 load_ts_2 = datetime.strptime("2026-01-05 00:00:00", "%Y-%m-%d %H:%M:%S")
 current_ts_2 = datetime.strptime("2026-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
+
+TEST_ENGINE = os.getenv("TEST_ENGINE", "SPARK").upper()
+OBJECT_DATATYPE = "STRUCT" if (TEST_ENGINE == "SPARK" or TEST_ENGINE == "PYSPARK") else "ROW"
 
 
 def test_step_1(ctx):
@@ -60,9 +63,9 @@ def test_step_1(ctx):
         SELECT *
         FROM (
             VALUES
-                (1, ROW('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (2, ROW('Bob', 'Keller', 'Bern', 'bob.keller@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (3, ROW('Clara', 'Schmid', 'Basel', 'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
+                (1, {OBJECT_DATATYPE}('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                (2, {OBJECT_DATATYPE}('Bob', 'Keller', 'Bern', 'bob.keller@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                (3, {OBJECT_DATATYPE}('Clara', 'Schmid', 'Basel', 'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
         ) AS t (
             id,
             user_info,
@@ -136,10 +139,10 @@ def test_step_2(ctx):
         SELECT *
         FROM (
             VALUES
-                (1,  ROW('Alice', 'Meyer',  'Zurich', 'alice.meyer@example.com'),  'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (2,  ROW('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (3,  ROW('Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (10, ROW('Kevin', 'Loosli', 'Bern',   'kevin.loosli@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
+                (1,  {OBJECT_DATATYPE}('Alice', 'Meyer',  'Zurich', 'alice.meyer@example.com'),  'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (2,  {OBJECT_DATATYPE}('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (3,  {OBJECT_DATATYPE}('Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (10, {OBJECT_DATATYPE}('Kevin', 'Loosli', 'Bern',   'kevin.loosli@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
         ) AS t (
             id,
             user_info,

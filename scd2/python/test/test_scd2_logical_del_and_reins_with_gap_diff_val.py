@@ -11,17 +11,10 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
-    DELTA_MODE_DELETE_EXPRESSION,
-    EXCLUDE_COLS,
-    RAW_TABLE_NAME,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
-    SCD2_VIEW_NAME,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
     source_table_fqn,
-    scd2_merge_as_preparation,
     scd2_merge_as_test,
 )
 from constants import MAX_TS

@@ -11,18 +11,11 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
-    COLS_WITH_TYPE,
-    EXCLUDE_COLS,
-    RAW_TABLE_NAME,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
-    SCD2_VIEW_NAME,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
     source_table_fqn,
     scd2_merge_as_test,
-    scd2_table_fqn,
 )
 from constants import MAX_TS
 

@@ -14,20 +14,11 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
-    DELTA_MODE_DELETE_EXPRESSION,
-    COLS_WITH_TYPE,
-    EXCLUDE_COLS,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
     source_table_fqn,
-    scd2_intermediary_table_fqn,
-    scd2_merge_as_preparation,
     scd2_merge_as_test,
-    scd2_sel_as_test,
-    scd2_table_fqn,
 )
 from constants import MAX_TS
 
