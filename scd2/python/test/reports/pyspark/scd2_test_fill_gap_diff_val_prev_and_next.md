@@ -67,7 +67,7 @@ Fill the gap at 2026-01-05 00:00:00 by adding a record with different values as 
 
 | merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | dcd6eb5a-9265-4af1-b9a8-6cba0aba3396 |    3 | Clara        | Schmid      | Zurich | clara.schmid@example.com | 24D761116FACE285ECC3E970FF105F256954CF40802EB4B2944296D89115D95C | ACTIVE        | INSERT_NEW_VERSION | CASE_27     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          |
+|                   | dcd6eb5a-9265-4af1-b9a8-6cba0aba3396 |    3 | Clara        | Schmid      | Zurich | clara.schmid@example.com | 97208ADCC2585C00A2027A69920677917C10C993F82DB817D48C0C2F10541382 | ACTIVE        | INSERT_NEW_VERSION | CASE_27     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          |
 
 
 

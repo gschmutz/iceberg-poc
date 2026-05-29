@@ -28,8 +28,8 @@ At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 544671fd-d545-48ec-a209-0b7d11442fdb | 544671fd-d545-48ec-a209-0b7d11442fdb |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | ACTIVE        | UPDATE_VERSION     | CASE_11     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
-|                                      | 83612485-58c1-451c-b5c0-35a89a29ce94 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| 544671fd-d545-48ec-a209-0b7d11442fdb | 544671fd-d545-48ec-a209-0b7d11442fdb |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 38315ECF14E9962283673DAFA2DFF3A93149B4C245591F3C6758E356EDBDE696 | ACTIVE        | UPDATE_VERSION     | CASE_11     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
+|                                      | 83612485-58c1-451c-b5c0-35a89a29ce94 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 38315ECF14E9962283673DAFA2DFF3A93149B4C245591F3C6758E356EDBDE696 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -71,7 +71,7 @@ At 2026-01-10 00:00:00, delete entity with `id=3` from raw table (logical delete
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 83612485-58c1-451c-b5c0-35a89a29ce94 | 83612485-58c1-451c-b5c0-35a89a29ce94 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | True           |
+| 83612485-58c1-451c-b5c0-35a89a29ce94 | 83612485-58c1-451c-b5c0-35a89a29ce94 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 38315ECF14E9962283673DAFA2DFF3A93149B4C245591F3C6758E356EDBDE696 | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | True           |
 
 
 

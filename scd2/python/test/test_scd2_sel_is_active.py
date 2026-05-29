@@ -15,10 +15,6 @@ from util import (
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
     DELTA_MODE_DELETE_EXPRESSION,
-    COLS_WITH_TYPE,
-    EXCLUDE_COLS,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
@@ -145,7 +141,7 @@ def test_step_1(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "6449C8A21EC1B7B2BD4891618CF5853B27A97968D41570EE3CD34617BDBBD7BD",
+            "59C89B7EF4747123AFC82ADCD3FC344DBFCDFAE429135184BB56925C4E542CD1",
         ),
         (
             3,
@@ -159,7 +155,7 @@ def test_step_1(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
     ]
 

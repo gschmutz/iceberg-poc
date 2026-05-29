@@ -185,13 +185,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
         ap = self.add_prefix
         cv = self._cast_to_varchar
         cs = self._cast_to_string
+        cj = self._cast_to_json
 
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cv(cols_bks))
-        cast_cols_val_str = fv(cv(cols_val))
+        cast_cols_bks_str = fv(cj(cols_bks))
+        cast_cols_val_str = fv(cj(cols_val))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")

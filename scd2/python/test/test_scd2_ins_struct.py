@@ -1,7 +1,10 @@
 import logging
+import logging
 import os
 import sys
 from datetime import date, datetime, timedelta
+
+import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from util import (
@@ -15,14 +18,14 @@ from commons import (
     create_raw_table,
     get_strategy_name,
     source_table_fqn,
-    scd2_merge_as_test,
+    scd2_merge_as_test
 )
 from constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_del.md"
+FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_ins_struct.md"
 
 load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
@@ -36,11 +39,11 @@ def test_step_1(ctx):
         "-------------------------------- Test Step 1 --------------------------------"
     )
 
-    create_raw_table(ctx)
-    create_scd2_table_for_test(ctx)
-    render_init("Testing Physical Delete Operation", FILE_NAME)
+    create_raw_table(ctx, table_shape="struct")
+    create_scd2_table_for_test(ctx, table_shape="struct")
+    render_init("Testing Insert Operation", FILE_NAME)
     render_data(
-        "This test validates a DELETE operation of a single entity. The delete is created by a delete in the raw table, i.e., the record is not available in the new load.",
+        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)
@@ -57,15 +60,12 @@ def test_step_1(ctx):
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (3, 'Clara', 'Schmid', 'Basel', 'clara.schmid@example.com', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
+                (1, ROW('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                (2, ROW('Bob', 'Keller', 'Bern', 'bob.keller@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                (3, ROW('Clara', 'Schmid', 'Basel', 'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
         ) AS t (
             id,
-            first_name,
-            last_name,
-            city,
-            email,
+            user_info,
             status,
             dp_ts_from,
             dp_loaded_at
@@ -75,45 +75,36 @@ def test_step_1(ctx):
     expected = [
         (
             1,
-            "Alice",
-            "Meyer",
-            "Zurich",
-            "alice.meyer@example.com",
+            ("Alice", "Meyer", "Zurich", "alice.meyer@example.com"),  # user_info
             load_ts_1,
             MAX_TS,
             True,
             True,
             current_ts_1,
             MAX_TS,
-            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
+            "F379F42F805729CFC146CDA0164C5E898C7AD060C07D291F692DA97B3823A7D9",
         ),
         (
             2,
-            "Bob",
-            "Keller",
-            "Bern",
-            "bob.keller@example.com",
+            ("Bob", "Keller", "Bern", "bob.keller@example.com"),      # user_info
             load_ts_1,
             MAX_TS,
             True,
             True,
             current_ts_1,
             MAX_TS,
-            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
+            "228993688DBB10E60E1CAC8F1D0AA141FDEADB2FC38B9C8A3483DC61655F6B3B",
         ),
         (
             3,
-            "Clara",
-            "Schmid",
-            "Basel",
-            "clara.schmid@example.com",
+            ("Clara", "Schmid", "Basel", "clara.schmid@example.com"), # user_info
             load_ts_1,
             MAX_TS,
             True,
             True,
             current_ts_1,
             MAX_TS,
-            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
+            "42E013F11875C7C485E0080FFD38BE6C27A978342DE9346F1D8CD189BF0894E0",
         ),
     ]
 
@@ -122,21 +113,22 @@ def test_step_1(ctx):
         ctx,
         test_step=1,
         ins_stmt=insert_sql_1,
+        table_shape="struct",
         dp_ts=load_ts_1,
         current_ts=current_ts_1,
-        use_logical_delete_for_source_table=False,
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
     )
 
 
+# @pytest.mark.skip(reason="not implemented yet")
 def test_step_2(ctx):
     logger.info(
         "-------------------------------- Test Step 2 --------------------------------"
     )
 
-    test_description = f"At {load_ts_2}, update entity with `id=3` in raw table an INACTIVE (logical delete) and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, insert the new entity with `id=10` into the new partition of the raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -144,14 +136,13 @@ def test_step_2(ctx):
         SELECT *
         FROM (
             VALUES
-                (1, 'Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (2, 'Bob', 'Keller', 'Bern', 'bob.keller@example.com', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
+                (1,  ROW('Alice', 'Meyer',  'Zurich', 'alice.meyer@example.com'),  'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (2,  ROW('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (3,  ROW('Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                (10, ROW('Kevin', 'Loosli', 'Bern',   'kevin.loosli@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
         ) AS t (
             id,
-            first_name,
-            last_name,
-            city,
-            email,
+            user_info,
             status,
             dp_ts_from,
             dp_loaded_at
@@ -161,45 +152,47 @@ def test_step_2(ctx):
     expected = [
         (
             1,
-            "Alice",
-            "Meyer",
-            "Zurich",
-            "alice.meyer@example.com",
+            ("Alice", "Meyer", "Zurich", "alice.meyer@example.com"),  # user_info (no status)
             load_ts_1,
             MAX_TS,
             True,
             True,
             current_ts_1,
             MAX_TS,
-            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
+            "F379F42F805729CFC146CDA0164C5E898C7AD060C07D291F692DA97B3823A7D9",
         ),
         (
             2,
-            "Bob",
-            "Keller",
-            "Bern",
-            "bob.keller@example.com",
+            ("Bob", "Keller", "Bern", "bob.keller@example.com"),      # user_info (no status)
             load_ts_1,
             MAX_TS,
             True,
             True,
             current_ts_1,
             MAX_TS,
-            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
+            "228993688DBB10E60E1CAC8F1D0AA141FDEADB2FC38B9C8A3483DC61655F6B3B",
         ),
         (
             3,
-            "Clara",
-            "Schmid",
-            "Basel",
-            "clara.schmid@example.com",
+            ("Clara", "Schmid", "Basel", "clara.schmid@example.com"), # user_info (no status)
             load_ts_1,
-            load_ts_2 - timedelta(seconds=1),
-            False,
+            MAX_TS,
+            True,
             True,
             current_ts_1,
+            MAX_TS,
+            "42E013F11875C7C485E0080FFD38BE6C27A978342DE9346F1D8CD189BF0894E0",
+        ),
+        (
+            10,
+            ("Kevin", "Loosli", "Bern", "kevin.loosli@example.com"),  # user_info (no status)
+            load_ts_2,
+            MAX_TS,
+            True,
+            True,
             current_ts_2,
-            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
+            MAX_TS,
+            "BBDC7F9E78A87D2F0CCE5106F1735616B93F60FA3C442BFC2A792BFAA11F3CC1",
         ),
     ]
 
@@ -208,11 +201,11 @@ def test_step_2(ctx):
         ctx,
         test_step=2,
         ins_stmt=insert_sql_2,
+        table_shape="struct",
         dp_ts=load_ts_2,
         current_ts=current_ts_2,
-        use_logical_delete_for_source_table=False,
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        perform_merge_op=True
+        perform_merge_op=True,
     )

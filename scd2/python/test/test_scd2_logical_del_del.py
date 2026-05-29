@@ -12,12 +12,6 @@ from util import (
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
     DELTA_MODE_DELETE_EXPRESSION,
-    COLS_WITH_TYPE,
-    EXCLUDE_COLS,
-    RAW_TABLE_NAME,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
-    SCD2_VIEW_NAME,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
@@ -97,7 +91,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8",
+            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
         ),
         (
             2,
@@ -111,7 +105,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             3,
@@ -125,7 +119,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
     ]
 
@@ -185,7 +179,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8",
+            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
         ),
         (
             2,
@@ -199,7 +193,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             3,
@@ -213,7 +207,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             current_ts_2,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
     ]
 
@@ -273,7 +267,7 @@ def test_step_3(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8",
+            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
         ),
         (
             2,
@@ -287,7 +281,7 @@ def test_step_3(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             3,
@@ -301,7 +295,7 @@ def test_step_3(ctx):
             True,
             current_ts_1,
             current_ts_2,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
     ]
 

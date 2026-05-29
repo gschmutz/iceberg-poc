@@ -25,9 +25,9 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 
 | merge_record_id   | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 4a01368c-534f-4b48-8021-8b7853c6b120 |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 94378508-8d29-4330-a1a8-530397d1018d |     2 |   nan | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 233c5fc5-2aba-4c20-9dfe-1ba32893f4a5 |     2 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 4a01368c-534f-4b48-8021-8b7853c6b120 |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | BAB631B19480D6A34C9E6E4116135C91C1992DECA676BE09461E204DB7117991 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 94378508-8d29-4330-a1a8-530397d1018d |     2 |   nan | Bob          | Keller      | Bern   | bob.keller@example.com   | E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 233c5fc5-2aba-4c20-9dfe-1ba32893f4a5 |     2 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | B6EB2D7B61FD2022D03861264A4CBCC2859FEB58F1F888AB950217E96996037A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -66,7 +66,7 @@ At 2026-01-05 00:00:00, insert the new entity with `id=10` into the new partitio
 
 | merge_record_id   | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | e425b22f-0ec1-4b69-9253-c6867e22dc86 |    10 |    10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | e425b22f-0ec1-4b69-9253-c6867e22dc86 |    10 |    10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | 5923FB560BB18A88641D55A4F9B5AADB408FCE4246D9A4F40E7EC6667B74F389 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 

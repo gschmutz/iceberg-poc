@@ -25,9 +25,9 @@ At 2026-01-05 00:00:00, insert 3 entities into raw table and perform initial SCD
 
 | merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | e160d9df-163d-46b1-ab34-6eae6292f45d |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 9736c7fb-92cc-4824-8a32-1cb46587e3cc |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | a022a192-f63d-46f6-819b-98244d9a02b7 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | e160d9df-163d-46b1-ab34-6eae6292f45d |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 9736c7fb-92cc-4824-8a32-1cb46587e3cc |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | a022a192-f63d-46f6-819b-98244d9a02b7 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -65,7 +65,7 @@ At 2026-01-01 00:00:00, insert the entity with `id=1` into the new partitions of
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                   | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|-------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 29d41323-17fa-4d12-997c-17ecdacf6af3 | 29d41323-17fa-4d12-997c-17ecdacf6af3 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | UPDATE_VERSION   | CASE_18     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |                |                |
+| 29d41323-17fa-4d12-997c-17ecdacf6af3 | 29d41323-17fa-4d12-997c-17ecdacf6af3 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com | F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570 | ACTIVE        | UPDATE_VERSION   | CASE_18     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 |                |                |
 
 
 

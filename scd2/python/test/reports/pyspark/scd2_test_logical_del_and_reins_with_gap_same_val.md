@@ -25,9 +25,9 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 
 | merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | b8fc4df8-102e-4adc-a0cd-fbfd61233ff7 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 1eef7acc-9108-4c79-bff7-2d060aa840dd |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | b8fc4df8-102e-4adc-a0cd-fbfd61233ff7 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 1eef7acc-9108-4c79-bff7-2d060aa840dd |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -65,7 +65,7 @@ Delete record with `id=3` from raw table (logical delete) and perform SCD2 merge
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 856a7582-ad42-46d2-81f0-da9fb9fd0ace | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           |
+| 856a7582-ad42-46d2-81f0-da9fb9fd0ace | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | True           |
 
 
 
@@ -106,8 +106,8 @@ At 2026-01-10 00:00:00 (with a gap), reactivate record with `id=3` by inserting 
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 856a7582-ad42-46d2-81f0-da9fb9fd0ace | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | UPDATE_VERSION     | CASE_22     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
-|                                      | 85e1b092-acbb-4f89-ad16-7abc2c91e0ef |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_22     | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| 856a7582-ad42-46d2-81f0-da9fb9fd0ace | 856a7582-ad42-46d2-81f0-da9fb9fd0ace |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | UPDATE_VERSION     | CASE_22     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
+|                                      | 85e1b092-acbb-4f89-ad16-7abc2c91e0ef |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | INSERT_NEW_VERSION | CASE_22     | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 

@@ -74,9 +74,7 @@ DELTA_MODE_DELETE_EXPRESSION="status = 'INACTIVE'"
 class TestCommonsBase:
     """Base class for test commons. Subclasses supply COLS_WITH_TYPE and _make_strategy."""
 
-    COLS_WITH_TYPE: list  # defined in each concrete subclass
-
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, 
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True,
@@ -92,10 +90,13 @@ class TestCommonsBase:
     def get_strategy_name(self):
         raise NotImplementedError
 
-    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
         raise NotImplementedError
     
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]):
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
+        raise NotImplementedError
+
+    def cols_with_type(self, table_form: str = "flat") -> list:
         raise NotImplementedError
 
     def source_table_fqn(self, ctx, iceberg_meta_tablename: str = None):
@@ -250,6 +251,7 @@ class TestCommonsBase:
         display_result: bool = True,
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
+        table_shape: str = "flat",        
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -268,7 +270,7 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        self._make_strategy(ctx, cols_bks=cols_bks,
+        self._make_strategy(ctx, cols_bks=cols_bks, table_shape=table_shape,
                             use_logical_delete_for_source_table=use_logical_delete_for_source_table, 
                             logical_delete_expression=logical_delete_expression,
                             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -325,6 +327,7 @@ class TestCommonsBase:
         display_result: bool = True,
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
+        table_shape: str = "flat",
     ):
         render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
@@ -341,7 +344,7 @@ class TestCommonsBase:
             output_file_name=output_file_name,
         )
 
-        strategy = self._make_strategy(ctx, cols_bks=cols_bks,
+        strategy = self._make_strategy(ctx, cols_bks=cols_bks, table_shape=table_shape,
                                        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
                                        logical_delete_expression=logical_delete_expression,
                                        check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -425,15 +428,25 @@ class TestCommonsBase:
 class TrinoTestCommons(TestCommonsBase):
     STRATEGY = "TRINO"
 
-    COLS_WITH_TYPE_TRINO = [
-        "first_name VARCHAR",
-        "last_name VARCHAR",
-        "city VARCHAR",
-        "email VARCHAR",
+    COLS_WITH_TYPE_STRUCT = [
+        "user_info ROW(first_name VARCHAR, last_name VARCHAR, city VARCHAR, email VARCHAR)", 
     ]
-    COLS_WITH_TYPE = COLS_WITH_TYPE_TRINO
+    COLS_WITH_TYPE_FLAT = [
+        "first_name VARCHAR", 
+        "last_name VARCHAR", 
+        "city VARCHAR", 
+        "email VARCHAR", 
+    ]
+    
+    def _cols_with_type(self, table_shape: str = "flat") -> list:
+        if table_shape == "flat":
+            return self.COLS_WITH_TYPE_FLAT
+        elif table_shape == "struct":
+            return self.COLS_WITH_TYPE_STRUCT
+        else:
+            raise ValueError(f"Unknown table form: {table_shape}")
 
-    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
+    def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
@@ -444,7 +457,7 @@ class TrinoTestCommons(TestCommonsBase):
             source_table_name=RAW_TABLE_NAME,
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
-            cols_val=[col.split()[0] for col in self.COLS_WITH_TYPE],
+            cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -457,7 +470,9 @@ class TrinoTestCommons(TestCommonsBase):
             col_dp_ts_filter=col_dp_ts_filter,
         )
     
-    def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list) -> None:
+    def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
+        cols_with_type = self._cols_with_type(table_shape)
+        
         fqn = f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{SCD2_TABLE_NAME}"
         cursor = ctx.conn.cursor()
         cursor.execute(f"DROP TABLE IF EXISTS {fqn}")
@@ -466,7 +481,7 @@ class TrinoTestCommons(TestCommonsBase):
             f"{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}",
         )
         pk_str = ", ".join(cols_bks_with_type)
-        cols_str = ", ".join(self.COLS_WITH_TYPE)
+        cols_str = ", ".join(cols_with_type)
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {fqn} (
                 dp_record_id VARCHAR,
@@ -488,11 +503,14 @@ class TrinoTestCommons(TestCommonsBase):
         """)
         logger.info(f"Dimension table {fqn} created successfully.")   
 
+
     def get_strategy_name(self):
         return self.STRATEGY
 
 
-    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
+        cols_with_type = self._cols_with_type(table_shape)
+
         cursor = ctx.conn.cursor()
 
         drop_table_sql = (
@@ -504,10 +522,7 @@ class TrinoTestCommons(TestCommonsBase):
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS {TRINO_CATALOG}.{TRINO_SCHEMA}.{RAW_TABLE_NAME} (
             {", ".join(cols_bks_with_type)},
-            first_name VARCHAR,
-            last_name VARCHAR,
-            city VARCHAR,
-            email VARCHAR,
+            {", ".join(cols_with_type)},
             status VARCHAR,
             dp_ts_from TIMESTAMP,
             dp_loaded_at TIMESTAMP
@@ -523,8 +538,8 @@ class TrinoTestCommons(TestCommonsBase):
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
         )
 
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]) -> None:
-        self._create_scd2_table_trino(ctx, cols_bks_with_type)
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
+        self._create_scd2_table_trino(ctx, cols_bks_with_type, table_shape)
 
     def _execute_insert(self, ins_stmt: str, ctx):
         cursor = ctx.conn.cursor()
@@ -538,13 +553,23 @@ class TrinoTestCommons(TestCommonsBase):
 class SparkTestCommons(TestCommonsBase):
     STRATEGY = "SPARK"
 
-    COLS_WITH_TYPE_SPARK = [
+    COLS_WITH_TYPE_FLAT = [
         "first_name STRING",
         "last_name STRING",
         "city STRING",
         "email STRING",
     ]
-    COLS_WITH_TYPE = COLS_WITH_TYPE_SPARK
+    COLS_WITH_TYPE_STRUCT = [
+        "user_info STRUCT<first_name: STRING, last_name: STRING, city: STRING, email: STRING>",
+    ]
+
+    def _cols_with_type(self, table_shape: str = "flat") -> list:
+        if table_shape == "flat":
+            return self.COLS_WITH_TYPE_FLAT
+        elif table_shape == "struct":
+            return self.COLS_WITH_TYPE_STRUCT
+        else:
+            raise ValueError(f"Unknown table form: {table_shape}")
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"],
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
@@ -569,8 +594,10 @@ class SparkTestCommons(TestCommonsBase):
             col_dp_ts_filter=col_dp_ts_filter,
         )
 
-    def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list) -> None:
+    def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
         """Shared Spark/PySpark implementation for creating the SCD2 dimension table."""
+        cols_with_type = self._cols_with_type(table_shape)
+        
         fqn = f"default.{SCD2_TABLE_NAME}"
         ctx.spark.sql(f"DROP TABLE IF EXISTS {fqn}")
         SCD2Strategy.delete_s3_location(
@@ -578,7 +605,7 @@ class SparkTestCommons(TestCommonsBase):
             f"{S3_WAREHOUSE_PREFIX}/default/{SCD2_TABLE_NAME}",
         )
         pk_str = ", ".join(cols_bks_with_type)
-        cols_str = ", ".join(self.COLS_WITH_TYPE)
+        cols_str = ", ".join(cols_with_type)
         ctx.spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {fqn} (
                 dp_record_id STRING,
@@ -601,7 +628,9 @@ class SparkTestCommons(TestCommonsBase):
     def get_strategy_name(self):
         return self.STRATEGY
 
-    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"]):
+    def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
+        cols_with_type = self._cols_with_type(table_shape)
+
         drop_table_sql = f"DROP TABLE IF EXISTS default.{RAW_TABLE_NAME}"
         ctx.spark.sql(drop_table_sql)
         logger.debug(f"Table {RAW_TABLE_NAME} dropped successfully (if it existed).")
@@ -609,10 +638,7 @@ class SparkTestCommons(TestCommonsBase):
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS default.{RAW_TABLE_NAME} (
             {", ".join(cols_bks_with_type)},
-            first_name STRING,
-            last_name STRING,
-            city STRING,
-            email STRING,
+            {", ".join(cols_with_type)},
             status STRING,
             dp_ts_from TIMESTAMP,
             dp_loaded_at TIMESTAMP
@@ -627,8 +653,8 @@ class SparkTestCommons(TestCommonsBase):
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
         )
 
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"]) -> None:
-        self._create_scd2_table_spark(ctx, cols_bks_with_type)
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
+        self._create_scd2_table_spark(ctx, cols_bks_with_type, table_shape)
 
     def _execute_insert(self, ins_stmt, ctx):
         ctx.spark.sql(ins_stmt)
@@ -672,6 +698,9 @@ class PySparkTestCommons(SparkTestCommons):
             col_dp_ts_filter=col_dp_ts_filter,
         )
 
+    def cols_with_type(self, _table_form: str = "flat") -> list:
+        return self.COLS_WITH_TYPE_SPARK
+
     def get_strategy_name(self):
         return self.STRATEGY
 
@@ -693,7 +722,9 @@ if TEST_ENGINE not in _ENGINES:
 _impl: TestCommonsBase = _ENGINES[TEST_ENGINE]()
 
 # Re-export COLS_WITH_TYPE so test files can import it directly from commons
-COLS_WITH_TYPE = _impl.COLS_WITH_TYPE
+COLS_WITH_TYPE_FLAT = _impl.COLS_WITH_TYPE_FLAT
+COLS_WITH_TYPE_STRUCT = _impl.COLS_WITH_TYPE_STRUCT
+
 
 
 # ---------------------------------------------------------------------------
@@ -736,14 +767,13 @@ def scd2_intermediary_table_fqn(ctx, iceberg_meta_tablename: str = None):
         ctx, iceberg_meta_tablename=iceberg_meta_tablename
     )
 
+def create_raw_table(ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
+    return _impl.create_raw_table(ctx, cols_bks_with_type=cols_bks_with_type, table_shape=table_shape)
 
-def create_raw_table(ctx, cols_bks_with_type: list = ["id INT"]):
-    return _impl.create_raw_table(ctx, cols_bks_with_type=cols_bks_with_type)
 
-
-def create_scd2_table_for_test(ctx, cols_bks_with_type: list = ["id INT"]):
+def create_scd2_table_for_test(ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
     return _impl.create_scd2_table_for_test(
-        ctx, cols_bks_with_type=cols_bks_with_type
+        ctx, cols_bks_with_type=cols_bks_with_type, table_shape=table_shape
     )
 
 def execute_select(sel_stmt: str, ctx) -> pd.DataFrame:
@@ -802,6 +832,7 @@ def scd2_merge_as_test(
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
+    table_shape: str = "flat",
 ):
     _impl.scd2_merge_as_test(
         ctx,
@@ -820,6 +851,7 @@ def scd2_merge_as_test(
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
+        table_shape=table_shape,
     )
 
 def scd2_merge_as_test2(

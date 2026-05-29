@@ -11,12 +11,6 @@ from util import (
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from commons import (
-    COLS_WITH_TYPE,
-    EXCLUDE_COLS,
-    RAW_TABLE_NAME,
-    S3_WAREHOUSE_BUCKET,
-    S3_WAREHOUSE_PREFIX,
-    SCD2_VIEW_NAME,
     create_scd2_table_for_test,
     create_raw_table,
     get_strategy_name,
@@ -95,7 +89,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A",
+            "BAB631B19480D6A34C9E6E4116135C91C1992DECA676BE09461E204DB7117991",
         ),
         (
             2,
@@ -110,7 +104,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1",
+            "B6EB2D7B61FD2022D03861264A4CBCC2859FEB58F1F888AB950217E96996037A",
         ),
         (
             2,
@@ -125,7 +119,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
     ]
 
@@ -187,7 +181,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A",
+            "BAB631B19480D6A34C9E6E4116135C91C1992DECA676BE09461E204DB7117991",
         ),
         (
             2,
@@ -202,7 +196,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1",
+            "B6EB2D7B61FD2022D03861264A4CBCC2859FEB58F1F888AB950217E96996037A",
         ),
         (
             2,
@@ -217,7 +211,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             10,
@@ -232,7 +226,7 @@ def test_step_2(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C",
+            "5923FB560BB18A88641D55A4F9B5AADB408FCE4246D9A4F40E7EC6667B74F389",
         ),
     ]
 

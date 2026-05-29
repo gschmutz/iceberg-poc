@@ -67,8 +67,8 @@ Fill the gap at 2026-01-05 00:00:00 by adding a record with the same values as t
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| 7cfabb84-a9d4-40e6-98cf-9fde3b980b7d | 7cfabb84-a9d4-40e6-98cf-9fde3b980b7d |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | UPDATE_VERSION   | CASE_26     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-| eeb2b2e1-8b6b-470a-af4b-5a62e47dd928 | eeb2b2e1-8b6b-470a-af4b-5a62e47dd928 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | DELETE_VERSION   | CASE_26     | NaT                 | NaT                 |                |                |
+| 7cfabb84-a9d4-40e6-98cf-9fde3b980b7d | 7cfabb84-a9d4-40e6-98cf-9fde3b980b7d |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | UPDATE_VERSION   | CASE_26     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| eeb2b2e1-8b6b-470a-af4b-5a62e47dd928 | eeb2b2e1-8b6b-470a-af4b-5a62e47dd928 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | DELETE_VERSION   | CASE_26     | NaT                 | NaT                 |                |                |
 
 
 

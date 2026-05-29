@@ -25,9 +25,9 @@ At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD
 
 | merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | bafbcbcb-bfb5-4849-94c6-5047d45302a3 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | c5a2dc8c-bacc-484e-bf0a-a214a44b9061 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | e586f057-058d-4265-868a-6322218cb030 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | bafbcbcb-bfb5-4849-94c6-5047d45302a3 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | c5a2dc8c-bacc-484e-bf0a-a214a44b9061 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|                   | e586f057-058d-4265-868a-6322218cb030 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -65,7 +65,7 @@ At 2026-01-10 00:00:00, insert the entity with `id=1` with a different value for
 
 | merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                   | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|-------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 853d102b-9d0b-4298-9211-9bfc05f1a5d7 |    1 | Alice        | Meyer       | Geneva | alice.meyer@example.com | 78FFEBE2007761B0577842A5487D3B5327964306AA3FE61834D60464D0D4AF8F | ACTIVE        | INSERT_NEW_VERSION | CASE_19     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
+|                   | 853d102b-9d0b-4298-9211-9bfc05f1a5d7 |    1 | Alice        | Meyer       | Geneva | alice.meyer@example.com | C5F0D86E51E8739AC582F5F281C5BBAF76683CF8DA55A0663E5D5364A04D25AA | ACTIVE        | INSERT_NEW_VERSION | CASE_19     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
 
 
 

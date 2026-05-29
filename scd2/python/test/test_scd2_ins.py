@@ -1,4 +1,5 @@
 import logging
+import logging
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -87,7 +88,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8",
+            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
         ),
         (
             2,
@@ -101,7 +102,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             3,
@@ -115,7 +116,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
     ]
 
@@ -175,7 +176,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8",
+            "F244BC679F09400F6966D6472E66C079A59943FEC38344C4306149D8034ED570",
         ),
         (
             2,
@@ -189,7 +190,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40",
+            "E5181C5926D5185F99D4654A7F15E2476045F4808F22C5924E128B87DEB6F93F",
         ),
         (
             3,
@@ -203,7 +204,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676",
+            "254677EA92F6E7E5A9C2629DE097CA5B2821DC6CF93B283D7158EC37920083CB",
         ),
         (
             10,
@@ -217,7 +218,7 @@ def test_step_2(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "F32E425B7483AA533A0DBD8DB41BBD3DEEDBD2FF6427D420A7130EC9B174787C",
+            "147D854645B1DCD25836FE6D0474D717C87972550B48027F01305BE396767F20",
         ),
     ]
 

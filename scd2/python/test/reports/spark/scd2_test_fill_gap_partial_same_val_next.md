@@ -67,7 +67,7 @@ Fill the gap partially at 2026-01-10 00:00:00 by adding a record with the same v
 
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| b349ef28-b84a-4e48-8a15-2aa5b5027f82 | b349ef28-b84a-4e48-8a15-2aa5b5027f82 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 777BB26D490500D4BF4E829691C85C2DF112D21B4D205D879812E5BE99529853 | ACTIVE        | UPDATE_VERSION   | CASE_18     | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |                |                |
+| b349ef28-b84a-4e48-8a15-2aa5b5027f82 | b349ef28-b84a-4e48-8a15-2aa5b5027f82 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | CA14C81ED1ABCD039C850A47BBE3ED8F509541787BF19B1C3D2BFEFD05D34C92 | ACTIVE        | UPDATE_VERSION   | CASE_18     | 2026-01-10 00:00:00 | 9999-12-31 23:59:59 |                |                |
 
 
 

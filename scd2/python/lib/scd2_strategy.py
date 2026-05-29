@@ -328,7 +328,11 @@ class SCD2Strategy(ABC):
     @staticmethod
     def _cast_to_string(values: list) -> list:
         return [f"CAST({v} AS STRING)" for v in values]
-    
+
+    @staticmethod
+    def _cast_to_json(values: list) -> list:
+        return [f"json_format(CAST({v} AS JSON))" for v in values]
+
     # ── Abstract SQL formatters ─────────────────────────────────────────────
 
     @abstractmethod
