@@ -44,6 +44,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
+        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
@@ -52,7 +53,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         col_dp_valid_from: str = "dp_ts_from",
         col_dp_valid_to: str = "dp_ts_to",
         col_dp_created_at: str = "dp_created_at",
-        col_dp_replaced_at: str = "dp_replaced_at",        
+        col_dp_replaced_at: str = "dp_replaced_at",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
@@ -64,6 +65,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             scd2_intermediary_table_name=scd2_intermediary_table_name,
             cols_bks=cols_bks,
             cols_val=cols_val,
+            cols_structured=cols_structured,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -75,7 +77,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_replaced_at=col_dp_replaced_at,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-        ) 
+        )
 
         self.source_table_df = source_table_df
 
@@ -170,11 +172,18 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
-        all_cols = self.cols_bks + self.cols_val
+
+        def _cast_col(c, structured_cols):
+            return F.to_json(F.col(c)) if c in structured_cols else F.col(c).cast("string")
 
         # ── src_records ───────────────────────────────────────────────────────
         hash_expr = F.upper(
-            F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in all_cols]), 256)
+            F.sha2(
+                F.concat_ws("||",
+                    *[_cast_col(c, []) for c in self.cols_bks],
+                    *[_cast_col(c, self.cols_structured) for c in self.cols_val],
+                ), 256
+            )
         )
         dp_ts_col = (
             F.col(self.col_dp_ts_filter).alias("dp_ts")
@@ -779,7 +788,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         inserts_df = records_df.filter(F.col("situation.is_ins") == True).select(
             F.lit(None).cast("string").alias("merge_record_id"),
             F.regexp_replace(
-                F.lower(F.sha2(F.concat_ws("||", *[F.col(c).cast("string") for c in self.cols_bks], F.col("src_dp_ts_from").cast("string")), 256)),
+                F.lower(F.sha2(F.concat_ws("||", *[_cast_col(c, []) for c in self.cols_bks], F.col("src_dp_ts_from").cast("string")), 256)),
                     r'^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', '$1-$2-$3-$4-$5'
             ).alias("dp_record_id"),
             *_common("INSERT_NEW_VERSION"),

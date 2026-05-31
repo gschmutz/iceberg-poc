@@ -32,7 +32,7 @@ from constants import MAX_TS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_ins_struct.md"
+FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_type_struct_ins.md"
 
 load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")

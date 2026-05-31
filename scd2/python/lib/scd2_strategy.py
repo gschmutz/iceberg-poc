@@ -99,6 +99,7 @@ class SCD2Strategy(ABC):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
+        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
@@ -156,6 +157,7 @@ class SCD2Strategy(ABC):
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
         self.cols_val = cols_val
+        self.cols_structured = cols_structured or []
         self.use_logical_delete_for_source_table = use_logical_delete_for_source_table
         self.logical_delete_expression = logical_delete_expression
         self.check_physical_delete_against_source_table = check_physical_delete_against_source_table

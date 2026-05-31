@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from decimal import Decimal
 from typing import Optional
 
 import numpy as np
@@ -156,6 +157,10 @@ class TestCommonsBase:
                 expected_df[col] = expected_df[col].apply(
                     TestCommonsBase.normalize_ts_for_assert
                 )
+        for df in (actual_df, expected_df):
+            for col in df.columns:
+                if df[col].apply(lambda x: isinstance(x, Decimal)).any():
+                    df[col] = df[col].apply(lambda x: float(x) if isinstance(x, Decimal) else x)
         try:
             pd.testing.assert_frame_equal(
                 actual_df, expected_df, check_dtype=False, check_like=False
@@ -431,18 +436,65 @@ class TrinoTestCommons(TestCommonsBase):
     COLS_WITH_TYPE_STRUCT = [
         "user_info ROW(first_name VARCHAR, last_name VARCHAR, city VARCHAR, email VARCHAR)", 
     ]
+    COLS_WITH_TYPE_MAP = [
+        "user_info MAP(VARCHAR, VARCHAR)", 
+    ]
+    COLS_WITH_TYPE_ARRAY = [
+        "user_info ARRAY(VARCHAR)", 
+    ]
+    COLS_WITH_TYPE_JSON = [
+        "user_info JSON", 
+    ]
     COLS_WITH_TYPE_FLAT = [
         "first_name VARCHAR", 
         "last_name VARCHAR", 
         "city VARCHAR", 
         "email VARCHAR", 
     ]
+    COLS_WITH_TYPE_VARIOUS = [
+        # Numeric
+        "col_tinyint   TINYINT",
+        "col_smallint  SMALLINT",
+        "col_int       INTEGER",
+        "col_bigint    BIGINT",
+        "col_real      REAL",
+        "col_double    DOUBLE",
+        "col_decimal   DECIMAL(18, 4)",
+
+        # String
+        "col_varchar   VARCHAR",
+        "col_varchar_n VARCHAR(255)",
+        "col_char      CHAR(10)",
+
+        # Boolean
+        "col_boolean   BOOLEAN",
+
+        # Date / Time
+        "col_date                DATE",
+        "col_timestamp           TIMESTAMP(6)",
+        "col_timestamp_tz        TIMESTAMP(6) WITH TIME ZONE",
+        #"col_time                TIME(6)",
+        #"col_interval_ym         INTERVAL YEAR TO MONTH",
+        #"col_interval_ds         INTERVAL DAY TO SECOND",
+
+        # Binary
+        #"col_varbinary  VARBINARY",
+    ]   
     
     def _cols_with_type(self, table_shape: str = "flat") -> list:
         if table_shape == "flat":
             return self.COLS_WITH_TYPE_FLAT
         elif table_shape == "struct":
             return self.COLS_WITH_TYPE_STRUCT
+        elif table_shape == "map":
+            return self.COLS_WITH_TYPE_MAP
+        elif table_shape == "array":
+            return self.COLS_WITH_TYPE_ARRAY
+# json not yet supported by Iceberg
+#        elif table_shape == "json":
+#            return self.COLS_WITH_TYPE_JSON                
+        elif table_shape == "various":
+            return self.COLS_WITH_TYPE_VARIOUS
         else:
             raise ValueError(f"Unknown table form: {table_shape}")
 
@@ -458,6 +510,7 @@ class TrinoTestCommons(TestCommonsBase):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
+            cols_structured=["user_info"] if table_shape == "struct" or table_shape == "map" or table_shape == "array" else [],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -532,7 +585,7 @@ class TrinoTestCommons(TestCommonsBase):
             partitioning = ARRAY['dp_loaded_at']
         )
         """
-
+        logger.info(f"Creating raw table with SQL:\n{create_table_sql}")
         cursor.execute(create_table_sql)
         logger.debug(
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
@@ -562,12 +615,56 @@ class SparkTestCommons(TestCommonsBase):
     COLS_WITH_TYPE_STRUCT = [
         "user_info STRUCT<first_name: STRING, last_name: STRING, city: STRING, email: STRING>",
     ]
+    COLS_WITH_TYPE_MAP = [
+        "user_info MAP<STRING, STRING>", 
+    ]
+    COLS_WITH_TYPE_ARRAY = [
+        "user_info ARRAY<STRING>", 
+    ]
+    COLS_WITH_TYPE_JSON = [
+        "user_info JSON", 
+    ]    
+    COLS_WITH_TYPE_VARIOUS = [    
+        # Numeric
+        "col_tinyint   TINYINT",
+        "col_smallint  SMALLINT",
+        "col_int       INT",
+        "col_bigint    BIGINT",
+        "col_float     FLOAT",
+        "col_double    DOUBLE",
+        "col_decimal   DECIMAL(18, 4)",
+
+        # String
+        "col_string    STRING",
+        "col_varchar_n VARCHAR(255)",
+        "col_char      CHAR(10)",
+
+        # Boolean
+        "col_boolean   BOOLEAN",
+
+        # Date / Time
+        "col_date          DATE",
+        "col_timestamp     TIMESTAMP",
+        "col_timestamp_ntz TIMESTAMP_NTZ",
+
+        # Binary
+        #"col_binary    BINARY",
+    ]
 
     def _cols_with_type(self, table_shape: str = "flat") -> list:
         if table_shape == "flat":
             return self.COLS_WITH_TYPE_FLAT
         elif table_shape == "struct":
             return self.COLS_WITH_TYPE_STRUCT
+        elif table_shape == "map":
+            return self.COLS_WITH_TYPE_MAP
+        elif table_shape == "array":
+            return self.COLS_WITH_TYPE_ARRAY
+# json not yet supported by Iceberg
+#        elif table_shape == "json":
+#            return self.COLS_WITH_TYPE_JSON                    
+        elif table_shape == "various":
+            return self.COLS_WITH_TYPE_VARIOUS
         else:
             raise ValueError(f"Unknown table form: {table_shape}")
 
@@ -582,6 +679,7 @@ class SparkTestCommons(TestCommonsBase):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
+            cols_structured=["user_info"] if table_shape == "struct" or table_shape == "map" or table_shape == "array" else [],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -675,12 +773,56 @@ class PySparkTestCommons(SparkTestCommons):
     COLS_WITH_TYPE_STRUCT = [
         "user_info STRUCT<first_name: STRING, last_name: STRING, city: STRING, email: STRING>",
     ]
+    COLS_WITH_TYPE_MAP = [
+        "user_info MAP<STRING, STRING>", 
+    ]
+    COLS_WITH_TYPE_ARRAY = [
+        "user_info ARRAY<STRING>", 
+    ]
+    COLS_WITH_TYPE_JSON = [
+        "user_info JSON", 
+    ]    
+    COLS_WITH_TYPE_VARIOUS = [    
+        # Numeric
+        "col_tinyint   TINYINT",
+        "col_smallint  SMALLINT",
+        "col_int       INT",
+        "col_bigint    BIGINT",
+        "col_float     FLOAT",
+        "col_double    DOUBLE",
+        "col_decimal   DECIMAL(18, 4)",
+
+        # String
+        "col_string    STRING",
+        "col_varchar_n VARCHAR(255)",
+        "col_char      CHAR(10)",
+
+        # Boolean
+        "col_boolean   BOOLEAN",
+
+        # Date / Time
+        "col_date          DATE",
+        "col_timestamp     TIMESTAMP",
+        "col_timestamp_ntz TIMESTAMP_NTZ",
+
+        # Binary
+        #"col_binary    BINARY"
+        ]
 
     def _cols_with_type(self, table_shape: str = "flat") -> list:
         if table_shape == "flat":
             return self.COLS_WITH_TYPE_FLAT
         elif table_shape == "struct":
             return self.COLS_WITH_TYPE_STRUCT
+        elif table_shape == "map":
+            return self.COLS_WITH_TYPE_MAP
+        elif table_shape == "array":
+            return self.COLS_WITH_TYPE_ARRAY
+# json not yet supported by Iceberg
+#        elif table_shape == "json":
+#            return self.COLS_WITH_TYPE_JSON                
+        elif table_shape == "various":
+            return self.COLS_WITH_TYPE_VARIOUS
         else:
             raise ValueError(f"Unknown table form: {table_shape}")    
 
@@ -696,6 +838,7 @@ class PySparkTestCommons(SparkTestCommons):
             scd2_table_name=SCD2_TABLE_NAME,
             cols_bks=cols_bks,
             cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
+            cols_structured=["user_info"] if table_shape == "struct" or table_shape == "map" or table_shape == "array" else [],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,

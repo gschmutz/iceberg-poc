@@ -38,6 +38,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
+        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
@@ -102,6 +103,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                     ),
             cols_bks=cols_bks,
             cols_val=cols_val,
+            cols_structured=cols_structured,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
@@ -196,7 +198,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
         cast_cols_bks_str = fv(cv(cols_bks, []))
-        cast_cols_val_str = fv(cv(cols_val, ["user_info"]))
+        cast_cols_val_str = fv(cv(cols_val, self.cols_structured))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
