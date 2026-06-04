@@ -1,8 +1,7 @@
+pytest
 trino
 pandas
-duckdb
 boto3
-trino
 faker
 pyiceberg[s3fs,hive,pyiceberg-core,sql-sqlite]
 pyarrow
@@ -10,7 +9,7 @@ thrift
 s3fs
 numpy
 tabulate
-pytest
 scipy
-pyspark
+pyspark>=3.5,<4.0
 setuptools
+pyyaml>=6.0.1
