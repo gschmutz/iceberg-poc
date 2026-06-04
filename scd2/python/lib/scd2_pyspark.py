@@ -50,10 +50,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         check_physical_delete_against_source_table: bool = True,
         materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
-        col_dp_valid_from: str = "dp_ts_from",
-        col_dp_valid_to: str = "dp_ts_to",
+        col_dp_valid_from: str = "dp_from_ts",
+        col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
         col_dp_replaced_at: str = "dp_replaced_at",
+        col_dp_record_hash: str = "dp_record_hash",
+        col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
@@ -75,6 +77,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
             col_dp_replaced_at=col_dp_replaced_at,
+            col_dp_record_hash=col_dp_record_hash,
+            col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
@@ -186,9 +190,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
         )
         dp_ts_col = (
-            F.col(self.col_dp_ts_filter).alias("dp_ts")
+            F.col(self.col_dp_ts_filter).alias(self.col_dp_ts)
             if self.col_dp_ts_filter is not None
-            else F.lit(None).cast("timestamp").alias("dp_ts")
+            else F.lit(None).cast("timestamp").alias(self.col_dp_ts)
         )
 
         if self.use_logical_delete_for_source_table:
@@ -257,7 +261,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                         *[F.col(c) for c in self.cols_bks],
                         *[F.col(c) for c in self.cols_val],
                         F.expr(f"TIMESTAMP '{dp_ts_str}'").alias("src_dp_ts_from"),
-                        F.expr(f"TIMESTAMP '{dp_ts_str}'").alias("dp_ts"),
+                        F.expr(f"TIMESTAMP '{dp_ts_str}'").alias(self.col_dp_ts),
                         F.lit("INACTIVE").alias("dp_del_flag"),
                         hash_expr.alias("src_dp_record_hash"),
                     )
@@ -271,30 +275,30 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         overlap_df = scd2_df.select(
             *[F.col(c).alias(f"overlap_{c}") for c in self.cols_bks],
-            F.col("dp_record_hash").alias("overlap_dp_record_hash"),
-            F.col("dp_record_id").alias("overlap_dp_record_id"),
-            F.col("dp_ts_from").alias("overlap_dp_ts_from"),
-            F.col("dp_ts_to").alias("overlap_dp_ts_to"),
+            F.col(self.col_dp_record_hash).alias("overlap_dp_record_hash"),
+            F.col(self.col_dp_record_id).alias("overlap_dp_record_id"),
+            F.col(self.col_dp_valid_from).alias("overlap_dp_ts_from"),
+            F.col(self.col_dp_valid_to).alias("overlap_dp_ts_to"),
             F.col("dp_is_active").alias("overlap_dp_is_active"),
             F.col("dp_is_latest").alias("overlap_dp_is_latest"),
         )
 
         prev_df = scd2_df.select(
             *[F.col(c).alias(f"prev_{c}") for c in self.cols_bks],
-            F.col("dp_record_id").alias("prev_dp_record_id"),
-            F.col("dp_record_hash").alias("prev_dp_record_hash"),
-            F.col("dp_ts_from").alias("prev_dp_ts_from"),
-            F.col("dp_ts_to").alias("prev_dp_ts_to"),
+            F.col(self.col_dp_record_id).alias("prev_dp_record_id"),
+            F.col(self.col_dp_record_hash).alias("prev_dp_record_hash"),
+            F.col(self.col_dp_valid_from).alias("prev_dp_ts_from"),
+            F.col(self.col_dp_valid_to).alias("prev_dp_ts_to"),
             F.col("dp_is_active").alias("prev_dp_is_active"),
             F.col("dp_is_latest").alias("prev_dp_is_latest"),
         )
 
         next_df = scd2_df.filter(F.col("dp_is_active") == True).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
-            F.col("dp_record_id").alias("next_dp_record_id"),
-            F.col("dp_record_hash").alias("next_dp_record_hash"),
-            F.col("dp_ts_from").alias("next_dp_ts_from"),
-            F.col("dp_ts_to").alias("next_dp_ts_to"),
+            F.col(self.col_dp_record_id).alias("next_dp_record_id"),
+            F.col(self.col_dp_record_hash).alias("next_dp_record_hash"),
+            F.col(self.col_dp_valid_from).alias("next_dp_ts_from"),
+            F.col(self.col_dp_valid_to).alias("next_dp_ts_to"),
             F.col("dp_is_active").alias("next_dp_is_active"),
             F.col("dp_is_latest").alias("next_dp_is_latest"),
         )
@@ -759,7 +763,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             return [
                 *pk_cols,
                 *val_cols,
-                F.col("src_dp_record_hash").alias("dp_record_hash"),
+                F.col("src_dp_record_hash").alias(self.col_dp_record_hash),
                 F.col("dp_del_flag"),
                 F.lit(op_type).alias("operation_type"),
                 F.col("situation.name").alias("case_name"),
@@ -767,20 +771,20 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         updates_df = records_df.filter(F.col("situation.is_upd") == True).select(
             F.col("situation.upd_key").alias("merge_record_id"),
-            F.col("situation.upd_key").alias("dp_record_id"),
+            F.col("situation.upd_key").alias(self.col_dp_record_id),
             *_common("UPDATE_VERSION"),
-            F.col("situation.upd_dp_ts_from").alias("dp_ts_from"),
-            F.col("situation.upd_dp_ts_to").alias("dp_ts_to"),
+            F.col("situation.upd_dp_ts_from").alias(self.col_dp_valid_from),
+            F.col("situation.upd_dp_ts_to").alias(self.col_dp_valid_to),
             F.col("situation.upd_dp_is_active").alias("dp_is_active"),
             F.col("situation.upd_dp_is_latest").alias("dp_is_latest"),
         )
 
         updates_2_df = records_df.filter(F.col("situation.is_upd_2") == True).select(
             F.col("situation.upd_key_2").alias("merge_record_id"),
-            F.col("situation.upd_key_2").alias("dp_record_id"),
+            F.col("situation.upd_key_2").alias(self.col_dp_record_id),
             *_common("UPDATE_VERSION"),
-            F.col("situation.upd_dp_ts_from_2").alias("dp_ts_from"),
-            F.col("situation.upd_dp_ts_to_2").alias("dp_ts_to"),
+            F.col("situation.upd_dp_ts_from_2").alias(self.col_dp_valid_from),
+            F.col("situation.upd_dp_ts_to_2").alias(self.col_dp_valid_to),
             F.col("situation.upd_dp_is_active_2").alias("dp_is_active"),
             F.col("situation.upd_dp_is_latest_2").alias("dp_is_latest"),
         )
@@ -790,30 +794,30 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.regexp_replace(
                 F.lower(F.sha2(F.concat_ws("||", *[_cast_col(c, []) for c in self.cols_bks], F.col("src_dp_ts_from").cast("string")), 256)),
                     r'^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', '$1-$2-$3-$4-$5'
-            ).alias("dp_record_id"),
+            ).alias(self.col_dp_record_id),
             *_common("INSERT_NEW_VERSION"),
-            F.col("situation.ins_dp_ts_from").alias("dp_ts_from"),
-            F.col("situation.ins_dp_ts_to").alias("dp_ts_to"),
+            F.col("situation.ins_dp_ts_from").alias(self.col_dp_valid_from),
+            F.col("situation.ins_dp_ts_to").alias(self.col_dp_valid_to),
             F.col("situation.ins_dp_is_active").alias("dp_is_active"),
             F.col("situation.ins_dp_is_latest").alias("dp_is_latest"),
         )
 
         deletes_df = records_df.filter(F.col("situation.is_del") == True).select(
             F.col("situation.del_key").alias("merge_record_id"),
-            F.col("situation.del_key").alias("dp_record_id"),
+            F.col("situation.del_key").alias(self.col_dp_record_id),
             *_common("DELETE_VERSION"),
-            null_ts.alias("dp_ts_from"),
-            null_ts.alias("dp_ts_to"),
+            null_ts.alias(self.col_dp_valid_from),
+            null_ts.alias(self.col_dp_valid_to),
             null_bool.alias("dp_is_active"),
             null_bool.alias("dp_is_latest"),
         )
 
         deletes_2_df = records_df.filter(F.col("situation.is_del_2") == True).select(
             F.col("situation.del_key_2").alias("merge_record_id"),
-            F.col("situation.del_key_2").alias("dp_record_id"),
+            F.col("situation.del_key_2").alias(self.col_dp_record_id),
             *_common("DELETE_VERSION"),
-            null_ts.alias("dp_ts_from"),
-            null_ts.alias("dp_ts_to"),
+            null_ts.alias(self.col_dp_valid_from),
+            null_ts.alias(self.col_dp_valid_to),
             null_bool.alias("dp_is_active"),
             null_bool.alias("dp_is_latest"),
         )

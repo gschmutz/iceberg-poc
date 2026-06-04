@@ -105,10 +105,12 @@ class SCD2Strategy(ABC):
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = False,
         perform_merge_op: bool = True,
-        col_dp_valid_from: str = "dp_ts_from",
-        col_dp_valid_to: str = "dp_ts_to",
+        col_dp_valid_from: str = "dp_from_ts",
+        col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
         col_dp_replaced_at: str = "dp_replaced_at",
+        col_dp_record_hash: str = "dp_record_hash",
+        col_dp_record_id : str = "dp_record_id",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
     ):
@@ -122,6 +124,7 @@ class SCD2Strategy(ABC):
                 versions (e.g. ``["id"]`` or ``["tenant_id", "user_id"]``).
             cols_val: Value column names whose changes trigger a new SCD2 version
                 (e.g. ``["first_name", "last_name", "city"]``).
+            cols_structured: Subset of ``cols_val`` that should be treated as structured data (e.g. STRUCT) and cast accordingly for hashing and comparison purposes.
             use_logical_delete_for_source_table: Controls how the absence of an entity
                 in the current raw batch is interpreted.
 
@@ -141,14 +144,16 @@ class SCD2Strategy(ABC):
                 intermediary view, allowing callers to inspect the staged records
                 without modifying the SCD2 table.  Defaults to ``True``.
             col_dp_valid_from: Name of the timestamp column in the SCD2 table that
-                identifies the version start (e.g. ``"dp_ts_from"``).  Defaults to ``"dp_ts_from"``.
-            col_dp_valid_to: Name of the timestamp column in the SCD2 table that identifies the version end (e.g. ``"dp_ts_to"``).  Defaults to ``"dp_ts_to"``.
+                identifies the version start (e.g. ``"dp_from_ts"``).  Defaults to ``"dp_from_ts"``.
+            col_dp_valid_to: Name of the timestamp column in the SCD2 table that identifies the version end (e.g. ``"dp_to_ts"``).  Defaults to ``"dp_to_ts"``.
             col_dp_created_at: Name of the timestamp column in the SCD2 table that identifies when a version was created (e.g. ``"dp_created_at"``).  Defaults to ``"dp_created_at"``.
             col_dp_replaced_at: Name of the timestamp column in the SCD2 table that identifies when a version was superseded (e.g. ``"dp_replaced_at"``).  Defaults to ``"dp_replaced_at"``.
+            col_dp_record_hash: Name of the column in the SCD2 table that stores the record hash (e.g. ``"dp_record_hash"``).  Defaults to ``"dp_record_hash"``.
+            col_dp_record_id: Name of the column in the SCD2 table that stores the unique ID of each record (e.g. ``"dp_record_id"``).  Defaults to ``"dp_record_id"``.
             col_dp_ts: Name of the timestamp column in the SCD2 table that
-                identifies the version start (e.g. ``"dp_ts_from"``).  Each call
+                identifies the version start (e.g. ``"dp_from_ts"``).  Each call
                 to :meth:`merge_into_scd2_table` uses this column to track the
-                validity period of each version.  Defaults to ``"dp_ts_from"``, if passed "" explicitly, then the value of col_dp_ts_filter is used.
+                validity period of each version.  Defaults to ``"dp_from_ts"``, if passed "" explicitly, then the value of col_dp_ts_filter is used.
             col_dp_ts_filter: Name of the timestamp column in the raw table that
                 identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
                 to :meth:`merge_into_scd2_table` filters the raw table on
@@ -167,6 +172,8 @@ class SCD2Strategy(ABC):
         self.col_dp_valid_to = col_dp_valid_to
         self.col_dp_created_at = col_dp_created_at
         self.col_dp_replaced_at = col_dp_replaced_at
+        self.col_dp_record_hash = col_dp_record_hash
+        self.col_dp_record_id = col_dp_record_id
         self.col_dp_ts = col_dp_ts if col_dp_ts else col_dp_ts_filter
         self.col_dp_ts_filter = col_dp_ts_filter
 
