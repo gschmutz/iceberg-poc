@@ -50,7 +50,7 @@ def test_step_1(ctx):
 
     create_raw_table(ctx, table_shape="struct")
     create_scd2_table_for_test(ctx, table_shape="struct")
-    render_init("Testing Insert Operation", FILE_NAME)
+    render_init("Testing Insert Operation with a column of type STRUCT", FILE_NAME)
     render_data(
         "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
         output_file_name=FILE_NAME,

@@ -3,9 +3,6 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from datetime import date, datetime
-
-import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
 from util import (
@@ -32,7 +29,7 @@ from constants import MAX_TS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_type_various_ins.md"
+FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_type_various_upd.md"
 
 load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
@@ -49,18 +46,17 @@ def test_step_1(ctx):
 
     create_raw_table(ctx, table_shape="various")
     create_scd2_table_for_test(ctx, table_shape="various")
-    render_init("Testing Insert Operation with various scalar types", FILE_NAME)
+
+    render_init("Testing Update Operation with various scalar types", FILE_NAME)
     render_data(
-        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
+        "This test validates an UPDATE operation of one entity (with a new version) on a set of existing entities.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)
     render_data(f" * **Strategy:** `{get_strategy_name().lower()}`", output_file_name=FILE_NAME)
     render_data(f" * **Last Run:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`", output_file_name=FILE_NAME)
 
-    test_description = (
-        "Insert 3 entities into raw table and perform initial SCD2 merge."
-    )
+    test_description = "Insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
     if TEST_ENGINE == "TRINO":
@@ -213,25 +209,23 @@ def test_step_1(ctx):
     )
 
 
-# @pytest.mark.skip(reason="not implemented yet")
 def test_step_2(ctx):
     logger.info(
         "-------------------------------- Test Step 2 --------------------------------"
     )
 
-    test_description = f"At {load_ts_2}, insert the new entity with `id=10` into the new partition of the raw table and perform SCD2 merge."
+    test_description = f"At {load_ts_2}, update `col_varchar` of entity with `id=3` in raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
     if TEST_ENGINE == "TRINO":
-        insert_sql_2 = f"""
+        insert_sql_1 = f"""
             INSERT INTO {source_table_fqn(ctx)}
             SELECT *
             FROM (
                 VALUES
-                    (1, TINYINT '1', SMALLINT '100', 123456, BIGINT '9876543210', REAL '3.14', DOUBLE '3.141592653589793', DECIMAL '12345.6789', VARCHAR 'hello world', VARCHAR 'limited', CHAR 'fixed     ', TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00.000000', TIMESTAMP '2024-01-15 10:30:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (2, TINYINT '2', SMALLINT '200', 234567, BIGINT '8765432109', REAL '2.71', DOUBLE '2.718281828459045', DECIMAL '23456.789', VARCHAR 'world hello', VARCHAR 'another',  CHAR 'fixed     ', FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00.000000', TIMESTAMP '2024-02-20 11:45:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (3, TINYINT '3', SMALLINT '300', 345678, BIGINT '7654321098', REAL '1.41', DOUBLE '1.414213562373095', DECIMAL '34567.8901', VARCHAR 'foo bar',     VARCHAR 'short',    CHAR 'fixed     ', TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00.000000', TIMESTAMP '2024-03-25 12:00:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (10, TINYINT '10', SMALLINT '1000', 1234567, BIGINT '98765432100', REAL '0.99', DOUBLE '0.999999999999999', DECIMAL '123456.7890', VARCHAR 'new entity', VARCHAR 'new', CHAR 'fixed     ', FALSE, DATE '2024-04-30', TIMESTAMP '2024-04-30 14:00:00.000000', TIMESTAMP '2024-04-30 14:00:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
+                    (1, TINYINT '1', SMALLINT '100', 123456, BIGINT '9876543210', REAL '3.14', DOUBLE '3.141592653589793', DECIMAL '12345.6789', VARCHAR 'hello world', VARCHAR 'limited', CHAR 'fixed     ', TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00.000000', TIMESTAMP '2024-01-15 10:30:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                    (2, TINYINT '2', SMALLINT '200', 234567, BIGINT '8765432109', REAL '2.71', DOUBLE '2.718281828459045', DECIMAL '23456.789', VARCHAR 'world hello', VARCHAR 'another',  CHAR 'fixed     ', FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00.000000', TIMESTAMP '2024-02-20 11:45:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                    (3, TINYINT '3', SMALLINT '300', 345678, BIGINT '7654321098', REAL '1.41', DOUBLE '1.414213562373095', DECIMAL '34567.8901', VARCHAR 'foo bar',     VARCHAR 'short',    CHAR 'fixed     ', TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00.000000', TIMESTAMP '2024-03-25 12:00:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
             ) AS t (
                 id,
                 col_tinyint,
@@ -254,15 +248,14 @@ def test_step_2(ctx):
             )
         """
     else:
-        insert_sql_2 = f"""
+        insert_sql_1 = f"""
             INSERT INTO {source_table_fqn(ctx)}
             SELECT *
             FROM (
                 VALUES
-                    (1,  CAST(1  AS TINYINT), CAST(100  AS SMALLINT), 123456,  98765432100L, CAST(3.14 AS FLOAT), 3.141592653589793D, CAST('12345.6789'  AS DECIMAL(10,4)), 'hello world', 'limited', CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00', CAST('2024-01-15 10:30:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (2,  CAST(2  AS TINYINT), CAST(200  AS SMALLINT), 234567,  8765432109L,  CAST(2.71 AS FLOAT), 2.718281828459045D, CAST('23456.789'   AS DECIMAL(10,4)), 'world hello', 'another',  CAST('fixed     ' AS CHAR(10)), FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00', CAST('2024-02-20 11:45:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (3,  CAST(3  AS TINYINT), CAST(300  AS SMALLINT), 345678,  7654321098L,  CAST(1.41 AS FLOAT), 1.414213562373095D, CAST('34567.8901'  AS DECIMAL(10,4)), 'foo bar',     'short',     CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00', CAST('2024-03-25 12:00:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                    (10, CAST(10 AS TINYINT), CAST(1000 AS SMALLINT), 1234567, 98765432100L, CAST(0.99 AS FLOAT), 0.999999999999999D, CAST('123456.7890' AS DECIMAL(10,4)), 'new entity',  'new',       CAST('fixed     ' AS CHAR(10)), FALSE, DATE '2024-04-30', TIMESTAMP '2024-04-30 14:00:00', CAST('2024-04-30 14:00:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
+                    (1, CAST(1 AS TINYINT), CAST(100 AS SMALLINT), 123456, 9876543210L, CAST(3.14 AS FLOAT), 3.141592653589793D, CAST('12345.6789' AS DECIMAL(9,4)),  'hello world',     'limited', CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00', CAST('2024-01-15 10:30:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (2, CAST(2 AS TINYINT), CAST(200 AS SMALLINT), 234567, 8765432109L, CAST(2.71 AS FLOAT), 2.718281828459045D, CAST('23456.789'  AS DECIMAL(9,4)),  'world hello',     'another',  CAST('fixed     ' AS CHAR(10)), FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00', CAST('2024-02-20 11:45:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (3, CAST(3 AS TINYINT), CAST(300 AS SMALLINT), 345678, 7654321098L, CAST(1.41 AS FLOAT), 1.414213562373095D, CAST('34567.8901' AS DECIMAL(9,4)),  'foo bar updated', 'short',     CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00', CAST('2024-03-25 12:00:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
             ) AS t (
                 id,
                 col_tinyint,
@@ -343,7 +336,7 @@ def test_step_2(ctx):
             1.41,        # col_real
             1.414213562373095,  # col_double
             Decimal("34567.8901"),  # col_decimal
-            "foo bar",      # col_varchar
+            "foo bar",      # col_varchar (old version)
             "short",        # col_varchar_n
             "fixed     ",   # col_char
             True,           # col_boolean
@@ -351,37 +344,37 @@ def test_step_2(ctx):
             datetime(2024, 3, 25, 12, 0, 0),            # col_timestamp
             datetime(2024, 3, 25, 12, 0, 0),            # col_timestamp_tz
             load_ts_1,
-            MAX_TS,
-            True,
-            True,
+            load_ts_2 - timedelta(seconds=1),
+            False,
+            False,
             current_ts_1,
-            MAX_TS,
+            current_ts_2,
             "2A80AE5B248E83C5939210F6AA16C840C36ED620C2F3FDAD680C442120AE7AD7",
         ),
         (
-            10,
-            10,           # col_tinyint
-            1000,         # col_smallint
-            1234567,      # col_int
-            98765432100,  # col_bigint
-            0.99,        # col_real
-            0.999999999999999,  # col_double
-            Decimal("123456.7890"),  # col_decimal
-            "new entity",      # col_varchar
-            "new",        # col_varchar_n
+            3,
+            3,           # col_tinyint
+            300,         # col_smallint
+            345678,      # col_int
+            7654321098,  # col_bigint
+            1.41,        # col_real
+            1.414213562373095,  # col_double
+            Decimal("34567.8901"),  # col_decimal
+            "foo bar updated",  # col_varchar (new version)
+            "short",        # col_varchar_n
             "fixed     ",   # col_char
-            False,           # col_boolean
-            date(2024, 4, 30),                          # col_date
-            datetime(2024, 4, 30, 14, 0, 0),            # col_timestamp
-            datetime(2024, 4, 30, 14, 0, 0),            # col_timestamp_tz
+            True,           # col_boolean
+            date(2024, 3, 25),                          # col_date
+            datetime(2024, 3, 25, 12, 0, 0),            # col_timestamp
+            datetime(2024, 3, 25, 12, 0, 0),            # col_timestamp_tz
             load_ts_2,
             MAX_TS,
             True,
             True,
             current_ts_2,
             MAX_TS,
-            "87B6B45C5FA936554CF1312EB81DECE3E5C8D037FAF36B9DE4FB72071A7319A1",
-        ),        
+            "D9DEF907849B9C869FA7213CE7AE670C1C61AA0981E50D1410B83C1594D40B24",
+        ),
     ]
 
     # run test
@@ -389,11 +382,10 @@ def test_step_2(ctx):
         ctx,
         test_step=2,
         ins_stmt=insert_sql_2,
-        table_shape="various",        
+        table_shape="various",
         dp_ts=load_ts_2,
         current_ts=current_ts_2,
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        perform_merge_op=True,
     )
