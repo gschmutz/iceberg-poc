@@ -666,8 +666,8 @@ class SparkSCD2Strategy(SCD2Strategy):
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
     THEN UPDATE SET
-        {self.col_dp_valid_from} = source.dp_ts_from,
-        {self.col_dp_valid_to} = source.dp_ts_to,
+        {self.col_dp_valid_from} = source.{self.col_dp_valid_from},
+        {self.col_dp_valid_to} = source.{self.col_dp_valid_to},
         dp_is_active = COALESCE(source.dp_is_active, target.dp_is_active),
         dp_is_latest = COALESCE(source.dp_is_latest, target.dp_is_latest),
         {self.col_dp_replaced_at} = TIMESTAMP '{current_ts_str}'
