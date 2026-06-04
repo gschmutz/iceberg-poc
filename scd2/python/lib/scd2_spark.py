@@ -7,6 +7,7 @@ from pyspark.sql.types import TimestampNTZType, TimestampType
 from pyspark.sql import DataFrame
 from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
+from .constants import MAX_TS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -691,12 +692,12 @@ class SparkSCD2Strategy(SCD2Strategy):
         source.{self.col_dp_record_id},
         {fv(ap(self.cols_bks, "source"))},
         {source_cols_val_str},
-        source.dp_ts_from,
-        source.dp_ts_to,
+        source.{self.col_dp_valid_from},
+        source.{self.col_dp_valid_to},
         source.dp_is_active,
         source.dp_is_latest,
         TIMESTAMP '{current_ts_str}',
-        TIMESTAMP '9999-12-31 23:59:59',
+        TIMESTAMP '{MAX_TS}',
         source.{self.col_dp_record_hash}
     )
     """

@@ -5,6 +5,7 @@ from typing import Optional
 import pandas as pd
 from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
+from .constants import MAX_TS
 from pyspark.sql import DataFrame
 
 logging.basicConfig(level=logging.INFO)
@@ -675,8 +676,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
     THEN UPDATE SET
-        dp_ts_from = source.dp_ts_from,
-        dp_ts_to = source.dp_ts_to,
+        {self.col_dp_valid_from} = source.{self.col_dp_valid_from},
+        {self.col_dp_valid_to} = source.{self.col_dp_valid_to},
         dp_is_active = COALESCE(source.dp_is_active, target.dp_is_active),
         dp_is_latest = COALESCE(source.dp_is_latest, target.dp_is_latest),
         {self.col_dp_replaced_at} = TIMESTAMP '{current_ts_str}'
@@ -700,12 +701,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
         CAST( uuid() AS VARCHAR),
         {fv(ap(self.cols_bks, "source"))},
         {source_cols_val_str},
-        source.dp_ts_from,
-        source.dp_ts_to,
+        source.{self.col_dp_valid_from},
+        source.{self.col_dp_valid_to},
         source.dp_is_active,
         source.dp_is_latest,
         TIMESTAMP '{current_ts_str}',
-        TIMESTAMP '9999-12-31 23:59:59',
+        TIMESTAMP '{MAX_TS}',
         source.{self.col_dp_record_hash}
     )
     """
