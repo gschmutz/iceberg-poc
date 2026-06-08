@@ -6,6 +6,7 @@ from typing import Optional
 import pandas as pd
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, MapType, StructType, DoubleType, FloatType, TimestampType, TimestampNTZType
 from .scd2_spark import SparkSCD2Strategy
 from .scd2_strategy import SCD2Table
 from .util import render_table
@@ -44,7 +45,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
@@ -67,7 +67,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             scd2_intermediary_table_name=scd2_intermediary_table_name,
             cols_bks=cols_bks,
             cols_val=cols_val,
-            cols_structured=cols_structured,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -177,15 +176,37 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         """
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
-        def _cast_col(c, structured_cols):
-            return F.to_json(F.col(c)) if c in structured_cols else F.col(c).cast("string")
+        cols_with_type = {field.name: field.dataType for field in self.source_table_df.schema.fields}
+
+        def _cast_cols_flat(col_path: str, dt=None) -> list:
+            if dt is None:
+                dt = cols_with_type.get(col_path)
+            if isinstance(dt, ArrayType):
+                return [F.to_json(F.col(col_path)).cast("string")]
+            elif isinstance(dt, MapType):
+                sorted_map = F.map_from_arrays(
+                    F.array_sort(F.map_keys(F.col(col_path))),
+                    F.transform(F.array_sort(F.map_keys(F.col(col_path))), lambda k: F.element_at(F.col(col_path), k)),
+                )
+                return [F.to_json(sorted_map).cast("string")]
+            elif isinstance(dt, StructType):
+                result = []
+                for field in dt.fields:
+                    result.extend(_cast_cols_flat(f"{col_path}.{field.name}", dt=field.dataType))
+                return result
+            elif isinstance(dt, (DoubleType, FloatType)):
+                return [F.col(col_path).cast("decimal(18,6)").cast("string")]
+            elif isinstance(dt, (TimestampType, TimestampNTZType)):
+                return [F.date_format(F.col(col_path), "yyyy-MM-dd HH:mm:ss")]
+            else:
+                return [F.col(col_path).cast("string")]
 
         # ── src_records ───────────────────────────────────────────────────────
         hash_expr = F.upper(
             F.sha2(
                 F.concat_ws("||",
-                    *[_cast_col(c, []) for c in self.cols_bks],
-                    *[_cast_col(c, self.cols_structured) for c in self.cols_val],
+                    *[col for c in self.cols_bks for col in _cast_cols_flat(c)],
+                    *[col for c in self.cols_val for col in _cast_cols_flat(c)],
                 ), 256
             )
         )
@@ -792,7 +813,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         inserts_df = records_df.filter(F.col("situation.is_ins") == True).select(
             F.lit(None).cast("string").alias("merge_record_id"),
             F.regexp_replace(
-                F.lower(F.sha2(F.concat_ws("||", *[_cast_col(c, []) for c in self.cols_bks], F.col("src_dp_ts_from").cast("string")), 256)),
+                F.lower(F.sha2(F.concat_ws("||", *[col for c in self.cols_bks for col in _cast_cols_flat(c)], F.col("src_dp_ts_from").cast("string")), 256)),
                     r'^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', '$1-$2-$3-$4-$5'
             ).alias(self.col_dp_record_id),
             *_common("INSERT_NEW_VERSION"),

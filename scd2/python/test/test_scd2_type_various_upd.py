@@ -143,7 +143,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "55EFCF5C8C7685252FDFB7E4A523E4EF4EC953164868199B8E8EA7F5D1363C2C",
+            "C49E3F54EAD0AC3F85AC31D7444F68CCA115FD17D8435359350B8BEA9C53A0A2",
         ),
         (
             2,
@@ -167,7 +167,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "BFBCD5B72A3810ED483A792ED0DF213A4F920E50971C8A2833E1983FA53CE926",
+            "84492DEAE7332877C9B7367B2454A67CF56BDAD646C7E2062DA82EA8BBEDF073",
         ),
         (
             3,
@@ -191,7 +191,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "2A80AE5B248E83C5939210F6AA16C840C36ED620C2F3FDAD680C442120AE7AD7",
+            "819BD7D7AA294A24AD0DFBE9E10ED5EED8C3AD72792D875ED8CEFE5F7305D0E4",
         ),
     ]
 
@@ -218,14 +218,14 @@ def test_step_2(ctx):
 
     # --- Insert statement (batch 2) ---
     if TEST_ENGINE == "TRINO":
-        insert_sql_1 = f"""
+        insert_sql_2 = f"""
             INSERT INTO {source_table_fqn(ctx)}
             SELECT *
             FROM (
                 VALUES
-                    (1, TINYINT '1', SMALLINT '100', 123456, BIGINT '9876543210', REAL '3.14', DOUBLE '3.141592653589793', DECIMAL '12345.6789', VARCHAR 'hello world', VARCHAR 'limited', CHAR 'fixed     ', TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00.000000', TIMESTAMP '2024-01-15 10:30:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                    (2, TINYINT '2', SMALLINT '200', 234567, BIGINT '8765432109', REAL '2.71', DOUBLE '2.718281828459045', DECIMAL '23456.789', VARCHAR 'world hello', VARCHAR 'another',  CHAR 'fixed     ', FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00.000000', TIMESTAMP '2024-02-20 11:45:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                    (3, TINYINT '3', SMALLINT '300', 345678, BIGINT '7654321098', REAL '1.41', DOUBLE '1.414213562373095', DECIMAL '34567.8901', VARCHAR 'foo bar',     VARCHAR 'short',    CHAR 'fixed     ', TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00.000000', TIMESTAMP '2024-03-25 12:00:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
+                    (1, TINYINT '1', SMALLINT '100', 123456, BIGINT '9876543210', REAL '3.14', DOUBLE '3.141592653589793', DECIMAL '12345.6789', VARCHAR 'hello world', VARCHAR 'limited', CHAR 'fixed     ', TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00.000000', TIMESTAMP '2024-01-15 10:30:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (2, TINYINT '2', SMALLINT '200', 234567, BIGINT '8765432109', REAL '2.71', DOUBLE '2.718281828459045', DECIMAL '23456.789', VARCHAR 'world hello', VARCHAR 'another',  CHAR 'fixed     ', FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00.000000', TIMESTAMP '2024-02-20 11:45:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (3, TINYINT '3', SMALLINT '300', 345678, BIGINT '7654321098', REAL '1.41', DOUBLE '1.414213562373095', DECIMAL '34567.8901', VARCHAR 'foo bar updated',     VARCHAR 'short',    CHAR 'fixed     ', TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00.000000', TIMESTAMP '2024-03-25 12:00:00.000000 UTC', 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
             ) AS t (
                 id,
                 col_tinyint,
@@ -248,7 +248,7 @@ def test_step_2(ctx):
             )
         """
     else:
-        insert_sql_1 = f"""
+        insert_sql_2 = f"""
             INSERT INTO {source_table_fqn(ctx)}
             SELECT *
             FROM (
@@ -301,7 +301,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "55EFCF5C8C7685252FDFB7E4A523E4EF4EC953164868199B8E8EA7F5D1363C2C",
+            "C49E3F54EAD0AC3F85AC31D7444F68CCA115FD17D8435359350B8BEA9C53A0A2",
         ),
         (
             2,
@@ -325,7 +325,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "BFBCD5B72A3810ED483A792ED0DF213A4F920E50971C8A2833E1983FA53CE926",
+            "84492DEAE7332877C9B7367B2454A67CF56BDAD646C7E2062DA82EA8BBEDF073",
         ),
         (
             3,
@@ -349,7 +349,7 @@ def test_step_2(ctx):
             False,
             current_ts_1,
             current_ts_2,
-            "2A80AE5B248E83C5939210F6AA16C840C36ED620C2F3FDAD680C442120AE7AD7",
+            "819BD7D7AA294A24AD0DFBE9E10ED5EED8C3AD72792D875ED8CEFE5F7305D0E4",
         ),
         (
             3,
@@ -373,7 +373,7 @@ def test_step_2(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "D9DEF907849B9C869FA7213CE7AE670C1C61AA0981E50D1410B83C1594D40B24",
+            "6AEF3C53FCEFEDE85162758C6CF50BB958714F4F63E706D70CDC9392C9EBA81C",
         ),
     ]
 

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
-from pyspark.sql.types import TimestampNTZType, TimestampType
+from pyspark.sql.types import DoubleType, FloatType,TimestampNTZType, TimestampType, StructType, StructField, StringType, ArrayType, MapType
 from pyspark.sql import DataFrame
 from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
@@ -39,7 +39,6 @@ class SparkSCD2Strategy(SCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
@@ -67,7 +66,6 @@ class SparkSCD2Strategy(SCD2Strategy):
             cols_bks: Business-key column names that uniquely identify an entity. An array of column names whose values uniquely identify an entity (e.g. ``["person_id"]``).
             cols_val: Value/attribute column names whose changes trigger new SCD2
                 versions (e.g. ``["first_name", "last_name", "city"]``).
-            cols_structured: Subset of ``cols_val`` that should be treated as structured data (e.g. STRUCT) and cast accordingly for hashing and comparison purposes.
             use_logical_delete_for_source_table: When ``True`` the source table
                 contains an explicit deleted/inactive flag; ``logical_delete_expression``
                 is used to derive ``dp_del_flag``.  When ``False`` (default) deletes
@@ -109,7 +107,6 @@ class SparkSCD2Strategy(SCD2Strategy):
                     ),
             cols_bks=cols_bks,
             cols_val=cols_val,
-            cols_structured=cols_structured,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
@@ -139,20 +136,37 @@ class SparkSCD2Strategy(SCD2Strategy):
         return f"{self.database}.{object_name}"
 
     @staticmethod
-    def _cast_to_string(values: list) -> list:
-        return [f"CAST({v} AS STRING)" for v in values]
+    def _cast_to_string(value: str) -> str:
+        return f"CAST({value} AS STRING)"
     
     @staticmethod
-    def _cast_to_json(values: list) -> list:
-        return [f"to_json({v})" for v in values]
+    def _cast_to_json(value: str) -> str:
+        return f"to_json({value})"
 
     @staticmethod
-    def _cast_values(values: list, structured_cols: list) -> list:
-        return [
-            SparkSCD2Strategy._cast_to_json([v])[0] if v in structured_cols
-            else SparkSCD2Strategy._cast_to_string([v])[0]
-            for v in values
-        ]
+    def _is_complex_type(datatype) -> bool:
+        return isinstance(datatype, (ArrayType))
+
+    @staticmethod
+    def _cast_values(values: list, cols_with_type: dict) -> list:
+        result = []
+        for v in values:
+            dt = cols_with_type.get(v, "")
+            if SparkSCD2Strategy._is_complex_type(dt):
+                result.append(SparkSCD2Strategy._cast_to_string(SparkSCD2Strategy._cast_to_json(v)))
+            elif isinstance(dt, MapType):
+                result.append(SparkSCD2Strategy._cast_to_string(SparkSCD2Strategy._cast_to_json(f"map_from_arrays(array_sort(map_keys({v})), transform(array_sort(map_keys(user_info)), k -> user_info[k]))")))
+            elif isinstance(dt, StructType):
+                sub_values = [f"{v}.{field.name}" for field in dt.fields]
+                sub_cols_with_type = {f"{v}.{field.name}": field.dataType for field in dt.fields}
+                result.extend(SparkSCD2Strategy._cast_values(sub_values, sub_cols_with_type))
+            elif isinstance(dt, (DoubleType, FloatType)):
+                result.append(SparkSCD2Strategy._cast_to_string(f"CAST({v} AS DECIMAL(18,6))"))
+            elif isinstance(dt, (TimestampType, TimestampNTZType)):
+                result.append(SparkSCD2Strategy._cast_to_string(f"date_format({v}, 'yyyy-MM-dd HH:mm:ss')"))
+            else:
+                result.append(SparkSCD2Strategy._cast_to_string(v))
+        return result
 
     @staticmethod
     def _format_join_condition(
@@ -191,6 +205,12 @@ class SparkSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2)"""
 
+    def _cols_with_type(self, table_name: str) -> dict:
+        """Return a dict with column names and their data types for the given table."""
+        df = self.spark.table(self._fqn(table_name))
+        return {field.name: field.dataType for field in df.schema.fields}
+
+
     def _format_cte(
         self,
         cols_bks: list,
@@ -200,13 +220,17 @@ class SparkSCD2Strategy(SCD2Strategy):
         fv = self.format_values
         ap = self.add_prefix
         cv = self._cast_values
+        
+        cols_with_type = self._cols_with_type(self.source_table_name)
+
+        print(f"DEBUG: cols_with_type for {self.source_table_name}: {cols_with_type}")
 
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cv(cols_bks, []))
-        cast_cols_val_str = fv(cv(cols_val, self.cols_structured))
+        cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
+        cast_cols_val_str = fv(cv(cols_val, cols_with_type=cols_with_type))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")

@@ -147,7 +147,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "55EFCF5C8C7685252FDFB7E4A523E4EF4EC953164868199B8E8EA7F5D1363C2C",
+            "C49E3F54EAD0AC3F85AC31D7444F68CCA115FD17D8435359350B8BEA9C53A0A2",
         ),
         (
             2,
@@ -171,7 +171,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "BFBCD5B72A3810ED483A792ED0DF213A4F920E50971C8A2833E1983FA53CE926",
+            "84492DEAE7332877C9B7367B2454A67CF56BDAD646C7E2062DA82EA8BBEDF073",
         ),
         (
             3,
@@ -195,7 +195,7 @@ def test_step_1(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "2A80AE5B248E83C5939210F6AA16C840C36ED620C2F3FDAD680C442120AE7AD7",
+            "819BD7D7AA294A24AD0DFBE9E10ED5EED8C3AD72792D875ED8CEFE5F7305D0E4",
         ),
     ]
 
@@ -259,7 +259,7 @@ def test_step_2(ctx):
             SELECT *
             FROM (
                 VALUES
-                    (1,  CAST(1  AS TINYINT), CAST(100  AS SMALLINT), 123456,  98765432100L, CAST(3.14 AS FLOAT), 3.141592653589793D, CAST('12345.6789'  AS DECIMAL(10,4)), 'hello world', 'limited', CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00', CAST('2024-01-15 10:30:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (1,  CAST(1  AS TINYINT), CAST(100  AS SMALLINT), 123456, 9876543210L, CAST(3.14 AS FLOAT), 3.141592653589793D, CAST('12345.6789' AS DECIMAL(9,4)), 'hello world', 'limited', CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-01-15', TIMESTAMP '2024-01-15 10:30:00', CAST('2024-01-15 10:30:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (2,  CAST(2  AS TINYINT), CAST(200  AS SMALLINT), 234567,  8765432109L,  CAST(2.71 AS FLOAT), 2.718281828459045D, CAST('23456.789'   AS DECIMAL(10,4)), 'world hello', 'another',  CAST('fixed     ' AS CHAR(10)), FALSE, DATE '2024-02-20', TIMESTAMP '2024-02-20 11:45:00', CAST('2024-02-20 11:45:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (3,  CAST(3  AS TINYINT), CAST(300  AS SMALLINT), 345678,  7654321098L,  CAST(1.41 AS FLOAT), 1.414213562373095D, CAST('34567.8901'  AS DECIMAL(10,4)), 'foo bar',     'short',     CAST('fixed     ' AS CHAR(10)), TRUE,  DATE '2024-03-25', TIMESTAMP '2024-03-25 12:00:00', CAST('2024-03-25 12:00:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (10, CAST(10 AS TINYINT), CAST(1000 AS SMALLINT), 1234567, 98765432100L, CAST(0.99 AS FLOAT), 0.999999999999999D, CAST('123456.7890' AS DECIMAL(10,4)), 'new entity',  'new',       CAST('fixed     ' AS CHAR(10)), FALSE, DATE '2024-04-30', TIMESTAMP '2024-04-30 14:00:00', CAST('2024-04-30 14:00:00' AS TIMESTAMP), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
@@ -308,7 +308,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "55EFCF5C8C7685252FDFB7E4A523E4EF4EC953164868199B8E8EA7F5D1363C2C",
+            "C49E3F54EAD0AC3F85AC31D7444F68CCA115FD17D8435359350B8BEA9C53A0A2",
         ),
         (
             2,
@@ -332,7 +332,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "BFBCD5B72A3810ED483A792ED0DF213A4F920E50971C8A2833E1983FA53CE926",
+            "84492DEAE7332877C9B7367B2454A67CF56BDAD646C7E2062DA82EA8BBEDF073",
         ),
         (
             3,
@@ -356,7 +356,7 @@ def test_step_2(ctx):
             True,
             current_ts_1,
             MAX_TS,
-            "2A80AE5B248E83C5939210F6AA16C840C36ED620C2F3FDAD680C442120AE7AD7",
+            "819BD7D7AA294A24AD0DFBE9E10ED5EED8C3AD72792D875ED8CEFE5F7305D0E4",
         ),
         (
             10,
@@ -380,7 +380,7 @@ def test_step_2(ctx):
             True,
             current_ts_2,
             MAX_TS,
-            "87B6B45C5FA936554CF1312EB81DECE3E5C8D037FAF36B9DE4FB72071A7319A1",
+            "86CB22E01238B5FB078876F067C7E65259E2C8E4038A935AB81849BD57D61E6C",
         ),        
     ]
 

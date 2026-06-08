@@ -42,7 +42,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
         scd2_intermediary_table_name: str = None,
         cols_bks: Optional[list] = None,
         cols_val: Optional[list] = None,
-        cols_structured: Optional[list] = None,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
@@ -71,7 +70,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
             cols_bks: Business-key column names that uniquely identify an entity. An array of column names whose values uniquely identify an entity (e.g. ``["person_id"]``).
             cols_val: Value/attribute column names whose changes trigger new SCD2
                 versions (e.g. ``["first_name", "last_name", "city"]``).
-            cols_structured: Subset of ``cols_val`` that should be treated as structured data (e.g. STRUCT) and cast accordingly for hashing and comparison purposes.
             use_logical_delete_for_source_table: When ``True`` the source table
                 contains an explicit deleted/inactive flag; ``logical_delete_expression``
                 is used to derive ``dp_del_flag``.  When ``False`` (default) deletes
@@ -113,7 +111,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
             ),
             cols_bks=cols_bks,
             cols_val=cols_val,
-            cols_structured=cols_structured,
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
@@ -144,20 +141,68 @@ class TrinoSCD2Strategy(SCD2Strategy):
         return f"{self.catalog}.{self.schema}.{object_name}"
 
     @staticmethod
-    def _cast_to_varchar(values: list) -> list:
-        return [f"CAST({v} AS VARCHAR)" for v in values]
-    
+    def _cast_to_varchar(value: str) -> str:
+        return f"CAST({value} AS VARCHAR)"
+
     @staticmethod
-    def _cast_to_json(values: list) -> list:
-        return [f"json_format(CAST({v} AS JSON))" for v in values]
-    
+    def _cast_to_json(value: str) -> str:
+        return f"json_format(CAST({value} AS JSON))"
+
     @staticmethod
-    def _cast_values(values: list, structured_cols: list) -> list:
-        return [
-            TrinoSCD2Strategy._cast_to_json([v])[0] if v in structured_cols
-            else TrinoSCD2Strategy._cast_to_varchar([v])[0]
-            for v in values
-        ]
+    def _is_complex_type(datatype: str) -> bool:
+        dt = datatype.strip().lower()
+        return dt.startswith(("array"))
+
+    @staticmethod
+    def _split_inner(datatype: str, prefix_len: int) -> list:
+        """Split the inner content of a parametric type, respecting nested parens."""
+        inner = datatype.strip()[prefix_len:-1].strip()
+        parts = []
+        depth = 0
+        current = ""
+        for ch in inner:
+            if ch == "(":
+                depth += 1
+                current += ch
+            elif ch == ")":
+                depth -= 1
+                current += ch
+            elif ch == "," and depth == 0:
+                parts.append(current.strip())
+                current = ""
+            else:
+                current += ch
+        if current.strip():
+            parts.append(current.strip())
+        return parts
+
+    @staticmethod
+    def _parse_fields(datatype: str) -> list:
+        """Parse 'row(field1 type1, field2 type2, ...)' into [(field1, type1), ...]."""
+        parts = TrinoSCD2Strategy._split_inner(datatype, prefix_len=4)  # strip "row("
+        return [tuple(p.split(None, 1)) for p in parts if p]
+
+    @staticmethod
+    def _cast_values(values: list, cols_with_type: dict) -> list:
+        result = []
+        for v in values:
+            dt = cols_with_type.get(v, "").strip().lower()
+            if TrinoSCD2Strategy._is_complex_type(dt):
+                result.append(TrinoSCD2Strategy._cast_to_varchar(TrinoSCD2Strategy._cast_to_json(v)))
+            elif dt.startswith("map("):
+                result.append(TrinoSCD2Strategy._cast_to_varchar(TrinoSCD2Strategy._cast_to_json(f"map_from_entries(array_sort(map_entries({v}), (a, b) -> IF(a[1] < b[1], -1, 1)))")))
+            elif dt.startswith("row("):
+                fields = TrinoSCD2Strategy._parse_fields(dt)
+                sub_values = [f"{v}.{fname}" for fname, _ in fields]
+                sub_cols_with_type = {f"{v}.{fname}": ftype for fname, ftype in fields}
+                result.extend(TrinoSCD2Strategy._cast_values(sub_values, sub_cols_with_type))
+            elif dt in ("double", "real"):
+                result.append(TrinoSCD2Strategy._cast_to_varchar(f"CAST({v} AS DECIMAL(18,6))"))
+            elif dt in ("timestamp(6)", "timestamp(6) with time zone"):
+                result.append(TrinoSCD2Strategy._cast_to_varchar(f"date_format({v}, '%Y-%m-%d %H:%i:%s')"))
+            else:
+                result.append(TrinoSCD2Strategy._cast_to_varchar(v))
+        return result
 
     @staticmethod
     def _format_join_condition(
@@ -167,6 +212,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
             f"{prefix_left}.{col} IS NOT DISTINCT FROM {prefix_right}.{col}"
             for col in cols_bks
         )
+    
+        
 
     # ── Private SQL builders ────────────────────────────────────────────────
 
@@ -197,6 +244,17 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, is_del_2 BOOLEAN, del_key_2 VARCHAR))"
 
+    def _cols_with_type(self, table_name: str) -> dict:
+        sql = f"""
+            SELECT LOWER(column_name), LOWER(data_type)
+            FROM {self.catalog}.information_schema.columns
+            WHERE table_schema = '{self.schema}'
+              AND table_name = '{table_name}'
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        return {row[0]: row[1] for row in cursor.fetchall()}
+
     def _format_cte(
         self,
         cols_bks: list,
@@ -207,12 +265,13 @@ class TrinoSCD2Strategy(SCD2Strategy):
         ap = self.add_prefix
         cv = self._cast_values
 
+        cols_with_type = self._cols_with_type(self.source_table_name)
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cv(cols_bks, []))
-        cast_cols_val_str = fv(cv(cols_val, self.cols_structured))
+        cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
+        cast_cols_val_str = fv(cv(cols_val, cols_with_type=cols_with_type))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")

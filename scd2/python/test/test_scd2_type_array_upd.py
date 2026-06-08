@@ -37,7 +37,7 @@ load_ts_2 = datetime.strptime("2026-01-05 00:00:00", "%Y-%m-%d %H:%M:%S")
 current_ts_2 = datetime.strptime("2026-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
 
 TEST_ENGINE = os.getenv("TEST_ENGINE", "SPARK").upper()
-
+IS_SPARK = TEST_ENGINE in ("SPARK", "PYSPARK")
 
 def test_step_1(ctx):
     logger.info(
@@ -59,22 +59,26 @@ def test_step_1(ctx):
     test_description = f"At {load_ts_1}, insert 3 entities into raw table and perform initial SCD2 merge."
 
     # --- Insert statement (batch 1) ---
-    insert_sql_1 = f"""
-        INSERT INTO {source_table_fqn(ctx)}
-        SELECT *
-        FROM (
-            VALUES
-                (1, ARRAY['Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'],  'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (2, ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
-                (3, ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'], 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
-        ) AS t (
-            id,
-            user_info,
-            status,
-            dp_ts_from,
-            dp_loaded_at
-        )
-    """
+    if IS_SPARK:
+        insert_sql_1 = f"""
+            INSERT INTO {source_table_fqn(ctx)}
+            SELECT 1  AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_1}' AS dp_ts_from, TIMESTAMP '{load_ts_1}' AS dp_loaded_at
+            UNION ALL
+            SELECT 2,        ARRAY('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'
+            UNION ALL
+            SELECT 3,        ARRAY('Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'), 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'
+        """
+    else:
+        insert_sql_1 = f"""
+            INSERT INTO {source_table_fqn(ctx)}
+            SELECT *
+            FROM (
+                VALUES
+                    (1, ARRAY['Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'],  'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                    (2, ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
+                    (3, ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'], 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
+            ) AS t (id, user_info, status, dp_ts_from, dp_loaded_at)
+        """
 
     expected = [
         (
@@ -134,22 +138,26 @@ def test_step_2(ctx):
     test_description = f"At {load_ts_2}, update `email` inside `user_info` of entity with `id=3` in raw table and perform SCD2 merge."
 
     # --- Insert statement (batch 2) ---
-    insert_sql_2 = f"""
-        INSERT INTO {source_table_fqn(ctx)}
-        SELECT *
-        FROM (
-            VALUES
-                (1, ARRAY['Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'],  'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (2, ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
-                (3, ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@newmail.com'], 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
-        ) AS t (
-            id,
-            user_info,
-            status,
-            dp_ts_from,
-            dp_loaded_at
-        )
-    """
+    if IS_SPARK:
+        insert_sql_2 = f"""
+            INSERT INTO {source_table_fqn(ctx)}
+            SELECT 1 AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_2}' AS dp_ts_from, TIMESTAMP '{load_ts_2}' AS dp_loaded_at
+            UNION ALL
+            SELECT 2,        ARRAY('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'
+            UNION ALL
+            SELECT 3,        ARRAY('Clara', 'Schmid', 'Basel',  'clara.schmid@newmail.com'), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'
+        """
+    else:
+        insert_sql_2 = f"""
+            INSERT INTO {source_table_fqn(ctx)}
+            SELECT *
+            FROM (
+                VALUES
+                    (1, ARRAY['Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'],  'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (2, ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
+                    (3, ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@newmail.com'], 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
+            ) AS t (id, user_info, status, dp_ts_from, dp_loaded_at)
+        """
 
     expected = [
         (

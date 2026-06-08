@@ -158,7 +158,13 @@ def diff_with_color(df1, df2, index_cols=None, sort_cols=None):
                 elif row["_merge"] == "right_only":
                     cell = f"<span style='color: green;'>{new}</span>"
                 else:  # both
-                    if old != new:
+                    try:
+                        differs = bool(old != new)
+                    except (ValueError, TypeError):
+                        differs = old != new  # e.g. list: direct inequality is fine
+                        if not isinstance(differs, bool):
+                            differs = list(old) != list(new)
+                    if differs:
                         cell = f"<span style='color: orange;'>{new}</span>"
                     else:
                         cell = str(new)
