@@ -4,7 +4,7 @@ This test validates filling the gap in a single entity. The record added into th
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 18:48:18`
+ * **Last Run:** `2026-06-08 19:32:51`
 At 2026-01-01 00:00:00, insert 3 records, at 2026-01-05 00:00:00 delete the one with id=3 and reinsert id=3 at 2026-01-15 00:00:00 into raw table and perform initial SCD2 merge.
 ### Perform Preparation
 
@@ -65,9 +65,9 @@ Fill the gap partially at 2026-01-10 00:00:00 by adding a record with the same v
 **Input to Merge**
 
 
-| merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+|   merge_record_id | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 9064e547-94b9-137b-48a6-5863b8ef2f84 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 777BB26D490500D4BF4E829691C85C2DF112D21B4D205D879812E5BE99529853 | ACTIVE        | INSERT_NEW_VERSION | CASE_19     | 2026-01-10 00:00:00 | 2026-01-14 23:59:59 | False          | False          |
+|               nan | 9064e547-94b9-137b-48a6-5863b8ef2f84 |    3 | Clara        | Schmid      | Geneva | clara.schmid@example.com | 777BB26D490500D4BF4E829691C85C2DF112D21B4D205D879812E5BE99529853 | ACTIVE        | INSERT_NEW_VERSION | CASE_19     | 2026-01-10 00:00:00 | 2026-01-14 23:59:59 | False          | False          |
 
 
 

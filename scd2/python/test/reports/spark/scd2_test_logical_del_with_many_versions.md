@@ -4,7 +4,7 @@ This test validates a DELETE operation of a single entity with many versions. Th
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 19:05:25`
+ * **Last Run:** `2026-06-08 19:49:55`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge. At 2026-01-05 00:00:00, update email address of entity with `id=3` and perform SCD2 merge.
 
@@ -29,7 +29,7 @@ At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD
 | merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
 | af503a22-602c-adb7-cf8d-ca124df6fcf8 | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | ACTIVE        | UPDATE_VERSION     | CASE_11     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
-|                                      | f97791a4-3581-4125-1ac6-1708b9579a85 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| nan                                  | f97791a4-3581-4125-1ac6-1708b9579a85 |    3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 9477D9000CEDC6AA3E01D45847CE658798640D2C2E3614371B6FA40923F369C6 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 

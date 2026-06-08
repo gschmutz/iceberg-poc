@@ -4,7 +4,7 @@ This test validates filling the gap in a single entity. The record added into th
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 18:47:33`
+ * **Last Run:** `2026-06-08 19:30:42`
 At 2026-01-01 00:00:00, insert 3 records, at 2026-01-05 00:00:00 delete the one with id=3 and reinsert id=3 at 2026-01-10 00:00:00 into raw table and perform initial SCD2 merge.
 ### Perform Preparation
 
@@ -65,9 +65,9 @@ Fill the gap at 2026-01-05 00:00:00 by adding a record with different values as 
 **Input to Merge**
 
 
-| merge_record_id   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+|   merge_record_id | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | f97791a4-3581-4125-1ac6-1708b9579a85 |    3 | Clara        | Schmid      | Zurich | clara.schmid@example.com | 24D761116FACE285ECC3E970FF105F256954CF40802EB4B2944296D89115D95C | ACTIVE        | INSERT_NEW_VERSION | CASE_27     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          |
+|               nan | f97791a4-3581-4125-1ac6-1708b9579a85 |    3 | Clara        | Schmid      | Zurich | clara.schmid@example.com | 24D761116FACE285ECC3E970FF105F256954CF40802EB4B2944296D89115D95C | ACTIVE        | INSERT_NEW_VERSION | CASE_27     | 2026-01-05 00:00:00 | 2026-01-09 23:59:59 | False          | False          |
 
 
 

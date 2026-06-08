@@ -4,7 +4,7 @@ This test validates an INSERT operation of one new entity (with a 1st version) i
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 18:44:38`
+ * **Last Run:** `2026-06-08 19:26:04`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 
@@ -23,11 +23,11 @@ Insert 3 entities into raw table and perform initial SCD2 merge.
 **Input to Merge**
 
 
-| merge_record_id   | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+|   merge_record_id | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 82b63235-480c-bcfe-2aa6-6ec27bab57ea |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |     2 |   nan | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | 8968dc8a-2a7f-cbc5-be7e-8e5f476f4d20 |     2 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | 82b63235-480c-bcfe-2aa6-6ec27bab57ea |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |     2 |   nan | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | 8968dc8a-2a7f-cbc5-be7e-8e5f476f4d20 |     2 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | B4A150F16BA0FBF1C18B07837F55DA9C16C18B4E699B8B92E6525DD6607F52C1 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -64,9 +64,9 @@ At 2026-01-05 00:00:00, insert the new entity with `id=10` into the new partitio
 **Input to Merge**
 
 
-| merge_record_id   | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+|   merge_record_id | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 479b3747-f865-2161-2be4-7d9ecba4a635 |    10 |    10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | 479b3747-f865-2161-2be4-7d9ecba4a635 |    10 |    10 | Kevin        | Loosli      | Bern   | kevin.loosli@example.com | DB6D2FC1F766B81756761381B965CE5D13E4AE3F8BF50E66BB2188214DC1B55C | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 

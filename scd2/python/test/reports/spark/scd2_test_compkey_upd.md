@@ -4,7 +4,7 @@ This test validates an UPDATE operation of one entity (with a new version) on a 
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-05-29 18:43:54`
+ * **Last Run:** `2026-06-08 19:25:34`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge.
 
@@ -23,11 +23,11 @@ At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD
 **Input to Merge**
 
 
-| merge_record_id   | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
+|   merge_record_id | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |-------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|                   | 82b63235-480c-bcfe-2aa6-6ec27bab57ea |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | fb04cdcc-3817-02d9-039f-f305d73f484d |     2 |     2 | Bob          | Keller      | Bern   | bob.keller@example.com   | BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|                   | f3c09b60-b250-59c2-60e4-e7281c449181 |     3 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | 82b63235-480c-bcfe-2aa6-6ec27bab57ea |     1 |     1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | FC32620040E739795BE9C7EF23702C97E362C4C2BAAC8B6CAADE58A27DC1087A | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | fb04cdcc-3817-02d9-039f-f305d73f484d |     2 |     2 | Bob          | Keller      | Bern   | bob.keller@example.com   | BF95C839ED40F6745B2FFB0B3988C93FC14D92CD490A0BB26013F7A1F4748986 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|               nan | f3c09b60-b250-59c2-60e4-e7281c449181 |     3 |     3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | EFA3962E9F15A846EB1999A38C6B310F71E88BEDC22CEE2174B9C2B8A121524E | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
@@ -66,7 +66,7 @@ At 2026-01-05 00:00:00, update `email` of entity with `id=3` in raw table and pe
 | merge_record_id                      | dp_record_id                         |   id1 |   id2 | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
 |--------------------------------------|--------------------------------------|-------|-------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
 | f3c09b60-b250-59c2-60e4-e7281c449181 | f3c09b60-b250-59c2-60e4-e7281c449181 |     3 |     3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 8C01D872535978047B58D1C33D3CE3731B4E1A08F5E6F10D9659FB72C94807B1 | ACTIVE        | UPDATE_VERSION     | CASE_11     | 2026-01-01 00:00:00 | 2026-01-04 23:59:59 | False          | False          |
-|                                      | bd41601b-f08f-58ee-95b8-0c5b18037315 |     3 |     3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 8C01D872535978047B58D1C33D3CE3731B4E1A08F5E6F10D9659FB72C94807B1 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| nan                                  | bd41601b-f08f-58ee-95b8-0c5b18037315 |     3 |     3 | Clara        | Schmid      | Basel  | clara.schmid@newmail.com | 8C01D872535978047B58D1C33D3CE3731B4E1A08F5E6F10D9659FB72C94807B1 | ACTIVE        | INSERT_NEW_VERSION | CASE_11     | 2026-01-05 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
 
 
 
