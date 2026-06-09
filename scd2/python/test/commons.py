@@ -402,6 +402,7 @@ class TestCommonsBase:
         self,
         ctx,
         sel_stmt: str,
+        test_step=None,        
         expected=None,
         output_file_name: str = None,
         test_description: str = None,
@@ -413,6 +414,8 @@ class TestCommonsBase:
         actual_df = self.execute_select(sel_stmt, ctx)
 
         if display_result:
+            if test_step is not None:
+                render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
             render_data("### Perform Test", output_file_name=output_file_name)
             render_data(test_description, output_file_name=output_file_name)
             render_data(f"\n\n`{sel_stmt}`\n", output_file_name=output_file_name)
@@ -1096,6 +1099,7 @@ def scd2_merge_as_test_return_as_df(
 def scd2_sel_as_test(
     ctx,
     sel_stmt: str,
+    test_step=None,        
     expected=None,
     output_file_name: str = None,
     test_description: str = None,
@@ -1107,6 +1111,7 @@ def scd2_sel_as_test(
     return _impl.scd2_sel_as_test(
         ctx,
         sel_stmt=sel_stmt,
+        test_step=test_step,
         expected=expected,
         output_file_name=output_file_name,
         test_description=test_description,
