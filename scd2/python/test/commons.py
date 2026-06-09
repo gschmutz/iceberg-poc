@@ -76,9 +76,10 @@ class TestCommonsBase:
     """Base class for test commons. Subclasses supply COLS_WITH_TYPE and _make_strategy."""
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
-                       use_logical_delete_for_source_table: bool = False, 
+                       use_logical_delete_for_source_table: bool = False,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True,
+                       perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         raise NotImplementedError
 
@@ -181,6 +182,7 @@ class TestCommonsBase:
         dp_ts_list: list,
         current_ts_list: list,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
@@ -199,7 +201,8 @@ class TestCommonsBase:
                                 use_logical_delete_for_source_table=use_logical_delete_for_source_table,
                                 logical_delete_expression=logical_delete_expression,
                                 check_physical_delete_against_source_table=check_physical_delete_against_source_table,
-                                perform_merge_op=perform_merge_op).merge_into_scd2_table(
+                                perform_merge_op=perform_merge_op,
+                                perform_record_hash_update=perform_record_hash_update).merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
                 show_input_to_merge=True,
@@ -250,13 +253,14 @@ class TestCommonsBase:
         test_description: str = None,
         test_after_description: str = None,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
         display_result: bool = True,
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
-        table_shape: str = "flat",        
+        table_shape: str = "flat",
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -276,10 +280,11 @@ class TestCommonsBase:
         )
 
         self._make_strategy(ctx, cols_bks=cols_bks, table_shape=table_shape,
-                            use_logical_delete_for_source_table=use_logical_delete_for_source_table, 
+                            use_logical_delete_for_source_table=use_logical_delete_for_source_table,
                             logical_delete_expression=logical_delete_expression,
                             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
-                            perform_merge_op=perform_merge_op).merge_into_scd2_table(
+                            perform_merge_op=perform_merge_op,
+                            perform_record_hash_update=perform_record_hash_update).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
@@ -326,6 +331,7 @@ class TestCommonsBase:
         test_description: str = None,
         test_after_description: str = None,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
@@ -353,7 +359,8 @@ class TestCommonsBase:
                                        use_logical_delete_for_source_table=use_logical_delete_for_source_table,
                                        logical_delete_expression=logical_delete_expression,
                                        check_physical_delete_against_source_table=check_physical_delete_against_source_table,
-                                       perform_merge_op=perform_merge_op)
+                                       perform_merge_op=perform_merge_op,
+                                       perform_record_hash_update=perform_record_hash_update)
         for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
@@ -416,8 +423,9 @@ class TestCommonsBase:
             )
             render_data(test_after_description, output_file_name=output_file_name)
 
-        expected_df = pd.DataFrame(expected, columns=actual_df.columns)
-        self.assert_df(actual_df, expected_df, output_file_name=output_file_name)
+        if expected is not None:
+            expected_df = pd.DataFrame(expected, columns=actual_df.columns)
+            self.assert_df(actual_df, expected_df, output_file_name=output_file_name)
 
     def optimize_table(self, ctx, table_name: str) -> None:
         self._make_strategy(ctx).optimize_table(table_name)
@@ -501,7 +509,8 @@ class TrinoTestCommons(TestCommonsBase):
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
-                       perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       perform_merge_op: bool = True, perform_record_hash_update: bool = False,
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -514,10 +523,11 @@ class TrinoTestCommons(TestCommonsBase):
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
-            col_dp_replaced_at="dp_replace_ts",            
+            col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
@@ -669,8 +679,9 @@ class SparkTestCommons(TestCommonsBase):
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
-                       check_physical_delete_against_source_table: bool = True, 
-                       perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       check_physical_delete_against_source_table: bool = True,
+                       perform_merge_op: bool = True, perform_record_hash_update: bool = False,
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -682,10 +693,11 @@ class SparkTestCommons(TestCommonsBase):
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
-            col_dp_replaced_at="dp_replace_ts",  
+            col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
         )
@@ -825,9 +837,10 @@ class PySparkTestCommons(SparkTestCommons):
             raise ValueError(f"Unknown table form: {table_shape}")    
 
     def _make_strategy(self, ctx, cols_bks: list = ["id"], cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
-                       use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None, 
-                       check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True, col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
-        
+                       use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
+                       check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
+                       perform_record_hash_update: bool = False,
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -840,6 +853,7 @@ class PySparkTestCommons(SparkTestCommons):
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
@@ -936,6 +950,7 @@ def scd2_merge_as_preparation(
     dp_ts_list: list,
     current_ts_list: list,
     perform_merge_op: bool = True,
+    perform_record_hash_update: bool = False,
     use_logical_delete_for_source_table: bool = False,
     logical_delete_expression: Optional[str] = None,
     check_physical_delete_against_source_table: bool = True,
@@ -951,6 +966,7 @@ def scd2_merge_as_preparation(
         dp_ts_list=dp_ts_list,
         current_ts_list=current_ts_list,
         perform_merge_op=perform_merge_op,
+        perform_record_hash_update=perform_record_hash_update,
         use_logical_delete_for_source_table=use_logical_delete_for_source_table,
         logical_delete_expression=logical_delete_expression,
         check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -973,6 +989,7 @@ def scd2_merge_as_test(
     test_description: str = None,
     test_after_description: str = None,
     perform_merge_op: bool = True,
+    perform_record_hash_update: bool = False,
     use_logical_delete_for_source_table: bool = False,
     logical_delete_expression: Optional[str] = None,
     check_physical_delete_against_source_table: bool = True,
@@ -992,6 +1009,7 @@ def scd2_merge_as_test(
         test_description=test_description,
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
+        perform_record_hash_update=perform_record_hash_update,
         use_logical_delete_for_source_table=use_logical_delete_for_source_table,
         logical_delete_expression=logical_delete_expression,
         check_physical_delete_against_source_table=check_physical_delete_against_source_table,
@@ -1011,6 +1029,7 @@ def scd2_merge_as_test2(
     test_description: str = None,
     test_after_description: str = None,
     perform_merge_op: bool = True,
+    perform_record_hash_update: bool = False,
     use_logical_delete_for_source_table: bool = False,
     logical_delete_expression: Optional[str] = None,
     check_physical_delete_against_source_table: bool = True,
@@ -1028,6 +1047,7 @@ def scd2_merge_as_test2(
         test_description=test_description,
         test_after_description=test_after_description,
         perform_merge_op=perform_merge_op,
+        perform_record_hash_update=perform_record_hash_update,
         use_logical_delete_for_source_table=use_logical_delete_for_source_table,
         logical_delete_expression=logical_delete_expression,
         check_physical_delete_against_source_table=check_physical_delete_against_source_table,

@@ -47,6 +47,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
@@ -88,6 +89,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 in the *SCD2 table* are used as the reference for deletes instead.
             perform_merge_op: Set to ``False`` to skip the ``MERGE INTO`` statement
                 (useful for inspecting the staging data without modifying the target).
+            perform_record_hash_update: When ``True``, all NULL values in col_dp_record_hash columns will be updated before the SCD2 merge operation is performed.  Defaults to ``False``.
             col_dp_valid_from: Column name for the validity-start timestamp in the SCD2
                 table.  Defaults to ``"dp_from_ts"``.
             col_dp_valid_to: Column name for the validity-end timestamp in the SCD2
@@ -116,6 +118,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             materialize_data_before_merge=materialize_data_before_merge,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from=col_dp_valid_from,
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
@@ -254,7 +257,20 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cursor = self.conn.cursor()
         cursor.execute(sql)
         return {row[0]: row[1] for row in cursor.fetchall()}
-
+    
+    @staticmethod
+    def _format_hash_expr(cols_bks: list, cols_val: list, cols_with_type: dict) -> str:
+        """
+        Format a hash expression that concatenates and hashes all BK and value columns.
+            Complex types (ARRAY, MAP, ROW) are first converted to JSON strings with sorted keys to ensure consistent hashing.
+            Timestamps are cast to a common format to avoid issues with different precisions or time zones.
+            All values are cast to VARCHAR before concatenation.
+            The final hash is computed as to_hex(sha256(...)).
+        """
+        cast_cols_bks_str = TrinoSCD2Strategy.format_values(TrinoSCD2Strategy._cast_values(cols_bks, cols_with_type))
+        cast_cols_val_str = TrinoSCD2Strategy.format_values(TrinoSCD2Strategy._cast_values(cols_val, cols_with_type))
+        return f"to_hex(sha256(CAST(concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}]) AS VARBINARY)))"
+    
     def _format_cte(
         self,
         cols_bks: list,
@@ -263,15 +279,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> str:
         fv = self.format_values
         ap = self.add_prefix
-        cv = self._cast_values
+#        cv = self._cast_values
 
-        cols_with_type = self._cols_with_type(self.source_table_name)
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
-        cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
-        cast_cols_val_str = fv(cv(cols_val, cols_with_type=cols_with_type))
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
@@ -279,6 +292,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
         join_src_prev = self._format_join_condition(cols_bks, "src", "prev")
         join_src_next = self._format_join_condition(cols_bks, "src", "next")
         where_curr_is_null = " AND ".join(f"curr.{col} IS NULL" for col in cols_bks)
+
+        cols_with_type = self._cols_with_type(self.source_table_name)
+        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
 
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
 
@@ -295,14 +311,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         SRC_DATA_DELTA_CTE = f"""
             src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        to_hex(
-                            sha256(
-                                CAST(
-                                    concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}])
-                                    AS VARBINARY
-                                )
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr}
@@ -312,14 +321,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         PREV_DATA_FROM_SOURCE_CTE = f"""
             prev_src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        to_hex(
-                            sha256(
-                                CAST(
-                                    concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}])
-                                    AS VARBINARY
-                                )
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_prev_expr} 
@@ -344,14 +346,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         SRC_DATA_FULL_CTE = f"""
             src_curr_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        to_hex(
-                            sha256(
-                                CAST(
-                                    concat_ws('||', ARRAY[{cast_cols_bks_str}, {cast_cols_val_str}])
-                                    AS VARBINARY
-                                )
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr} 
@@ -807,6 +802,19 @@ class TrinoSCD2Strategy(SCD2Strategy):
         cursor.execute(query)
         return cursor.fetchone()
 
+    def fill_empty_record_hash_vals_in_scd2_table(self):
+        cols_with_type = self._cols_with_type(self.source_table_name)
+        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
+
+        # This is a safety measure to ensure that we don't have any NULL values in the record hash column, which could cause issues with the merge logic. We can set it to a constant value since we are only interested in detecting changes, and any change from or to NULL will be detected as a change.
+        stmt = f"""
+            UPDATE {self.scd2_table_fqn()}
+            SET {self.col_dp_record_hash} = {hash_expr}
+            WHERE {self.col_dp_record_hash} IS NULL
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(stmt)    
+
     def merge_into_scd2_table(
         self,
         dp_ts: datetime,
@@ -814,6 +822,11 @@ class TrinoSCD2Strategy(SCD2Strategy):
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ):
+        if self.perform_record_hash_update:
+            logger.info("Filling empty record hash values in SCD2 table before merge...")
+            self.fill_empty_record_hash_vals_in_scd2_table()
+            logger.info("Empty record hash values in SCD2 table filled successfully.")
+
         view_stmt = self.format_view(
             dp_ts=dp_ts,
         )

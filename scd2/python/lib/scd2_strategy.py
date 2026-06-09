@@ -104,6 +104,7 @@ class SCD2Strategy(ABC):
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = False,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
@@ -141,6 +142,7 @@ class SCD2Strategy(ABC):
             perform_merge_op: When ``False`` the pipeline stops after creating the
                 intermediary view, allowing callers to inspect the staged records
                 without modifying the SCD2 table.  Defaults to ``True``.
+            perform_record_hash_update: When ``True``, all NULL values in col_dp_record_hash columns will be updated before the SCD2 merge operation is performed.  Defaults to ``False``.
             col_dp_valid_from: Name of the timestamp column in the SCD2 table that
                 identifies the version start (e.g. ``"dp_from_ts"``).  Defaults to ``"dp_from_ts"``.
             col_dp_valid_to: Name of the timestamp column in the SCD2 table that identifies the version end (e.g. ``"dp_to_ts"``).  Defaults to ``"dp_to_ts"``.
@@ -165,6 +167,7 @@ class SCD2Strategy(ABC):
         self.check_physical_delete_against_source_table = check_physical_delete_against_source_table
         self.materialize_data_before_merge = materialize_data_before_merge
         self.perform_merge_op = perform_merge_op
+        self.perform_record_hash_update = perform_record_hash_update
         self.col_dp_valid_from = col_dp_valid_from
         self.col_dp_valid_to = col_dp_valid_to
         self.col_dp_created_at = col_dp_created_at

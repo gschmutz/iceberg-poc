@@ -44,6 +44,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
@@ -112,6 +113,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             materialize_data_before_merge=materialize_data_before_merge,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from=col_dp_valid_from,
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
@@ -176,6 +178,12 @@ class SparkSCD2Strategy(SCD2Strategy):
             f"{prefix_left}.{col} <=> {prefix_right}.{col}" for col in cols_bks
         )
 
+    @staticmethod
+    def _format_hash_expr(cols_bks: list, cols_val: list, cols_with_type: dict) -> str:
+        cast_cols_bks_str = SparkSCD2Strategy.format_values(SparkSCD2Strategy._cast_values(cols_bks, cols_with_type=cols_with_type))
+        cast_cols_val_str = SparkSCD2Strategy.format_values(SparkSCD2Strategy._cast_values(cols_val, cols_with_type=cols_with_type))
+        return f"upper(sha2(concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str}), 256))"
+
     # ── Private SQL builders ────────────────────────────────────────────────
 
     @staticmethod
@@ -220,17 +228,14 @@ class SparkSCD2Strategy(SCD2Strategy):
         fv = self.format_values
         ap = self.add_prefix
         cv = self._cast_values
-        
+
         cols_with_type = self._cols_with_type(self.source_table_name)
-
-        print(f"DEBUG: cols_with_type for {self.source_table_name}: {cols_with_type}")
-
         cols_bks_str = fv(cols_bks)
         prefixed_cols_bks_str = fv(ap(cols_bks, "src"))
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
         cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
-        cast_cols_val_str = fv(cv(cols_val, cols_with_type=cols_with_type))
+        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
@@ -254,12 +259,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         SRC_DATA_DELTA_CTE = f"""
             src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        upper(
-                            sha2(
-                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
-                                , 256
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr}
@@ -269,12 +269,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         PREV_DATA_FROM_SOURCE_CTE = f"""
             prev_src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        upper(
-                            sha2(
-                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
-                                , 256
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_prev_expr}
@@ -299,12 +294,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         SRC_DATA_FULL_CTE = f"""
             src_curr_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
-                        upper(
-                            sha2(
-                                concat_ws('||', {cast_cols_bks_str}, {cast_cols_val_str})
-                                , 256
-                            )
-                        ) AS {self.col_dp_record_hash},
+                        {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
                 {dp_ts_filter_expr}
@@ -728,6 +718,16 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
 
+    def fill_empty_record_hash_vals_in_scd2_table(self):
+        cols_with_type = self._cols_with_type(self.source_table_name)
+        hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
+        stmt = f"""
+            UPDATE {self.scd2_table_fqn()}
+            SET {self.col_dp_record_hash} = {hash_expr}
+            WHERE {self.col_dp_record_hash} IS NULL
+        """
+        self.spark.sql(stmt)
+
     def materialize_view(self, scd2_intermediary_table_name: str) -> str:
 
         stmt = f"DROP TABLE IF EXISTS {self._fqn(scd2_intermediary_table_name)}_mv"
@@ -752,6 +752,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ):
+        if self.perform_record_hash_update:
+            logger.info("Filling empty record hash values in SCD2 table before merge...")
+            self.fill_empty_record_hash_vals_in_scd2_table()
+            logger.info("Empty record hash values in SCD2 table filled successfully.")
+
         view_stmt = self.format_view(
             dp_ts=dp_ts,
         )
