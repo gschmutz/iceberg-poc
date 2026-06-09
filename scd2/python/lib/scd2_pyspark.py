@@ -50,6 +50,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         check_physical_delete_against_source_table: bool = True,
         materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
+        perform_record_hash_update: bool = True,
         col_dp_valid_from: str = "dp_from_ts",
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
@@ -72,6 +73,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
+            perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from=col_dp_valid_from,
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
@@ -880,6 +882,11 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
     ):
+        if self.perform_record_hash_update:
+            logger.info("Filling empty record hash values in SCD2 table before merge...")
+            self.fill_empty_record_hash_vals_in_scd2_table()
+            logger.info("Empty record hash values in SCD2 table filled successfully.")        
+
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
             dp_ts=dp_ts,
