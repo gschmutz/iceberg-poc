@@ -1,0 +1,198 @@
+"""
+Reads CSV files from S3 under a folder structure like:
+
+    <s3_prefix>/<folder_name>/<date>/xxxx.csv
+
+Deduplicates each file by one or more key columns (keeping the last occurrence),
+then writes the result back to S3 as a new CSV under an output prefix that mirrors
+the same folder/date structure.
+
+Usage
+-----
+    python deduplicate_s3_csv.py \
+        --bucket upload-bucket \
+        --prefix raw_data \
+        --keys id \
+        --keys version \
+        --output-prefix raw_data_deduped \
+        [--keep first|last]          # which duplicate to keep (default: last)
+        [--endpoint http://localhost:9000]
+"""
+
+import argparse
+import io
+import logging
+import os
+import sys
+
+import boto3
+import pandas as pd
+from botocore.client import Config
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
+from util import get_credential, get_param
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# S3 helpers
+# ---------------------------------------------------------------------------
+
+def _s3_client(endpoint_url: str) -> boto3.client:
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url or None,
+        aws_access_key_id=get_credential("AWS_ACCESS_KEY_ID", None),
+        aws_secret_access_key=get_credential("AWS_SECRET_ACCESS_KEY", None),
+        config=Config(signature_version="s3v4"),
+    )
+
+
+def list_csv_keys(s3, bucket: str, prefix: str) -> list[str]:
+    """Return all object keys under prefix that end with .csv."""
+    paginator = s3.get_paginator("list_objects_v2")
+    keys = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            if obj["Key"].endswith(".csv"):
+                keys.append(obj["Key"])
+    return keys
+
+
+def read_csv_from_s3(s3, bucket: str, key: str) -> pd.DataFrame:
+    response = s3.get_object(Bucket=bucket, Key=key)
+    return pd.read_csv(io.BytesIO(response["Body"].read()))
+
+
+def write_csv_to_s3(s3, df: pd.DataFrame, bucket: str, key: str) -> None:
+    buf = io.BytesIO()
+    df.to_csv(buf, index=False)
+    buf.seek(0)
+    s3.put_object(Bucket=bucket, Key=key, Body=buf.getvalue())
+    logger.info(f"Written {len(df)} rows → s3://{bucket}/{key}")
+
+
+# ---------------------------------------------------------------------------
+# Core logic
+# ---------------------------------------------------------------------------
+
+def deduplicate_file(
+    s3,
+    bucket: str,
+    key: str,
+    keys: list[str],
+    keep: str,
+    output_prefix: str,
+    input_prefix: str,
+) -> dict:
+    """Deduplicate one CSV file and write the result to output_prefix."""
+    df = read_csv_from_s3(s3, bucket, key)
+    rows_before = len(df)
+
+    missing = [k for k in keys if k not in df.columns]
+    if missing:
+        raise ValueError(f"Key column(s) {missing} not found in {key}. Available: {list(df.columns)}")
+
+    df_deduped = df.drop_duplicates(subset=keys, keep=keep)
+    rows_after = len(df_deduped)
+
+    # Mirror the path: replace input_prefix with output_prefix
+    relative_path = key[len(input_prefix):].lstrip("/")
+    output_key = f"{output_prefix.rstrip('/')}/{relative_path}"
+
+    write_csv_to_s3(s3, df_deduped, bucket, output_key)
+
+    return {
+        "input_key": key,
+        "output_key": output_key,
+        "rows_before": rows_before,
+        "rows_after": rows_after,
+        "duplicates_removed": rows_before - rows_after,
+    }
+
+
+def run(
+    bucket: str,
+    prefix: str,
+    keys: list[str],
+    output_prefix: str,
+    keep: str = "last",
+    endpoint_url: str = None,
+    dry_run: bool = False,
+) -> list[dict]:
+    s3 = _s3_client(endpoint_url)
+
+    csv_keys = list_csv_keys(s3, bucket, prefix)
+    if not csv_keys:
+        logger.warning(f"No CSV files found under s3://{bucket}/{prefix}")
+        return []
+
+    logger.info(f"Found {len(csv_keys)} CSV file(s) under s3://{bucket}/{prefix}")
+
+    results = []
+    for key in csv_keys:
+        logger.info(f"Processing s3://{bucket}/{key} ...")
+        if dry_run:
+            logger.info(f"  [dry-run] would deduplicate by keys={keys}, keep={keep}")
+            continue
+        result = deduplicate_file(
+            s3=s3,
+            bucket=bucket,
+            key=key,
+            keys=keys,
+            keep=keep,
+            output_prefix=output_prefix,
+            input_prefix=prefix,
+        )
+        results.append(result)
+        logger.info(
+            f"  {result['rows_before']} → {result['rows_after']} rows "
+            f"({result['duplicates_removed']} duplicates removed)"
+        )
+
+    total_removed = sum(r["duplicates_removed"] for r in results)
+    logger.info(f"Done. Processed {len(results)} file(s), removed {total_removed} duplicate rows in total.")
+    return results
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Deduplicate CSV files stored in S3 under folder_name/<date>/xxxx.csv"
+    )
+    parser.add_argument("--bucket", default=get_param("S3_UPLOAD_BUCKET", "upload-bucket"),
+                        help="S3 bucket name")
+    parser.add_argument("--prefix", required=True,
+                        help="S3 key prefix to scan, e.g. 'raw_data/customers'")
+    parser.add_argument("--keys", required=True, action="append", dest="keys",
+                        help="Deduplication key column (repeat for composite keys)")
+    parser.add_argument("--output-prefix",
+                        help="S3 prefix for deduplicated output (default: <prefix>_deduped)")
+    parser.add_argument("--keep", choices=["first", "last"], default="last",
+                        help="Which duplicate occurrence to keep (default: last)")
+    parser.add_argument("--endpoint", default=get_param("S3_ENDPOINT_URL", "http://localhost:9000"),
+                        help="S3 endpoint URL (for MinIO / non-AWS)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="List files and key columns without writing anything")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = _parse_args()
+
+    output_prefix = args.output_prefix or f"{args.prefix.rstrip('/')}_deduped"
+
+    run(
+        bucket=args.bucket,
+        prefix=args.prefix,
+        keys=args.keys,
+        output_prefix=output_prefix,
+        keep=args.keep,
+        endpoint_url=args.endpoint,
+        dry_run=args.dry_run,
+    )
