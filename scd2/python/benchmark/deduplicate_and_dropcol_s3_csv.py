@@ -3,20 +3,22 @@ Reads CSV files from S3 under a folder structure like:
 
     <s3_prefix>/<folder_name>/<date>/xxxx.csv
 
-Deduplicates each file by one or more key columns (keeping the last occurrence),
+Deduplicates each file by one or more key columns (keeping the last occurrence) and optionally drops specified columns,
 then writes the result back to S3 as a new CSV under an output prefix that mirrors
 the same folder/date structure.
 
 Usage
 -----
-    python deduplicate_s3_csv.py \
+    python deduplicate_and_dropcol_s3_csv.py \
         --bucket upload-bucket \
         --prefix raw_data \
         --keys id \
-        --keys version \
+        --keys version \      
         --output-prefix raw_data_deduped \
         [--keep first|last]          # which duplicate to keep (default: last)
         [--endpoint http://localhost:9000]
+        [--drop-cols col1 --drop-cols col2 ...]  # columns to drop from the output
+        [--dry-run]                 # list files and keys without writing output
 """
 
 import argparse
@@ -29,8 +31,7 @@ import boto3
 import pandas as pd
 from botocore.client import Config
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib")))
-from util import get_credential, get_param
+from benchmark_commons import get_param, get_credential
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -86,6 +87,7 @@ def deduplicate_file(
     keep: str,
     output_prefix: str,
     input_prefix: str,
+    drop_cols: list[str] = None,
 ) -> dict:
     """Deduplicate one CSV file and write the result to output_prefix."""
     df = read_csv_from_s3(s3, bucket, key)
@@ -94,6 +96,12 @@ def deduplicate_file(
     missing = [k for k in keys if k not in df.columns]
     if missing:
         raise ValueError(f"Key column(s) {missing} not found in {key}. Available: {list(df.columns)}")
+
+    if drop_cols:
+        unknown = [c for c in drop_cols if c not in df.columns]
+        if unknown:
+            logger.warning(f"Column(s) {unknown} not found in {key} — skipping those drops.")
+        df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
     df_deduped = df.drop_duplicates(subset=keys, keep=keep)
     rows_after = len(df_deduped)
@@ -119,6 +127,7 @@ def run(
     keys: list[str],
     output_prefix: str,
     keep: str = "last",
+    drop_cols: list[str] = None,
     endpoint_url: str = None,
     dry_run: bool = False,
 ) -> list[dict]:
@@ -135,7 +144,7 @@ def run(
     for key in csv_keys:
         logger.info(f"Processing s3://{bucket}/{key} ...")
         if dry_run:
-            logger.info(f"  [dry-run] would deduplicate by keys={keys}, keep={keep}")
+            logger.info(f"  [dry-run] would deduplicate by keys={keys}, keep={keep}, drop_cols={drop_cols}")
             continue
         result = deduplicate_file(
             s3=s3,
@@ -145,6 +154,7 @@ def run(
             keep=keep,
             output_prefix=output_prefix,
             input_prefix=prefix,
+            drop_cols=drop_cols,
         )
         results.append(result)
         logger.info(
@@ -175,6 +185,8 @@ def _parse_args() -> argparse.Namespace:
                         help="S3 prefix for deduplicated output (default: <prefix>_deduped)")
     parser.add_argument("--keep", choices=["first", "last"], default="last",
                         help="Which duplicate occurrence to keep (default: last)")
+    parser.add_argument("--drop-cols", action="append", dest="drop_cols", default=[],
+                        help="Column to remove from the output (repeat for multiple columns)")
     parser.add_argument("--endpoint", default=get_param("S3_ENDPOINT_URL", "http://localhost:9000"),
                         help="S3 endpoint URL (for MinIO / non-AWS)")
     parser.add_argument("--dry-run", action="store_true",
@@ -193,6 +205,7 @@ if __name__ == "__main__":
         keys=args.keys,
         output_prefix=output_prefix,
         keep=args.keep,
+        drop_cols=args.drop_cols or None,
         endpoint_url=args.endpoint,
         dry_run=args.dry_run,
     )
