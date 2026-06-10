@@ -50,7 +50,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         check_physical_delete_against_source_table: bool = True,
         materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
-        perform_record_hash_update: bool = True,
+        perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
