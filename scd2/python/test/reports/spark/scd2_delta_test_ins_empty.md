@@ -4,7 +4,7 @@ This test validates an INSERT operation of one single entity into an empty dimen
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 19:29:19`
+ * **Last Run:** `2026-06-10 11:27:55`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 1 entity into raw table and perform initial SCD2 merge.
 

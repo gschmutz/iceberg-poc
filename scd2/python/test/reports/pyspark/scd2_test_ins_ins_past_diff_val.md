@@ -4,7 +4,7 @@ This test validates an INSERT operation in the past of a version for an entity w
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-06-08 20:51:29`
+ * **Last Run:** `2026-06-10 07:18:09`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge.
 

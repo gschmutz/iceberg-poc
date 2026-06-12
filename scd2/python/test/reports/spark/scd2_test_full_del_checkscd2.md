@@ -4,7 +4,7 @@ This test validates a DELETE operation of a single entity. The delete is created
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 19:38:31`
+ * **Last Run:** `2026-06-10 11:35:17`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 

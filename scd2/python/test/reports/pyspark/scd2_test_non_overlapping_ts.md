@@ -4,7 +4,7 @@ This test validates that adding a new version for an entity results in non-overl
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-06-08 21:00:01`
+ * **Last Run:** `2026-06-10 07:26:00`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge.
 

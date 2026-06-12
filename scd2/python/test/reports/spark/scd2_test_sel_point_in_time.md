@@ -4,7 +4,7 @@ This test validates a single SELECT operation for data valid at a timestamp 2026
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 19:59:56`
+ * **Last Run:** `2026-06-10 11:56:59`
 ### Perform Preparation
 
 

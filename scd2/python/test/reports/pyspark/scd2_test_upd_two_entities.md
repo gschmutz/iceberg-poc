@@ -4,7 +4,7 @@ This test validates an UPDATE operation of two entities (with new versions) on a
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-06-08 21:08:15`
+ * **Last Run:** `2026-06-10 07:34:33`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge.
 

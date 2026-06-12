@@ -4,7 +4,7 @@ This test validates a DELETE operation of a single entity with many versions. Th
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 19:49:55`
+ * **Last Run:** `2026-06-10 11:48:45`
 ## Test Step 1
 At 2026-01-01 00:00:00, insert 3 entities into raw table and perform initial SCD2 merge. At 2026-01-05 00:00:00, update email address of entity with `id=3` and perform SCD2 merge.
 

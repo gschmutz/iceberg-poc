@@ -4,7 +4,7 @@ This test validates an UPDATE operation of one entity (with a new version) on a 
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 20:07:24`
+ * **Last Run:** `2026-06-10 12:07:05`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 

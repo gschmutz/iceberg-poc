@@ -4,7 +4,7 @@ This test validates a DELETE operation of a single entity. The delete is created
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-06-08 20:43:41`
+ * **Last Run:** `2026-06-10 07:08:08`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 

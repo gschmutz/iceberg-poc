@@ -4,7 +4,7 @@ This test validates a REACTIVATE operation of a single entity. The reactivate is
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 19:46:58`
+ * **Last Run:** `2026-06-10 11:45:08`
 ## Test Step 1
 Insert 3 records into raw table and perform initial SCD2 merge.
 

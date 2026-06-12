@@ -4,7 +4,7 @@ This test validates an INSERT operation of one new entity (with a 1st version) i
 
 
  * **Strategy:** `spark`
- * **Last Run:** `2026-06-08 20:06:34`
+ * **Last Run:** `2026-06-10 12:06:10`
 ## Test Step 1
 Insert 3 entities into raw table and perform initial SCD2 merge.
 
