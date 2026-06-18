@@ -565,11 +565,12 @@ class TrinoTestCommons(TestCommonsBase):
         )
         pk_str = ", ".join(cols_bks_with_type)
         cols_str = ", ".join(cols_with_type)
-        optional_cols = (
+        optional_cols_1 = (
             ("dp_is_active BOOLEAN,\n                " if col_dp_active_enable else "") +
-            ("dp_is_latest BOOLEAN,\n                " if col_dp_is_latest_enable else "") +
-            ("dp_replace_ts TIMESTAMP,\n                " if col_dp_replaced_at_enable else "")
+            ("dp_is_latest BOOLEAN,\n                " if col_dp_is_latest_enable else "")
         )
+        optional_cols_2 = ("dp_replace_ts TIMESTAMP,\n                " if col_dp_replaced_at_enable else "")
+
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {fqn} (
                 dp_record_id VARCHAR,
@@ -577,8 +578,8 @@ class TrinoTestCommons(TestCommonsBase):
                 {cols_str},
                 dp_ts_from TIMESTAMP,
                 dp_ts_to TIMESTAMP,
-                {optional_cols}dp_load_ts TIMESTAMP,
-                dp_record_hash VARCHAR
+                {optional_cols_1}dp_load_ts TIMESTAMP,
+                {optional_cols_2}dp_record_hash VARCHAR
             )
             WITH (
                 partitioning = ARRAY['dp_ts_from'],
