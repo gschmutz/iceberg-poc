@@ -392,18 +392,18 @@ class TrinoSCD2Strategy(SCD2Strategy):
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
             overlap.{self.col_dp_record_id}                                                                                                          AS overlap_{self.col_dp_record_id},
             CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
+            CASE WHEN overlap.{self.col_dp_valid_to} IS NULL THEN NULL WHEN overlap.{self.col_dp_valid_to} = TIMESTAMP '{MAX_TS}' THEN TRUE ELSE FALSE END                                                                                                    AS overlap_dp_is_active,
             prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
             prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
             prev.{self.col_dp_record_id}                                                                                                             AS prev_{self.col_dp_record_id},
-            prev.dp_is_active                                                                                                       AS prev_dp_is_active,
+            CASE WHEN prev.{self.col_dp_valid_to} IS NULL THEN NULL WHEN prev.{self.col_dp_valid_to} = TIMESTAMP '{MAX_TS}' THEN TRUE ELSE FALSE END                                                                                                       AS prev_dp_is_active,
             prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
             CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
             prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,      
             next.dp_ts_from                                                                                                         AS next_dp_ts_from,
             next.dp_ts_to                                                                                                           AS next_dp_ts_to,
             next.{self.col_dp_record_id}                                                                                                             AS next_{self.col_dp_record_id},
-            next.dp_is_active                                                                                                       AS next_dp_is_active,
+            CASE WHEN next.{self.col_dp_valid_to} IS NULL THEN NULL WHEN next.{self.col_dp_valid_to} = TIMESTAMP '{MAX_TS}' THEN TRUE ELSE FALSE END                                   AS next_dp_is_active,
             next.dp_is_latest                                                                                                       AS next_dp_is_latest,
             CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src
         FROM src_records AS src
@@ -414,7 +414,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 {self.col_dp_record_id},
                 dp_ts_to,
                 dp_ts_from,
-                dp_is_active,
                 dp_is_latest
             FROM {self.scd2_table_fqn()}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
@@ -427,7 +426,6 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 {self.col_dp_record_hash},
                 dp_ts_from,
                 dp_ts_to,
-                dp_is_active,
                 dp_is_latest
             FROM {self.scd2_table_fqn()}
             WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
@@ -441,11 +439,10 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 {self.col_dp_record_hash},
                 dp_ts_from,
                 dp_ts_to,
-                dp_is_active,
                 dp_is_latest
             FROM {self.scd2_table_fqn()} AS next
             WHERE src.dp_ts_from < next.dp_ts_from
-            AND next.dp_is_active = TRUE
+            AND next.{self.col_dp_valid_to} = TIMESTAMP '{MAX_TS}'
         ) next
         ON ({join_src_next})
     ),
@@ -813,7 +810,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def fill_empty_record_hash_vals_in_scd2_table(self):
         cols_with_type = self._cols_with_type(self.source_table_name)
-        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
+        hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
 
         # This is a safety measure to ensure that we don't have any NULL values in the record hash column, which could cause issues with the merge logic. We can set it to a constant value since we are only interested in detecting changes, and any change from or to NULL will be detected as a change.
         stmt = f"""
