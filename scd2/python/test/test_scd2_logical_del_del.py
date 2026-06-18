@@ -48,10 +48,10 @@ def test_step_1(ctx):
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
     render_init(
-        "Testing Logical Delete Operation and that it stays consistent", FILE_NAME
+        "Testing two consecutive Logical Delete Operations on the same entity", FILE_NAME
     )
     render_data(
-        "This test validates a DELETE operation of a single entity. The delete is created by a logical delete in the raw table, i.e., the record status is set to INACTIVE. This test ensures that no further actions are taken with the same record in later partitions.",
+        "This test validates that a second logical DELETE on an already-deleted entity is idempotent. After an initial logical delete, a second delete of the same entity must not create a new version or alter the existing closed version.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

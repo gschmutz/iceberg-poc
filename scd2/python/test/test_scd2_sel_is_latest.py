@@ -54,9 +54,9 @@ def test_step_1(ctx):
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
 
-    render_init("Testing for valid data at a given at a given timestamp", FILE_NAME)
+    render_init("Testing SELECT using dp_is_latest flag", FILE_NAME)
     render_data(
-        f"This test validates a single SELECT operation for data valid at a timestamp {load_ts_2 - timedelta(days=2)}",
+        f"This test validates that filtering on dp_is_latest=TRUE returns the most recent version of each entity (including logically deleted ones) at timestamp {load_ts_2 - timedelta(days=2)}.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

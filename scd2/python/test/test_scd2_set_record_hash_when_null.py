@@ -46,9 +46,9 @@ def test_step_1(ctx):
 
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
-    render_init("Testing Insert Operation", FILE_NAME)
+    render_init("Testing Record Hash Re-computation when dp_record_hash is NULL", FILE_NAME)
     render_data(
-        "This test validates an INSERT operation of one new entity (with a 1st version) and then we NULLify the dp_record_hash column for all records in the SCD2 table.",
+        "This test validates that when dp_record_hash is NULLified for all records in the SCD2 table, the next merge correctly recomputes and sets the hash without treating unchanged records as changed.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

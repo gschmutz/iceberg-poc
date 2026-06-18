@@ -46,9 +46,9 @@ def test_step_1(ctx):
 
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx, col_dp_active_enable=False, col_dp_is_latest_enable=True, col_dp_replaced_at_enable=False)
-    render_init("Testing Insert Operation", FILE_NAME)
+    render_init("Testing Insert Operation without optional flag columns", FILE_NAME)
     render_data(
-        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
+        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities, with dp_is_active, dp_is_latest and dp_replaced_at columns disabled.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

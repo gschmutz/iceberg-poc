@@ -47,9 +47,9 @@ def test_step_1(ctx):
 
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
-    render_init("Testing Reactivating a logically deleted record", FILE_NAME)
+    render_init("Testing Reactivating a logically deleted record with a gap and the same value", FILE_NAME)
     render_data(
-        "This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table.",
+        "This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table with a gap after the deleted version and with the same value.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

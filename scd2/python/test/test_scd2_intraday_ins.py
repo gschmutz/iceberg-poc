@@ -47,9 +47,9 @@ def test_step_1(ctx):
 
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
-    render_init("Testing Insert Operation", FILE_NAME)
+    render_init("Testing Intraday Insert Operation", FILE_NAME)
     render_data(
-        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities.",
+        "This test validates an INSERT operation of one new entity (with a 1st version) into a set of existing entities, where multiple loads occur within the same day.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)

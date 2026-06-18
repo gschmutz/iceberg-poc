@@ -54,9 +54,9 @@ def test_step_1(ctx):
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
 
-    render_init("Testing for valid data at a given at a given timestamp", FILE_NAME)
+    render_init("Testing Point-in-Time SELECT using dp_ts_from / dp_ts_to", FILE_NAME)
     render_data(
-        f"This test validates a single SELECT operation for data valid at a timestamp {load_ts_2 - timedelta(days=2)}",
+        f"This test validates a point-in-time SELECT operation that returns the version of each entity valid at timestamp {load_ts_2 - timedelta(days=2)} by filtering on dp_ts_from <= ts < dp_ts_to.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)
