@@ -98,7 +98,9 @@ class TestCommonsBase:
     def create_raw_table(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
         raise NotImplementedError
     
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
+                                   col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                                   col_dp_replaced_at_enable: bool = True) -> None:
         raise NotImplementedError
 
     def cols_with_type(self, table_form: str = "flat") -> list:
@@ -264,6 +266,9 @@ class TestCommonsBase:
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
         table_shape: str = "flat",
+        col_dp_active_enable: bool = True,
+        col_dp_is_latest_enable: bool = True,
+        col_dp_replaced_at_enable: bool = True,
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -287,7 +292,10 @@ class TestCommonsBase:
                             logical_delete_expression=logical_delete_expression,
                             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                             perform_merge_op=perform_merge_op,
-                            perform_record_hash_update=perform_record_hash_update).merge_into_scd2_table(
+                            perform_record_hash_update=perform_record_hash_update,
+                            col_dp_active_enable=col_dp_active_enable,
+                            col_dp_is_latest_enable=col_dp_is_latest_enable,
+                            col_dp_replaced_at_enable=col_dp_replaced_at_enable).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
@@ -543,9 +551,11 @@ class TrinoTestCommons(TestCommonsBase):
             col_dp_ts_filter=col_dp_ts_filter,
         )
     
-    def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
+    def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list, table_shape: str = "flat",
+                                  col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                                  col_dp_replaced_at_enable: bool = True) -> None:
         cols_with_type = self._cols_with_type(table_shape)
-        
+
         fqn = f"{TRINO_CATALOG}.{TRINO_SCHEMA}.{SCD2_TABLE_NAME}"
         cursor = ctx.conn.cursor()
         cursor.execute(f"DROP TABLE IF EXISTS {fqn}")
@@ -555,6 +565,11 @@ class TrinoTestCommons(TestCommonsBase):
         )
         pk_str = ", ".join(cols_bks_with_type)
         cols_str = ", ".join(cols_with_type)
+        optional_cols = (
+            ("dp_is_active BOOLEAN,\n                " if col_dp_active_enable else "") +
+            ("dp_is_latest BOOLEAN,\n                " if col_dp_is_latest_enable else "") +
+            ("dp_replace_ts TIMESTAMP,\n                " if col_dp_replaced_at_enable else "")
+        )
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {fqn} (
                 dp_record_id VARCHAR,
@@ -562,10 +577,7 @@ class TrinoTestCommons(TestCommonsBase):
                 {cols_str},
                 dp_ts_from TIMESTAMP,
                 dp_ts_to TIMESTAMP,
-                dp_is_active BOOLEAN,
-                dp_is_latest BOOLEAN,
-                dp_load_ts TIMESTAMP,
-                dp_replace_ts TIMESTAMP,
+                {optional_cols}dp_load_ts TIMESTAMP,
                 dp_record_hash VARCHAR
             )
             WITH (
@@ -611,8 +623,13 @@ class TrinoTestCommons(TestCommonsBase):
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
         )
 
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
-        self._create_scd2_table_trino(ctx, cols_bks_with_type, table_shape)
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
+                                   col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                                   col_dp_replaced_at_enable: bool = True) -> None:
+        self._create_scd2_table_trino(ctx, cols_bks_with_type, table_shape,
+                                      col_dp_active_enable=col_dp_active_enable,
+                                      col_dp_is_latest_enable=col_dp_is_latest_enable,
+                                      col_dp_replaced_at_enable=col_dp_replaced_at_enable)
 
     def _execute_insert(self, ins_stmt: str, ctx):
         cursor = ctx.conn.cursor()
@@ -718,10 +735,12 @@ class SparkTestCommons(TestCommonsBase):
             col_dp_ts_filter=col_dp_ts_filter,
         )
 
-    def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
+    def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list, table_shape: str = "flat",
+                                  col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                                  col_dp_replaced_at_enable: bool = True) -> None:
         """Shared Spark/PySpark implementation for creating the SCD2 dimension table."""
         cols_with_type = self._cols_with_type(table_shape)
-        
+
         fqn = f"default.{SCD2_TABLE_NAME}"
         ctx.spark.sql(f"DROP TABLE IF EXISTS {fqn}")
         SCD2Strategy.delete_s3_location(
@@ -730,6 +749,11 @@ class SparkTestCommons(TestCommonsBase):
         )
         pk_str = ", ".join(cols_bks_with_type)
         cols_str = ", ".join(cols_with_type)
+        optional_cols = (
+            ("dp_is_active BOOLEAN,\n                " if col_dp_active_enable else "") +
+            ("dp_is_latest BOOLEAN,\n                " if col_dp_is_latest_enable else "") +
+            ("dp_replace_ts TIMESTAMP,\n                " if col_dp_replaced_at_enable else "")
+        )
         ctx.spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {fqn} (
                 dp_record_id STRING,
@@ -737,10 +761,7 @@ class SparkTestCommons(TestCommonsBase):
                 {cols_str},
                 dp_ts_from TIMESTAMP,
                 dp_ts_to TIMESTAMP,
-                dp_is_active BOOLEAN,
-                dp_is_latest BOOLEAN,
-                dp_load_ts TIMESTAMP,
-                dp_replace_ts TIMESTAMP,
+                {optional_cols}dp_load_ts TIMESTAMP,
                 dp_record_hash STRING
             )
             USING ICEBERG
@@ -777,8 +798,13 @@ class SparkTestCommons(TestCommonsBase):
             f"Table {RAW_TABLE_NAME} created successfully (or already exists)."
         )
 
-    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat") -> None:
-        self._create_scd2_table_spark(ctx, cols_bks_with_type, table_shape)
+    def create_scd2_table_for_test(self, ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
+                                   col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                                   col_dp_replaced_at_enable: bool = True) -> None:
+        self._create_scd2_table_spark(ctx, cols_bks_with_type, table_shape,
+                                      col_dp_active_enable=col_dp_active_enable,
+                                      col_dp_is_latest_enable=col_dp_is_latest_enable,
+                                      col_dp_replaced_at_enable=col_dp_replaced_at_enable)
 
     def _execute_insert(self, ins_stmt, ctx):
         ctx.spark.sql(ins_stmt)
@@ -953,9 +979,14 @@ def create_raw_table(ctx, cols_bks_with_type: list = ["id INT"], table_shape: st
     return _impl.create_raw_table(ctx, cols_bks_with_type=cols_bks_with_type, table_shape=table_shape)
 
 
-def create_scd2_table_for_test(ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat"):
+def create_scd2_table_for_test(ctx, cols_bks_with_type: list = ["id INT"], table_shape: str = "flat",
+                               col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
+                               col_dp_replaced_at_enable: bool = True):
     return _impl.create_scd2_table_for_test(
-        ctx, cols_bks_with_type=cols_bks_with_type, table_shape=table_shape
+        ctx, cols_bks_with_type=cols_bks_with_type, table_shape=table_shape,
+        col_dp_active_enable=col_dp_active_enable,
+        col_dp_is_latest_enable=col_dp_is_latest_enable,
+        col_dp_replaced_at_enable=col_dp_replaced_at_enable,
     )
 
 def execute_select(sel_stmt: str, ctx) -> pd.DataFrame:
@@ -1018,6 +1049,9 @@ def scd2_merge_as_test(
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
     table_shape: str = "flat",
+    col_dp_active_enable: bool = True,
+    col_dp_is_latest_enable: bool = True,
+    col_dp_replaced_at_enable: bool = True,
 ):
     _impl.scd2_merge_as_test(
         ctx,
@@ -1038,6 +1072,9 @@ def scd2_merge_as_test(
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
         table_shape=table_shape,
+        col_dp_active_enable=col_dp_active_enable,
+        col_dp_is_latest_enable=col_dp_is_latest_enable,
+        col_dp_replaced_at_enable=col_dp_replaced_at_enable,
     )
 
 def scd2_merge_as_test2(
