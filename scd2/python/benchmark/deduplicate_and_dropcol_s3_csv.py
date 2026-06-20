@@ -22,6 +22,7 @@ Usage
 """
 
 import argparse
+import fnmatch
 import io
 import logging
 import os
@@ -51,14 +52,26 @@ def _s3_client(endpoint_url: str) -> boto3.client:
     )
 
 
+def _wildcard_base(prefix: str) -> str:
+    """Return the S3-safe listing prefix: everything up to the last '/' before the first '*'."""
+    wildcard_pos = prefix.index("*")
+    slash_pos = prefix.rfind("/", 0, wildcard_pos)
+    return prefix[: slash_pos + 1] if slash_pos >= 0 else ""
+
+
 def list_csv_keys(s3, bucket: str, prefix: str) -> list[str]:
-    """Return all object keys under prefix that end with .csv."""
+    """Return all object keys matching prefix (supports * wildcards) that end with .csv."""
+    s3_prefix = _wildcard_base(prefix) if "*" in prefix else prefix
     paginator = s3.get_paginator("list_objects_v2")
     keys = []
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+    for page in paginator.paginate(Bucket=bucket, Prefix=s3_prefix):
         for obj in page.get("Contents", []):
-            if obj["Key"].endswith(".csv"):
-                keys.append(obj["Key"])
+            key = obj["Key"]
+            if not key.endswith(".csv"):
+                continue
+            if "*" in prefix and not fnmatch.fnmatch(key, prefix + "*"):
+                continue
+            keys.append(key)
     return keys
 
 
@@ -132,6 +145,8 @@ def run(
     dry_run: bool = False,
 ) -> list[dict]:
     s3 = _s3_client(endpoint_url)
+    # For path mirroring, strip at the wildcard boundary so relative paths are correct
+    input_prefix = _wildcard_base(prefix) if "*" in prefix else prefix
 
     csv_keys = list_csv_keys(s3, bucket, prefix)
     if not csv_keys:
@@ -153,7 +168,7 @@ def run(
             keys=keys,
             keep=keep,
             output_prefix=output_prefix,
-            input_prefix=prefix,
+            input_prefix=input_prefix,
             drop_cols=drop_cols,
         )
         results.append(result)
@@ -178,7 +193,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--bucket", default=get_param("S3_UPLOAD_BUCKET", "upload-bucket"),
                         help="S3 bucket name")
     parser.add_argument("--prefix", required=True,
-                        help="S3 key prefix to scan, e.g. 'raw_data/customers'")
+                        help="S3 key prefix to scan, e.g. 'raw_data/customers' or 'raw_data/2024*'")
     parser.add_argument("--keys", required=True, action="append", dest="keys",
                         help="Deduplication key column (repeat for composite keys)")
     parser.add_argument("--output-prefix",
