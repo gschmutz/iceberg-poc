@@ -80,9 +80,6 @@ class TestCommonsBase:
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_active_enable: bool = True,
-                       col_dp_is_latest_enable: bool = True,
-                       col_dp_replaced_at_enable: bool = True,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         raise NotImplementedError
 
@@ -524,8 +521,6 @@ class TrinoTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
-                       col_dp_replaced_at_enable: bool = True,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return TrinoSCD2Strategy(
             ctx.conn,
@@ -540,9 +535,6 @@ class TrinoTestCommons(TestCommonsBase):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_active_enable=col_dp_active_enable,
-            col_dp_is_latest_enable=col_dp_is_latest_enable,
-            col_dp_replaced_at_enable=col_dp_replaced_at_enable,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
@@ -710,8 +702,6 @@ class SparkTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
-                       col_dp_replaced_at_enable: bool = True,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return SparkSCD2Strategy(
             ctx.spark,
@@ -725,9 +715,6 @@ class SparkTestCommons(TestCommonsBase):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_active_enable=col_dp_active_enable,
-            col_dp_is_latest_enable=col_dp_is_latest_enable,
-            col_dp_replaced_at_enable=col_dp_replaced_at_enable,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
@@ -883,8 +870,6 @@ class PySparkTestCommons(SparkTestCommons):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_active_enable: bool = True, col_dp_is_latest_enable: bool = True,
-                       col_dp_replaced_at_enable: bool = True,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
         return PySparkSCD2Strategy(
             ctx.spark,
@@ -899,9 +884,6 @@ class PySparkTestCommons(SparkTestCommons):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_active_enable=col_dp_active_enable,
-            col_dp_is_latest_enable=col_dp_is_latest_enable,
-            col_dp_replaced_at_enable=col_dp_replaced_at_enable,
             col_dp_valid_from="dp_ts_from",
             col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
