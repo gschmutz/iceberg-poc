@@ -42,6 +42,14 @@ logger = logging.getLogger(__name__)
 # S3 helpers (boto3 used only for listing keys)
 # ---------------------------------------------------------------------------
 
+def _s3_key_exists(s3, bucket: str, key: str) -> bool:
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+        return True
+    except s3.exceptions.ClientError:
+        return False
+
+
 def _s3_client(endpoint_url: str) -> boto3.client:
     return boto3.client(
         "s3",
@@ -201,6 +209,7 @@ def run(
     drop_cols: list[str] = None,
     endpoint_url: str = None,
     dry_run: bool = False,
+    if_exists: str = "overwrite",
 ) -> list[dict]:
     s3 = _s3_client(endpoint_url)
     input_prefix = _wildcard_base(prefix) if "*" in prefix else prefix
@@ -212,15 +221,18 @@ def run(
 
     logger.info(f"Found {len(csv_keys)} CSV file(s) under s3://{bucket}/{prefix}")
 
-    if dry_run:
-        for key in csv_keys:
-            logger.info(f"  [dry-run] s3://{bucket}/{key} — keys={keys}, keep={keep}, drop_cols={drop_cols}")
-        return []
-
     con = _duckdb_connection(endpoint_url)
 
     results = []
     for key in csv_keys:
+        relative_path = key[len(input_prefix):].lstrip("/")
+        output_key = f"{output_prefix.rstrip('/')}/{relative_path}"
+        if dry_run:
+            logger.info(f"  [dry-run] s3://{bucket}/{key} → s3://{bucket}/{output_key} — keys={keys}, keep={keep}, drop_cols={drop_cols}")
+            continue
+        if if_exists == "skip" and _s3_key_exists(s3, bucket, output_key):
+            logger.info(f"  Skipping s3://{bucket}/{key} — output already exists at s3://{bucket}/{output_key}")
+            continue
         logger.info(f"Processing s3://{bucket}/{key} ...")
         result = deduplicate_file(
             con=con,
@@ -268,6 +280,8 @@ def _parse_args() -> argparse.Namespace:
                         help="S3 endpoint URL (for MinIO / non-AWS)")
     parser.add_argument("--dry-run", action="store_true",
                         help="List files and key columns without writing anything")
+    parser.add_argument("--if-exists", choices=["overwrite", "skip"], default="overwrite",
+                        help="What to do when the output file already exists: overwrite (default) or skip")
     return parser.parse_args()
 
 
@@ -285,4 +299,5 @@ if __name__ == "__main__":
         drop_cols=args.drop_cols or None,
         endpoint_url=args.endpoint,
         dry_run=args.dry_run,
+        if_exists=args.if_exists,
     )

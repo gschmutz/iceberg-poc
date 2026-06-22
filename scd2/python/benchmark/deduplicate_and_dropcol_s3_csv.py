@@ -42,6 +42,14 @@ logger = logging.getLogger(__name__)
 # S3 helpers
 # ---------------------------------------------------------------------------
 
+def _s3_key_exists(s3, bucket: str, key: str) -> bool:
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+        return True
+    except s3.exceptions.ClientError:
+        return False
+
+
 def _s3_client(endpoint_url: str) -> boto3.client:
     return boto3.client(
         "s3",
@@ -143,6 +151,7 @@ def run(
     drop_cols: list[str] = None,
     endpoint_url: str = None,
     dry_run: bool = False,
+    if_exists: str = "overwrite",
 ) -> list[dict]:
     s3 = _s3_client(endpoint_url)
     # For path mirroring, strip at the wildcard boundary so relative paths are correct
@@ -157,10 +166,15 @@ def run(
 
     results = []
     for key in csv_keys:
-        logger.info(f"Processing s3://{bucket}/{key} ...")
+        relative_path = key[len(input_prefix):].lstrip("/")
+        output_key = f"{output_prefix.rstrip('/')}/{relative_path}"
         if dry_run:
-            logger.info(f"  [dry-run] would deduplicate by keys={keys}, keep={keep}, drop_cols={drop_cols}")
+            logger.info(f"  [dry-run] would deduplicate s3://{bucket}/{key} → s3://{bucket}/{output_key} (keys={keys}, keep={keep}, drop_cols={drop_cols})")
             continue
+        if if_exists == "skip" and _s3_key_exists(s3, bucket, output_key):
+            logger.info(f"  Skipping s3://{bucket}/{key} — output already exists at s3://{bucket}/{output_key}")
+            continue
+        logger.info(f"Processing s3://{bucket}/{key} ...")
         result = deduplicate_file(
             s3=s3,
             bucket=bucket,
@@ -206,6 +220,8 @@ def _parse_args() -> argparse.Namespace:
                         help="S3 endpoint URL (for MinIO / non-AWS)")
     parser.add_argument("--dry-run", action="store_true",
                         help="List files and key columns without writing anything")
+    parser.add_argument("--if-exists", choices=["overwrite", "skip"], default="overwrite",
+                        help="What to do when the output file already exists: overwrite (default) or skip")
     return parser.parse_args()
 
 
@@ -223,4 +239,5 @@ if __name__ == "__main__":
         drop_cols=args.drop_cols or None,
         endpoint_url=args.endpoint,
         dry_run=args.dry_run,
+        if_exists=args.if_exists,
     )
