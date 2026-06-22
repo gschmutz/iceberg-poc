@@ -235,7 +235,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val_str = fv(cols_val)
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
         cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
-        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
+        hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
         dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")

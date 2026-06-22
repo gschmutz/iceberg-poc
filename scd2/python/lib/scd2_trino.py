@@ -294,7 +294,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         where_curr_is_null = " AND ".join(f"curr.{col} IS NULL" for col in cols_bks)
 
         cols_with_type = self._cols_with_type(self.source_table_name)
-        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
+        hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
 
         dp_ts_filter_expr = f"WHERE {self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}'" if self.col_dp_ts_filter and self.col_dp_ts_filter is not None else ""
 
@@ -804,7 +804,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
     def fill_empty_record_hash_vals_in_scd2_table(self):
         cols_with_type = self._cols_with_type(self.source_table_name)
-        hash_expr = self._format_hash_expr(cols_bks, cols_val, cols_with_type)
+        hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
 
         # This is a safety measure to ensure that we don't have any NULL values in the record hash column, which could cause issues with the merge logic. We can set it to a constant value since we are only interested in detecting changes, and any change from or to NULL will be detected as a change.
         stmt = f"""
