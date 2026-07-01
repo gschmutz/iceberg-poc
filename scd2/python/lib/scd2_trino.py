@@ -803,7 +803,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         return cursor.fetchone()
 
     def fill_empty_record_hash_vals_in_scd2_table(self):
-        cols_with_type = self._cols_with_type(self.source_table_name)
+        cols_with_type = self._cols_with_type(self.scd2_table_name)
         hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
 
         # This is a safety measure to ensure that we don't have any NULL values in the record hash column, which could cause issues with the merge logic. We can set it to a constant value since we are only interested in detecting changes, and any change from or to NULL will be detected as a change.

@@ -719,7 +719,7 @@ class SparkSCD2Strategy(SCD2Strategy):
     # ── Public operations (SCD2Strategy interface) ─────────────────────────
 
     def fill_empty_record_hash_vals_in_scd2_table(self):
-        cols_with_type = self._cols_with_type(self.source_table_name)
+        cols_with_type = self._cols_with_type(self.scd2_table_name)
         hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
         stmt = f"""
             UPDATE {self.scd2_table_fqn()}
