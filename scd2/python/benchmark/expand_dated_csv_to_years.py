@@ -85,6 +85,7 @@ def list_dated_folders(s3, bucket: str, prefix: str) -> list[tuple[str, list[str
             for fp in paginator.paginate(Bucket=bucket, Prefix=folder_prefix):
                 for obj in fp.get("Contents", []):
                     key = obj["Key"]
+                    print(key)
                     filename = key.split("/")[-1]
                     if folder_name in filename:
                         keys.append(key)
@@ -155,8 +156,9 @@ def run(
         src_date, src_keys = next(source_cycle)
 
         for src_key in src_keys:
-            # Strip source folder prefix to get the bare filename(s)
+            # Strip source folder prefix, then replace the source date in the filename
             rel = src_key[len(src_prefix) + len(src_date) + 1:]   # skip 'prefix/YYYYmmdd/'
+            rel = rel.replace(src_date, date_str)
             dst_key = f"{out_prefix}/{date_str}/{rel}"
 
             if dry_run:
