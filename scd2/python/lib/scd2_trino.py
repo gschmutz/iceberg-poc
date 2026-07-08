@@ -705,8 +705,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
         return f"""
     CREATE OR REPLACE VIEW {self.scd2_intermediary_table_fqn()} AS
         {cte}
-    SELECT *
-    FROM prepared_source
+    SELECT ps.*
+    , scd2.{self.col_dp_valid_from}     AS merge_{self.col_dp_valid_from}
+    , scd2.{self.col_dp_valid_to}       AS merge_{self.col_dp_valid_to}
+    FROM prepared_source AS ps
+    LEFT JOIN {self.scd2_table_fqn()} AS scd2
+    ON (ps.merge_record_id = scd2.{self.col_dp_record_id})
     """
 
     def format_merge(
@@ -727,6 +731,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
     MERGE INTO {self.scd2_table_fqn()}  AS target
     USING {source_view_name}            AS source
     ON target.{self.col_dp_record_id} = source.merge_record_id
+    AND target.{self.col_dp_valid_from} = source.merge_{self.col_dp_valid_from}
+    AND target.{self.col_dp_valid_to} = source.merge_{self.col_dp_valid_to}
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
     THEN UPDATE SET
