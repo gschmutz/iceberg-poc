@@ -676,8 +676,16 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         return f"""
     MERGE INTO {self.scd2_table_fqn()}  AS target
-    USING {source_view_name}            AS source
+    USING (SELECT source.*
+            , target.{self.col_dp_valid_from}     AS merge_{self.col_dp_valid_from}
+            , target.{self.col_dp_valid_to}       AS merge_{self.col_dp_valid_to}
+            FROM {source_view_name}            AS source
+            LEFT JOIN {self.scd2_table_fqn()} AS target
+            ON target.{self.col_dp_record_id} = source.merge_record_id
+    ) AS source
     ON target.{self.col_dp_record_id} = source.merge_record_id
+    AND target.{self.col_dp_valid_from} = source.merge_{self.col_dp_valid_from}
+    AND target.{self.col_dp_valid_to} = source.merge_{self.col_dp_valid_to}
     WHEN MATCHED
         AND source.operation_type = 'UPDATE_VERSION'
     THEN UPDATE SET
