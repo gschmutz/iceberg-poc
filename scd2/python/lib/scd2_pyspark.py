@@ -854,7 +854,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
     # ── Overridden operations ─────────────────────────────────────────────────
 
-    def materialize_view(self, scd2_intermediary_table_name: str) -> str:
+    def materialize_view(self, scd2_intermediary_table_name: str, staging_df: DataFrame) -> str:
         """Override: use PySpark DataFrame write instead of SQL CREATE TABLE AS SELECT."""
         mv_table = f"{scd2_intermediary_table_name}_mv"
         mv_fqn = self._fqn(mv_table)
@@ -862,12 +862,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         self.spark.sql(f"DROP TABLE IF EXISTS {mv_fqn}")
 
         s3_path = f"warehouse/{mv_table}"
-        #self.delete_s3_location(
-        #    s3_client=self.s3_client, bucket="admin-bucket", path=s3_path
-        #)
 
         (
-            self.spark.table(scd2_intermediary_table_name)
+            staging_df
             .write.format("iceberg")
             .saveAsTable(mv_fqn)
         )
@@ -892,18 +889,18 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             dp_ts=dp_ts,
         )
 
-        staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
-        staging_df.count()  # materialize cache
-
-        staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
-        logger.info(
-            f"SCD2 staging view '{self.scd2_intermediary_table_name}' registered."
-        )
-
         if self.materialize_data_before_merge:
-            self.materialize_view(self.scd2_intermediary_table_name)
+            self.materialize_view(self.scd2_intermediary_table_name, staging_df)
             logger.info(
                 f"SCD2 staging view '{self.scd2_intermediary_table_name}' materialized to temporary table."
+            )
+        else:
+            staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
+            staging_df.count()  # materialize cache
+
+            staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
+            logger.info(
+                f"SCD2 staging view '{self.scd2_intermediary_table_name}' registered."
             )
     
         if show_input_to_merge:
@@ -954,7 +951,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         """
         if table == SCD2Table.INTERMEDIARY:
             # Temp view — registered without a database prefix
-            df = self.spark.table(self.scd2_intermediary_table_name)
+            if self.materialize_data_before_merge:
+                df = self.spark.table("default." + self.scd2_intermediary_table_name + "_mv")
+            else:
+                df = self.spark.table(self.scd2_intermediary_table_name)
         else:
             table_fqn = self._resolve_table_fqn(table, iceberg_meta_tablename=iceberg_meta_tablename)
             if for_version is not None:
