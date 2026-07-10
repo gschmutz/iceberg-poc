@@ -9,8 +9,7 @@ from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
 from .constants import MAX_TS
 
-from.util import logger
-
+from .util import logger
 
 class SparkSCD2Strategy(SCD2Strategy):
     """SCD2 strategy implementation for Apache Spark / Apache Iceberg.

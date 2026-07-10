@@ -11,7 +11,7 @@ from .scd2_spark import SparkSCD2Strategy
 from .scd2_strategy import SCD2Table
 from .util import render_table
 
-from.util import logger
+from .util import logger
 
 _MAX_TS = "TIMESTAMP '9999-12-31 23:59:59'"
 _ONE_SEC = "INTERVAL '1' SECOND"

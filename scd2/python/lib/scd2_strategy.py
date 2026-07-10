@@ -8,7 +8,7 @@ from pyspark.sql import DataFrame
 if TYPE_CHECKING:
     import pandas as pd
 
-from.util import logger
+from .util import logger
 
 
 class SCD2Table(Enum):
