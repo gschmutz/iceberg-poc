@@ -8,8 +8,7 @@ from pyspark.sql import DataFrame
 if TYPE_CHECKING:
     import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from.util import logger
 
 
 class SCD2Table(Enum):

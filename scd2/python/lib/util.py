@@ -5,9 +5,14 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 from tabulate import tabulate
 
+class CustomLogAdapter(logging.LoggerAdapter):
+    # Add ! around message, so it is easier to search in dataiku log
+    def process(self, msg: str, kwargs):
+        return f"{'!'* 10} {msg} {'!'* 10}", kwargs
+ 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = CustomLogAdapter(logging.getLogger(__name__), {})
 
 def execute_with_metrics(cursor, sql: str) -> dict:
     start = time.perf_counter()
