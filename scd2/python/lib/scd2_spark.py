@@ -9,8 +9,7 @@ from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
 from .constants import MAX_TS
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from.util import logger
 
 
 class SparkSCD2Strategy(SCD2Strategy):
@@ -266,17 +265,14 @@ class SparkSCD2Strategy(SCD2Strategy):
             )
         """
 
-        PREV_DATA_FROM_SOURCE_CTE = f"""
-            prev_src_records AS (
+        CURR_DATA_WITH_PREV_DATA_FROM_SCD2_CTE = f"""
+            src_curr_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
-                {dp_ts_filter_prev_expr}
-            )
-        """
-
-        PREV_DATA_FROM_SCD2_CTE = f"""
+                {dp_ts_filter_expr}
+            ),
             prev_src_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, NULL AS {self.col_dp_ts}, NULL AS {self.col_dp_ts_filter},
                     {self.col_dp_record_hash},
@@ -286,20 +282,36 @@ class SparkSCD2Strategy(SCD2Strategy):
             )
         """
 
-        if self.check_physical_delete_against_source_table:
-            PREV_DATA_CTE = PREV_DATA_FROM_SOURCE_CTE
-        else:
-            PREV_DATA_CTE = PREV_DATA_FROM_SCD2_CTE
-
-        SRC_DATA_FULL_CTE = f"""
-            src_curr_records AS (
+        CURR_DATA_WITH_PREV_DATA_FROM_SOURCE_CTE = f"""
+            prev_ts AS (
+                SELECT MAX({self.col_dp_ts_filter}) AS ts
+                    FROM {self.source_table_fqn()}
+                    WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}'
+            ),            
+            raw_two_batches AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         {hash_expr} AS {self.col_dp_record_hash},
-                    {dp_del_flag_expr}
+                    t.{self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}' AS is_current
                 FROM {self.source_table_fqn()} AS t
-                {dp_ts_filter_expr}
+                CROSS JOIN prev_ts
+                {dp_ts_filter_expr} 
+                OR t.{self.col_dp_ts_filter} = prev_ts.ts        -- Iceberg prunes to 2 partitions only
+            ),       
+            src_curr_records AS (
+                SELECT * FROM raw_two_batches WHERE is_current = TRUE
             ),
-            {PREV_DATA_CTE},
+            prev_src_records AS (
+                SELECT * FROM raw_two_batches WHERE is_current = FALSE
+            )
+        """        
+
+        if self.check_physical_delete_against_source_table:
+            curr_data_with_pref = CURR_DATA_WITH_PREV_DATA_FROM_SOURCE_CTE 
+        else:
+            curr_data_with_pref = CURR_DATA_WITH_PREV_DATA_FROM_SCD2_CTE
+
+        SRC_DATA_FULL_CTE = f"""
+            {curr_data_with_pref},            
             src_records AS (
                 SELECT
                     {fv(ap(cols_bks, "curr"))}, {fv(ap(cols_val, "curr"))}, curr.{self.col_dp_ts}, curr.{self.col_dp_ts_filter},
@@ -673,15 +685,19 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_val_str = fv(self.cols_val)
         source_cols_val_str = fv(prefixed_cols_val)
         current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
+        cols_bks_merge_str = "\n    ".join(
+            f", tgt.{col}  AS merge_{col}" for col in self.cols_bks
+        )
 
         return f"""
     MERGE INTO {self.scd2_table_fqn()}  AS target
-    USING (SELECT source.*
-            , target.{self.col_dp_valid_from}     AS merge_{self.col_dp_valid_from}
-            , target.{self.col_dp_valid_to}       AS merge_{self.col_dp_valid_to}
-            FROM {source_view_name}            AS source
-            LEFT JOIN {self.scd2_table_fqn()} AS target
-            ON target.{self.col_dp_record_id} = source.merge_record_id
+    USING (SELECT src.*
+            {cols_bks_merge_str}    
+            , tgt.{self.col_dp_valid_from}     AS merge_{self.col_dp_valid_from}
+            , tgt.{self.col_dp_valid_to}       AS merge_{self.col_dp_valid_to}
+            FROM {source_view_name}            AS src
+            LEFT JOIN {self.scd2_table_fqn()} AS tgt
+            ON tgt.{self.col_dp_record_id} = src.merge_record_id
     ) AS source
     ON target.{self.col_dp_record_id} = source.merge_record_id
     AND target.{self.col_dp_valid_from} = source.merge_{self.col_dp_valid_from}
