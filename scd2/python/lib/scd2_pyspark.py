@@ -11,8 +11,7 @@ from .scd2_spark import SparkSCD2Strategy
 from .scd2_strategy import SCD2Table
 from .util import render_table
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from.util import logger
 
 _MAX_TS = "TIMESTAMP '9999-12-31 23:59:59'"
 _ONE_SEC = "INTERVAL '1' SECOND"
@@ -233,9 +232,43 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
         else:
             # Physical Delete mode: detect implicit deletes by comparing current batch with previous batch
-            src_curr_df = self.source_table_df
-            if self.col_dp_ts_filter is not None:
-                src_curr_df = src_curr_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+            if self.check_physical_delete_against_source_table and self.col_dp_ts_filter is not None:
+                # Single scan: read current and previous partitions together so Iceberg prunes to 2 partitions only
+                prev_dp_ts_row = (
+                    self.source_table_df
+                    .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                    .agg(F.max(self.col_dp_ts_filter))
+                    .collect()[0][0]
+                )
+                if prev_dp_ts_row is not None:
+                    raw_two_batches = (
+                        self.source_table_df
+                        .filter(
+                            (F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                            | (F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row))
+                        )
+                        .withColumn("is_current", F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                        .cache()
+                    )
+                    raw_two_batches.count()  # materialize cache
+                    src_curr_df = raw_two_batches.filter(F.col("is_current")).drop("is_current")
+                    prev_src_df = raw_two_batches.filter(~F.col("is_current")).drop("is_current")
+                else:
+                    src_curr_df = self.source_table_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                    prev_src_df = None
+            else:
+                src_curr_df = self.source_table_df
+                if self.col_dp_ts_filter is not None:
+                    src_curr_df = src_curr_df.filter(F.col(self.col_dp_ts_filter) == F.expr(f"TIMESTAMP '{dp_ts_str}'"))
+                prev_src_df = (
+                    self.spark.table(self.scd2_table_fqn()).filter(
+                        F.expr(f"TIMESTAMP '{dp_ts_str}'").between(
+                            F.col(self.col_dp_valid_from), F.col(self.col_dp_valid_to)
+                        )
+                    )
+                    if not self.check_physical_delete_against_source_table
+                    else None
+                )
 
             curr_df = src_curr_df.select(
                 *[F.col(c) for c in self.cols_bks],
@@ -245,26 +278,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 F.lit("ACTIVE").alias("dp_del_flag"),
                 hash_expr.alias("src_dp_record_hash"),
             )
-
-            if self.check_physical_delete_against_source_table:
-                prev_src_df = None
-                if self.col_dp_ts_filter is not None:
-                    prev_dp_ts_row = (
-                        self.source_table_df
-                        .filter(F.col(self.col_dp_ts_filter) < F.expr(f"TIMESTAMP '{dp_ts_str}'"))
-                        .agg(F.max(self.col_dp_ts_filter))
-                        .collect()[0][0]
-                    )
-                    if prev_dp_ts_row is not None:
-                        prev_src_df = self.source_table_df.filter(
-                            F.col(self.col_dp_ts_filter) == F.lit(prev_dp_ts_row)
-                        )
-            else:
-                prev_src_df = self.spark.table(self.scd2_table_fqn()).filter(
-                    F.expr(f"TIMESTAMP '{dp_ts_str}'").between(
-                        F.col(self.col_dp_valid_from), F.col(self.col_dp_valid_to)
-                    )
-                )
 
             if prev_src_df is not None:
                 curr_bks_df = src_curr_df.select(*[F.col(c).alias(f"curr_{c}") for c in self.cols_bks])
