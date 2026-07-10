@@ -318,19 +318,16 @@ class TrinoSCD2Strategy(SCD2Strategy):
             )
         """
 
-        PREV_DATA_FROM_SOURCE_CTE = f"""
-            prev_src_records AS (
+        CURR_DATA_WITH_PREV_DATA_FROM_SCD2_CTE = f"""
+            src_curr_records AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         {hash_expr} AS {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.source_table_fqn()} AS t
-                {dp_ts_filter_prev_expr} 
-            )
-        """
-
-        PREV_DATA_FROM_SCD2_CTE = f"""
+                {dp_ts_filter_expr} 
+            ),              
             prev_src_records AS (
-                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, NULL AS dp_ts_from, NULL AS dp_loaded_at,
+                SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, NULL AS dp_ts_from, NULL AS {self.col_dp_ts_filter},
                     {self.col_dp_record_hash},
                     {dp_del_flag_expr}
                 FROM {self.scd2_table_fqn()} AS t
@@ -338,20 +335,36 @@ class TrinoSCD2Strategy(SCD2Strategy):
             )
         """
 
-        if self.check_physical_delete_against_source_table:
-            PREV_DATA_CTE = PREV_DATA_FROM_SOURCE_CTE
-        else:
-            PREV_DATA_CTE = PREV_DATA_FROM_SCD2_CTE
-
-        SRC_DATA_FULL_CTE = f"""
-            src_curr_records AS (
+        CURR_DATA_WITH_PREV_DATA_FROM_SOURCE_CTE = f"""
+            prev_ts AS (
+                SELECT MAX({self.col_dp_ts_filter}) AS ts
+                    FROM {self.source_table_fqn()}
+                    WHERE {self.col_dp_ts_filter} < TIMESTAMP '{dp_ts_str}'
+            ),            
+            raw_two_batches AS (
                 SELECT {fv(ap(cols_bks, "t"))}, {fv(ap(cols_val, "t"))}, t.{self.col_dp_ts}, t.{self.col_dp_ts_filter},
                         {hash_expr} AS {self.col_dp_record_hash},
-                    {dp_del_flag_expr}
+                    t.{self.col_dp_ts_filter} = TIMESTAMP '{dp_ts_str}' AS is_current
                 FROM {self.source_table_fqn()} AS t
+                CROSS JOIN prev_ts
                 {dp_ts_filter_expr} 
+                OR t.{self.col_dp_ts_filter} = prev_ts.ts        -- Iceberg prunes to 2 partitions only
             ),       
-            {PREV_DATA_CTE},
+            src_curr_records AS (
+                SELECT * FROM raw_two_batches WHERE is_current = TRUE
+            ),
+            prev_src_records AS (
+                SELECT * FROM raw_two_batches WHERE is_current = FALSE
+            )
+        """
+
+        if self.check_physical_delete_against_source_table:
+            curr_data_with_pref = CURR_DATA_WITH_PREV_DATA_FROM_SOURCE_CTE 
+        else:
+            curr_data_with_pref = CURR_DATA_WITH_PREV_DATA_FROM_SCD2_CTE
+
+        SRC_DATA_FULL_CTE = f"""    
+            {curr_data_with_pref},           
             src_records AS (
                 SELECT
                     {fv(ap(cols_bks, "curr"))}, {fv(ap(cols_val, "curr"))}, curr.{self.col_dp_ts}, curr.{self.col_dp_ts_filter},
