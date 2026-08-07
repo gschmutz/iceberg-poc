@@ -47,6 +47,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
         materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
@@ -70,6 +72,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
+            use_prev_version_lookup=use_prev_version_lookup,
+            use_next_version_lookup=use_next_version_lookup,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
@@ -362,12 +366,31 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.col("src_dp_ts_from") < F.col("next_dp_ts_from")
         )
 
-        # ── changed_records (3-way LEFT JOIN) ─────────────────────────────────
-        changed_df = (
-            src_df.join(overlap_df, overlap_cond, "left")
-            .join(prev_df, prev_cond, "left")
-            .join(next_df, next_cond, "left")
-        )
+        # ── changed_records (3-way LEFT JOIN, prev/next optional) ─────────────
+        def null_side_cols(prefix):
+            """Columns a skipped prev/next join would otherwise have contributed,
+            all NULL — keeps every downstream reference resolvable."""
+            return [
+                *[F.lit(None).cast(scd2_df.schema[c].dataType).alias(f"{prefix}_{c}") for c in self.cols_bks],
+                F.lit(None).cast("string").alias(f"{prefix}_dp_record_id"),
+                F.lit(None).cast("string").alias(f"{prefix}_dp_record_hash"),
+                F.lit(None).cast("timestamp").alias(f"{prefix}_dp_ts_from"),
+                F.lit(None).cast("timestamp").alias(f"{prefix}_dp_ts_to"),
+                F.lit(None).cast("boolean").alias(f"{prefix}_dp_is_active"),
+                F.lit(None).cast("boolean").alias(f"{prefix}_dp_is_latest"),
+            ]
+
+        changed_df = src_df.join(overlap_df, overlap_cond, "left")
+
+        if self.use_prev_version_lookup:
+            changed_df = changed_df.join(prev_df, prev_cond, "left")
+        else:
+            changed_df = changed_df.select("*", *null_side_cols("prev"))
+
+        if self.use_next_version_lookup:
+            changed_df = changed_df.join(next_df, next_cond, "left")
+        else:
+            changed_df = changed_df.select("*", *null_side_cols("next"))
 
         # ── comparison flags ──────────────────────────────────────────────────
         def same_as_src(hash_col):

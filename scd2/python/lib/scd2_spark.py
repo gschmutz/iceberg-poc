@@ -41,6 +41,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
@@ -81,6 +83,16 @@ class SparkSCD2Strategy(SCD2Strategy):
                 entities are detected by comparing the current batch with the previous
                 batch in the *source* table.  When ``False`` the currently-active rows
                 in the *SCD2 table* are used as the reference for deletes instead.
+            use_prev_version_lookup: When ``True`` (default) the staging query joins the
+                SCD2 table to find the *previous* version of each source record (the one
+                ending right before it, or the latest one before it).  Set to ``False`` to
+                drop that join — all ``prev_*`` columns are then ``NULL``, which disables
+                the cases that close/extend a preceding version.  Only safe when records
+                always arrive in chronological order.
+            use_next_version_lookup: When ``True`` (default) the staging query joins the
+                SCD2 table to find the *next* (later, still active) version of each source
+                record.  Set to ``False`` to drop that join — all ``next_*`` columns are
+                then ``NULL``, which disables the back-dated/gap-filling cases.
             perform_merge_op: Set to ``False`` to skip the ``MERGE INTO`` statement
                 (useful for inspecting the staging data without modifying the target).
             col_dp_valid_from: Column name for the validity-start timestamp in the SCD2
@@ -125,6 +137,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         self.database = database
         self.source_table_name = source_table_name
         self.scd2_table_name = scd2_table_name
+        self.use_prev_version_lookup = use_prev_version_lookup
+        self.use_next_version_lookup = use_next_version_lookup
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -331,6 +345,76 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         src_data_cte = SRC_DATA_DELTA_CTE if self.use_logical_delete_for_source_table else SRC_DATA_FULL_CTE
 
+        # ── previous-version lookup (optional) ──────────────────────────────
+        if self.use_prev_version_lookup:
+            prev_select = f"""
+            prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
+            prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
+            prev.{self.col_dp_record_id}                                                                                                             AS prev_{self.col_dp_record_id},
+            prev.dp_is_active                                                                                                       AS prev_dp_is_active,
+            prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
+            CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
+            prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,"""
+            prev_join = f"""
+        LEFT JOIN (
+            SELECT
+                {self.col_dp_record_id},
+                {cols_bks_str},
+                {self.col_dp_record_hash},
+                dp_ts_from,
+                dp_ts_to,
+                dp_is_active,
+                dp_is_latest
+            FROM {self.scd2_table_fqn()}
+        ) prev
+        ON ({join_src_prev})
+        AND (prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND
+            OR (prev.dp_ts_to < src.dp_ts_from AND prev.dp_is_latest = TRUE))"""
+        else:
+            prev_select = f"""
+            CAST(NULL AS TIMESTAMP)                                                                                                 AS prev_dp_ts_from,
+            CAST(NULL AS TIMESTAMP)                                                                                                 AS prev_dp_ts_to,
+            CAST(NULL AS STRING)                                                                                                    AS prev_{self.col_dp_record_id},
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_dp_is_active,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_dp_is_latest,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_is_same_as_src,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_with_gap,"""
+            prev_join = ""
+
+        # ── next-version lookup (optional) ──────────────────────────────────
+        if self.use_next_version_lookup:
+            next_select = f"""
+            next.dp_ts_from                                                                                                         AS next_dp_ts_from,
+            next.dp_ts_to                                                                                                           AS next_dp_ts_to,
+            next.{self.col_dp_record_id}                                                                                                             AS next_{self.col_dp_record_id},
+            next.dp_is_active                                                                                                       AS next_dp_is_active,
+            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
+            CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src"""
+            next_join = f"""
+        LEFT JOIN (
+            SELECT
+                {self.col_dp_record_id},
+                {cols_bks_str},
+                {self.col_dp_record_hash},
+                dp_ts_from,
+                dp_ts_to,
+                dp_is_active,
+                dp_is_latest
+            FROM {self.scd2_table_fqn()}
+            WHERE dp_is_active = TRUE
+        ) next
+        ON ({join_src_next})
+        AND src.dp_ts_from < next.dp_ts_from"""
+        else:
+            next_select = f"""
+            CAST(NULL AS TIMESTAMP)                                                                                                 AS next_dp_ts_from,
+            CAST(NULL AS TIMESTAMP)                                                                                                 AS next_dp_ts_to,
+            CAST(NULL AS STRING)                                                                                                    AS next_{self.col_dp_record_id},
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_dp_is_active,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_dp_is_latest,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_is_same_as_src"""
+            next_join = ""
+
         return f"""
     WITH changed_records AS (
         WITH 
@@ -345,20 +429,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
             overlap.{self.col_dp_record_id}                                                                                                          AS overlap_{self.col_dp_record_id},
             CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
-            prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
-            prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
-            prev.{self.col_dp_record_id}                                                                                                             AS prev_{self.col_dp_record_id},
-            prev.dp_is_active                                                                                                       AS prev_dp_is_active,
-            prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
-            CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
-            prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,      
-            next.dp_ts_from                                                                                                         AS next_dp_ts_from,
-            next.dp_ts_to                                                                                                           AS next_dp_ts_to,
-            next.{self.col_dp_record_id}                                                                                                             AS next_{self.col_dp_record_id},
-            next.dp_is_active                                                                                                       AS next_dp_is_active,
-            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
-            CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src
+            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,{prev_select}{next_select}
         FROM src_records AS src
         LEFT JOIN (
             SELECT
@@ -372,35 +443,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             FROM {self.scd2_table_fqn()}
         ) overlap
         ON {join_src_overlap}
-        AND src.dp_ts_from BETWEEN overlap.dp_ts_from AND overlap.dp_ts_to
-        LEFT JOIN (
-            SELECT
-                {self.col_dp_record_id},
-                {cols_bks_str},
-                {self.col_dp_record_hash},
-                dp_ts_from,
-                dp_ts_to,
-                dp_is_active,
-                dp_is_latest
-            FROM {self.scd2_table_fqn()}
-        ) prev
-        ON ({join_src_prev})
-        AND (prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND
-            OR (prev.dp_ts_to < src.dp_ts_from AND prev.dp_is_latest = TRUE))
-        LEFT JOIN (
-            SELECT
-                {self.col_dp_record_id},
-                {cols_bks_str},
-                {self.col_dp_record_hash},
-                dp_ts_from,
-                dp_ts_to,
-                dp_is_active,
-                dp_is_latest
-            FROM {self.scd2_table_fqn()}
-            WHERE dp_is_active = TRUE
-        ) next
-        ON ({join_src_next})
-        AND src.dp_ts_from < next.dp_ts_from
+        AND src.dp_ts_from BETWEEN overlap.dp_ts_from AND overlap.dp_ts_to{prev_join}{next_join}
     ),
     records_to_process AS (
         SELECT *,

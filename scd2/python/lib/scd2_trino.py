@@ -46,6 +46,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
@@ -87,6 +89,16 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 entities are detected by comparing the current batch with the previous
                 batch in the *source* table.  When ``False`` the currently-active rows
                 in the *SCD2 table* are used as the reference for deletes instead.
+            use_prev_version_lookup: When ``True`` (default) the staging query joins the
+                SCD2 table laterally to find the *previous* version of each source record
+                (the one ending right before it, or the latest one before it).  Set to
+                ``False`` to drop that join — all ``prev_*`` columns are then ``NULL``,
+                which disables the cases that close/extend a preceding version.  Only safe
+                when records always arrive in chronological order.
+            use_next_version_lookup: When ``True`` (default) the staging query joins the
+                SCD2 table laterally to find the *next* (later, still active) version of
+                each source record.  Set to ``False`` to drop that join — all ``next_*``
+                columns are then ``NULL``, which disables the back-dated/gap-filling cases.
             perform_merge_op: Set to ``False`` to skip the ``MERGE INTO`` statement
                 (useful for inspecting the staging data without modifying the target).
             perform_record_hash_update: When ``True``, all NULL values in col_dp_record_hash columns will be updated before the SCD2 merge operation is performed.  Defaults to ``False``.
@@ -132,7 +144,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.catalog = catalog
         self.schema = schema
         self.source_table_name = source_table_name
-        self.scd2_table_name = scd2_table_name        
+        self.scd2_table_name = scd2_table_name
+        self.use_prev_version_lookup = use_prev_version_lookup
+        self.use_next_version_lookup = use_next_version_lookup
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -385,48 +399,17 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
         src_data_cte = SRC_DATA_DELTA_CTE if self.use_logical_delete_for_source_table else SRC_DATA_FULL_CTE
 
-        return f"""
-    WITH changed_records AS (
-        WITH 
-            {src_data_cte}
-        SELECT
-            {prefixed_cols_bks_str},
-            {prefixed_cols_val_str},
-            src.{self.col_dp_ts}      AS src_dp_ts_from,
-            src.{self.col_dp_record_hash}     AS src_{self.col_dp_record_hash},
-            src.dp_del_flag,
-            overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
-            overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
-            overlap.{self.col_dp_record_id}                                                                                                          AS overlap_{self.col_dp_record_id},
-            CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
+        # ── previous-version lookup (optional) ──────────────────────────────
+        if self.use_prev_version_lookup:
+            prev_select = f"""
             prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
             prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
-            prev.{self.col_dp_record_id}                                                                                                             AS prev_{self.col_dp_record_id},
+            prev.{self.col_dp_record_id}                                                                                            AS prev_{self.col_dp_record_id},
             prev.dp_is_active                                                                                                       AS prev_dp_is_active,
             prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
             CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
-            prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,      
-            next.dp_ts_from                                                                                                         AS next_dp_ts_from,
-            next.dp_ts_to                                                                                                           AS next_dp_ts_to,
-            next.{self.col_dp_record_id}                                                                                                             AS next_{self.col_dp_record_id},
-            next.dp_is_active                                                                                                       AS next_dp_is_active,
-            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
-            CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src
-        FROM src_records AS src
-        LEFT JOIN LATERAL (
-            SELECT
-                {cols_bks_str},
-                {self.col_dp_record_hash},
-                {self.col_dp_record_id},
-                dp_ts_to,
-                dp_ts_from,
-                dp_is_active,
-                dp_is_latest
-            FROM {self.scd2_table_fqn()}
-            WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
-        ) overlap
-        ON {join_src_overlap}
+            prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,"""
+            prev_join = f"""
         LEFT JOIN LATERAL (
             SELECT
                 {self.col_dp_record_id},
@@ -440,7 +423,28 @@ class TrinoSCD2Strategy(SCD2Strategy):
             WHERE dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND       -- previous version if it ends exactly when the new version starts
             OR (dp_ts_to < src.dp_ts_from AND dp_is_latest = TRUE)      -- we are interested in previous version even if it is not ending exactly at the new version, if it is the latest version (so we can update it)
         ) prev
-        ON ({join_src_prev})
+        ON ({join_src_prev})"""
+        else:
+            prev_select = f"""
+            CAST(NULL AS TIMESTAMP(6))                                                                                              AS prev_dp_ts_from,
+            CAST(NULL AS TIMESTAMP(6))                                                                                              AS prev_dp_ts_to,
+            CAST(NULL AS VARCHAR)                                                                                                   AS prev_{self.col_dp_record_id},
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_dp_is_active,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_dp_is_latest,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_is_same_as_src,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS prev_with_gap,"""
+            prev_join = ""
+
+        # ── next-version lookup (optional) ──────────────────────────────────
+        if self.use_next_version_lookup:
+            next_select = f"""
+            next.dp_ts_from                                                                                                         AS next_dp_ts_from,
+            next.dp_ts_to                                                                                                           AS next_dp_ts_to,
+            next.{self.col_dp_record_id}                                                                                            AS next_{self.col_dp_record_id},
+            next.dp_is_active                                                                                                       AS next_dp_is_active,
+            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
+            CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src"""
+            next_join = f"""
         LEFT JOIN LATERAL (
             SELECT
                 {self.col_dp_record_id},
@@ -454,7 +458,46 @@ class TrinoSCD2Strategy(SCD2Strategy):
             WHERE src.dp_ts_from < next.dp_ts_from
             AND next.dp_is_active = TRUE
         ) next
-        ON ({join_src_next})
+        ON ({join_src_next})"""
+        else:
+            next_select = f"""
+            CAST(NULL AS TIMESTAMP(6))                                                                                              AS next_dp_ts_from,
+            CAST(NULL AS TIMESTAMP(6))                                                                                              AS next_dp_ts_to,
+            CAST(NULL AS VARCHAR)                                                                                                   AS next_{self.col_dp_record_id},
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_dp_is_active,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_dp_is_latest,
+            CAST(NULL AS BOOLEAN)                                                                                                   AS next_is_same_as_src"""
+            next_join = ""
+
+        return f"""
+    WITH changed_records AS (
+        WITH 
+            {src_data_cte}
+        SELECT
+            {prefixed_cols_bks_str},
+            {prefixed_cols_val_str},
+            src.{self.col_dp_ts}      AS src_dp_ts_from,
+            src.{self.col_dp_record_hash}     AS src_{self.col_dp_record_hash},
+            src.dp_del_flag,
+            overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
+            overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
+            overlap.{self.col_dp_record_id}                                                                                         AS overlap_{self.col_dp_record_id},
+            CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
+            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,{prev_select}{next_select}
+        FROM src_records AS src
+        LEFT JOIN LATERAL (
+            SELECT
+                {cols_bks_str},
+                {self.col_dp_record_hash},
+                {self.col_dp_record_id},
+                dp_ts_to,
+                dp_ts_from,
+                dp_is_active,
+                dp_is_latest
+            FROM {self.scd2_table_fqn()}
+            WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
+        ) overlap
+        ON {join_src_overlap}{prev_join}{next_join}
     ),
     records_to_process AS (
         SELECT *,
