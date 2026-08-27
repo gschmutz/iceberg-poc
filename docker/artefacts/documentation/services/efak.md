@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:8048> and login as `admin` with password `123456`.
+Navigate to <http://10.156.72.252:8048> and login as `admin` with password `123456`.

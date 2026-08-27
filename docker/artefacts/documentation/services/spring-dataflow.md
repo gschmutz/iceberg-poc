@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:9393>
+Navigate to <http://10.156.72.252:9393>

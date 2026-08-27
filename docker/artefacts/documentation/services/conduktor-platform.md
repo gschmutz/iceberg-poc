@@ -11,6 +11,6 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28285>.
+Navigate to <http://10.156.72.252:28285>.
 
 Login with the credentials configured in `config.yml` (defaults to `admin`/`abc123!`).

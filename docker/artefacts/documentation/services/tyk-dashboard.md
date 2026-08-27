@@ -23,4 +23,4 @@ TYK_DB_LICENSEKEY=
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28281>
+Navigate to <http://10.156.72.252:28281>

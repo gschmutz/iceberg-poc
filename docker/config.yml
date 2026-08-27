@@ -501,7 +501,7 @@
       #
       # ===== Apache Spark ========
       #
-      SPARK_enable: true
+      SPARK_enable: false
       # either 3.3 or 3.4 or 3.5
       SPARK_base_version: 3.5
       # "hive" or "in-memory"
@@ -1971,7 +1971,7 @@
       #
       # ===== DuckDB ========
       #
-      DUCKDB_enable: true
+      DUCKDB_enable: false
       DUCKDB_ui_enabled: true
       DUCKDB_db_folder:
       DUCKDB_init_script:      

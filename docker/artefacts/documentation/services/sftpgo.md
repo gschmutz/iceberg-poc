@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28382> for the SFTPgo UI.
+Navigate to <http://10.156.72.252:28382> for the SFTPgo UI.

@@ -7,10 +7,10 @@ Kapacitor is an open source data processing framework that makes it easy to crea
 ## How to enable?
 
 ```
-platys init --enable-services INFLUXDB, INFLUXDB_KAPACITOR
+platys init --enable-services INFLUXDB, KAPACITOR
 platys gen
 ```
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28130/kapacitor/v1>
+Navigate to <http://10.156.72.252:28130/kapacitor/v1>

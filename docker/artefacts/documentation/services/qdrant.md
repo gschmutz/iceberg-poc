@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:6333/dashboard>.
+Navigate to <http://10.156.72.252:6333/dashboard>.

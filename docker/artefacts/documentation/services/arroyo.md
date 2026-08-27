@@ -13,7 +13,7 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:5115>.
+Navigate to <http://10.156.72.252:5115>.
 
 ### Using the CLI
 

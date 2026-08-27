@@ -2,7 +2,7 @@
 
 Apache NiFi supports powerful and scalable directed graphs of data routing, transformation, and system mediation logic.
 
-**[Website](https://nifi.apache.org/)** | **[Documentation](https://nifi.apache.org/docs.html)** | **[GitHub](https://github.com/apache/nifi)**
+**[Website](https://nifi.apache.org/)** | **[Documentation](https://nifi.apache.org/documentation/v1/)** | **[GitHub](https://github.com/apache/nifi)**
 
 ## How to enable?
 
@@ -13,7 +13,7 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:18080/nifi>
+Navigate to <http://10.156.72.252:18080/nifi>
 
 Login with User `nifi` and password `1234567890ACD`.
 

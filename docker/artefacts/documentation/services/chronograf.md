@@ -7,10 +7,10 @@ Chronograf is InfluxData’s open source web application. Use Chronograf with th
 ## How to enable?
 
 ```
-platys init --enable-services INFLUXDB, INFLUXDB_CHRONOGRAF
+platys init --enable-services INFLUXDB, CHRONOGRAF
 platys gen
 ```
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28129>
+Navigate to <http://10.156.72.252:28129>

@@ -7,10 +7,10 @@ This is a Web UI for minio s3 server. Web UI works on top of REST API - adminio-
 ## How to enable?
 
 ```
-platys init --enable-services ADMINIO_UI
+platys init --enable-services ADMINIO
 platys gen
 ```
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28190>
+Navigate to <http://10.156.72.252:28190>

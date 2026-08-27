@@ -13,6 +13,6 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28888>. The token for the login has either be specified in the `config.yml` (`JUPYTER_token`) or if not set, the generated token can be retrieved from the log (`docker logs -f jupyter`). 
+Navigate to <http://10.156.72.252:28888>. The token for the login has either be specified in the `config.yml` (`JUPYTER_token`) or if not set, the generated token can be retrieved from the log (`docker logs -f jupyter`). 
 
-If you enable the `all-spark` edition and run spark, then the Spark UI will be available at <http://10.156.72.221:28376> or any other port until `28380`.
+If you enable the `all-spark` edition and run spark, then the Spark UI will be available at <http://10.156.72.252:28376> or any other port until `28380`.

@@ -18,7 +18,7 @@ By default, the `ollama2` llm is automatically downloaded. You can change it by 
 Generate a completion
 
 ```bash
-curl http://10.156.72.221:11434/api/generate -d '{
+curl http://10.156.72.252:11434/api/generate -d '{
   "model": "llama2",
   "prompt":"Why is the sky blue?"
 }'
@@ -27,7 +27,7 @@ curl http://10.156.72.221:11434/api/generate -d '{
 Generate embeddings from a model
 
 ```
-curl http://10.156.72.221:11434/api/embeddings -d '{
+curl http://10.156.72.252:11434/api/embeddings -d '{
   "model": "llama2",
   "prompt": "Here is an article about llamas..."
 }'

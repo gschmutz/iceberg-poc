@@ -13,7 +13,7 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28370>.
+Navigate to <http://10.156.72.252:28370>.
 
 To get the initial password, execute the following
 

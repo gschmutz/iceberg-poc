@@ -13,6 +13,6 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:3333/register> to register an initial user.
+Navigate to <http://10.156.72.252:3333/register> to register an initial user.
 
-After that you can use Takscafé by navigating to  <http://10.156.72.221:3333>.
+After that you can use Takscafé by navigating to  <http://10.156.72.252:3333>.

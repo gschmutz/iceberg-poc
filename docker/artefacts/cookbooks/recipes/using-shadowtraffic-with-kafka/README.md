@@ -112,5 +112,5 @@ Start the platform
 docker-compose up -d
 ```
 
-Navigate to <http://10.156.72.221:28107> to see the traffic on Kafka.
+Navigate to <http://10.156.72.252:28107> to see the traffic on Kafka.
 

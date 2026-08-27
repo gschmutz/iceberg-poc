@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Configure  to <http://10.156.72.221:28327>.
+Configure  to <http://10.156.72.252:28327>.

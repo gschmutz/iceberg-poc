@@ -56,4 +56,4 @@ Now start the platform
 docker-compose up -d
 ```
 
-and once it is running navigate to the NiFi UI: <https://10.156.72.221:18080/nifi>.
+and once it is running navigate to the NiFi UI: <https://10.156.72.252:18080/nifi>.

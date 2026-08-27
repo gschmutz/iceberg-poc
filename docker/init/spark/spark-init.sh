@@ -78,16 +78,17 @@ function configure() {
     done
 }
 
-# comment out hadoop configuration with update to bitnami spark 
-#configure /etc/hadoop/core-site.xml core CORE_CONF
-#configure /etc/hadoop/hdfs-site.xml hdfs HDFS_CONF
-#configure /etc/hadoop/yarn-site.xml yarn YARN_CONF
-#configure /etc/hadoop/httpfs-site.xml httpfs HTTPFS_CONF
-#configure /etc/hadoop/kms-site.xml kms KMS_CONF
+mkdir -p /opt/spark/conf
 
-configure_hive /opt/bitnami/spark/conf/hive-site.xml hive HIVE_SITE_CONF
+# Copy conf templates from conf.default into conf 
+# Files mounted directly into conf/ are left in place; this only fills in what's missing.
+if [ -d /opt/spark/conf.default ]; then
+  cp -n /opt/spark/conf.default/* /opt/spark/conf/ 2>/dev/null || true
+fi
 
-configure_spark /opt/bitnami/spark/conf/spark-defaults.conf spark SPARK_DEFAULTS_CONF
+configure_hive /opt/spark/conf/hive-site.xml hive HIVE_SITE_CONF
+
+configure_spark /opt/spark/conf/spark-defaults.conf spark SPARK_DEFAULTS_CONF
 
 if [ "$MULTIHOMED_NETWORK" = "1" ]; then
     echo "Configuring for multihomed network"
@@ -165,10 +166,16 @@ do
     wait_for_it ${i}
 done
 
-if [ ${SPARK_INSTALL_JARS_PACKAGES} ]
+if [ ${SPARK_INSTALL_JAVA_PACKAGES} ]
 then
-  # using python for the download, as spark bitnami docker images don't come with curl installed
-  /maven-download.sh central ${SPARK_INSTALL_JARS_PACKAGES} /opt/bitnami/spark/jars python
-fi  
+  # using python for the download, as spark docker images don't come with curl installed (with apache/spark this is no longer true, but we use python as it supports Nexus)
+  /maven-download.sh ${MAVEN_DOWNLOAD_REPO} ${SPARK_INSTALL_JAVA_PACKAGES} /opt/spark/jars python
+fi
+
+if [ "${SPARK_INSTALL_PYTHON_PACKAGES}" ]
+then
+  echo "Installing Python packages: ${SPARK_INSTALL_PYTHON_PACKAGES}"
+  pip install ${SPARK_INSTALL_PYTHON_PACKAGES}
+fi
 
 exec $@

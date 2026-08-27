@@ -14,7 +14,7 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:28340>. 
+Navigate to <http://10.156.72.252:28340>. 
 
 By default the `HelloWorld` Streamlit application is used which is available in `./scripts/streamlit/apps/hello-world/hello-world.py`. Just create your application by adding a new folder to the `./scripts/streamlit/apps` and place the python code there. 
 

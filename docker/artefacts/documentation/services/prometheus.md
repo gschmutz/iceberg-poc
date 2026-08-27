@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.221:9090/graph>
+Navigate to <http://10.156.72.252:9090/graph>
