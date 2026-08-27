@@ -13,7 +13,7 @@ platys gen
 
 ### How to use it?
 
-Navigate to <http://10.156.72.252:28460>
+Navigate to <http://dataplatform:28460>
 
 On first start, complete the setup wizard to configure your instance. The following services are started together:
 

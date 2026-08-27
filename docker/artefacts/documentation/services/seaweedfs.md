@@ -14,7 +14,7 @@ platys gen
 
 ## How to use it?
 
-The S3 API is exposed on <http://10.156.72.252:8333>.
+The S3 API is exposed on <http://dataplatform:8333>.
 
 To use the Iceberg REST API with S3 table support, set `SEAWEEDFS_s3_table_bucket`
 to the name of the S3 table bucket.

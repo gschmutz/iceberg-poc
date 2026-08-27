@@ -13,7 +13,7 @@ platys gen
 
 ## How to use it?
 
-For the Open Data Discovery Platform UI, navigate to <http://10.156.72.252:28482>.
+For the Open Data Discovery Platform UI, navigate to <http://dataplatform:28482>.
 
 If authentication is enabled, by default the user `admin` with password `abc123!` can be used.
 

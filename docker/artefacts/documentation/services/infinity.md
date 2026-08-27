@@ -13,4 +13,4 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.252:23820> for the Infinity UI.
+Navigate to <http://dataplatform:23820> for the Infinity UI.

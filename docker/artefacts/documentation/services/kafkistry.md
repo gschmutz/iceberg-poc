@@ -17,6 +17,6 @@ platys gen
 
 ## How to use?
 
-Navigate to <http://10.156.72.252:28303> to show the Kafkistry UI.
+Navigate to <http://dataplatform:28303> to show the Kafkistry UI.
 
 Login as the **Admin User**: User `admin` and Password `abc123!`.

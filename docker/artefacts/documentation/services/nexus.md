@@ -12,7 +12,7 @@ NEXUS_enable: true
 
 ## How to use it?
 
-Nexus is available at <http://10.156.72.252:28426>.
+Nexus is available at <http://dataplatform:28426>.
 
 The default admin credentials are:
 

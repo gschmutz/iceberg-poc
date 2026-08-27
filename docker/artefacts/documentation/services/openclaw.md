@@ -15,7 +15,7 @@ platys gen
 
 
 
-Navitage to <http://10.156.72.252:28484?token=<token> and login with username and password specified in the configuration.
+Navitage to <http://dataplatform:28484?token=<token> and login with username and password specified in the configuration.
 
 Pass the token using `?token=<token>`.
 

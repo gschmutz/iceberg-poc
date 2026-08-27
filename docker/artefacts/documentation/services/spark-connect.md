@@ -27,7 +27,7 @@ Connect from Python using the Spark Connect URL:
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder \
-    .remote("sc://10.156.72.252:15002") \
+    .remote("sc://dataplatform:15002") \
     .getOrCreate()
 
 df = spark.range(10)
@@ -36,4 +36,4 @@ df.show()
 
 ### Spark Connect UI
 
-Navigate to <http://10.156.72.252:24040> to view the Spark application UI for the Connect server.
+Navigate to <http://dataplatform:24040> to view the Spark application UI for the Connect server.

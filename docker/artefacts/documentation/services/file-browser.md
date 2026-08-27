@@ -13,7 +13,7 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.252:28178> and login with the default user `admin` and password `abc123!`. 
+Navigate to <http://dataplatform:28178> and login with the default user `admin` and password `abc123!`. 
 
 ### Changing password
 

@@ -9,7 +9,7 @@ networks:
 services:
   #  ================================== Apache Spark ========================================== #
   spark-master:
-    image: apache/spark:3.5.3
+    image: nexus-docker.juliusbaer.com/docker-proxy/apache/spark:3.5.3
     container_name: spark-master
     hostname: spark-master
     labels:
@@ -89,7 +89,7 @@ services:
       retries: 20
       start_period: 20s
   spark-worker-1:
-    image: apache/spark:3.5.3
+    image: nexus-docker.juliusbaer.com/docker-proxy/apache/spark:3.5.3
     container_name: spark-worker-1
     hostname: spark-worker-1
     user: root
@@ -165,7 +165,7 @@ services:
       start_period: 120s
   #  ================================== Apache Hive Metastore ========================================== #
   hive-metastore:
-    image: trivadis/apache-hive:4.2.0-postgresql-standalone-metastore-s3
+    image: nexus-docker.juliusbaer.com/docker-proxy/trivadis/apache-hive:4.2.0-postgresql-standalone-metastore-s3
     container_name: hive-metastore
     hostname: hive-metastore
     labels:
@@ -217,7 +217,7 @@ services:
       timeout: 10s
       retries: 10
   hive-metastore-db:
-    image: postgres
+    image: nexus-docker.juliusbaer.com/docker-proxy/postgres
     container_name: hive-metastore-db
     hostname: hive-metastore-db
     labels:
@@ -235,40 +235,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: [CMD, psql, -U, hive, metastore_db]
-  #  ================================== PostgreSQL ========================================== #
-  postgresql:
-    image: postgres:18
-    container_name: postgresql
-    hostname: postgresql
-    labels:
-      com.platys.name: postgresql
-      com.platys.description: Open-Source object-relational database system
-      com.platys.password.envvars: PLATYS_POSTGRESQL_PASSWORD,PLATYS_POSTGRESQL_MULTIPLE_PASSWORD
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_PASSWORD=${PLATYS_POSTGRESQL_PASSWORD:-abc123!}
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=postgres
-#      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --data-checksums      
-      - POSTGRES_MULTIPLE_DATABASES=demodb
-      - POSTGRES_MULTIPLE_USERS=demo
-      - POSTGRES_MULTIPLE_PASSWORDS=${PLATYS_POSTGRESQL_MULTIPLE_PASSWORD:-abc123!}
-      - POSTGRES_MULTIPLE_ADDL_ROLES=
-      - PGDATA=/var/lib/postgresql/data/pgdata
-      - DB_SCHEMA=demo
-    volumes:
-      - ./data-transfer:/data-transfer
-      - ./init/postgresql:/docker-entrypoint-initdb.d/
-    restart: unless-stopped
-    healthcheck:
-      test: [CMD-SHELL, pg_isready -U postgres]
-      interval: 10s
-      timeout: 5s
-      retries: 5
   #  ================================== Trino ========================================== #
   trino-1:
-    image: trinodb/trino:481
+    image: nexus-docker.juliusbaer.com/docker-proxy/trinodb/trino:481
     hostname: trino-1
     container_name: trino-1
     labels:
@@ -306,9 +275,6 @@ services:
       HIVE_METASTORE_DB_NAME: metastore_db
       HIVE_METASTORE_DB_USER: hive
       HIVE_METASTORE_DB_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
-      POSTGRESQL_DATABASE: postgres
-      POSTGRESQL_USER: postgres
-      POSTGRESQL_PASSWORD: abc123!
       EVENT_LISTENER_CONFIG_FILES: ''
     volumes:
       - ./data-transfer:/data-transfer
@@ -320,7 +286,6 @@ services:
       - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties
       - ./conf/trino/catalog/iceberg-hive-rest.properties:/catalog/iceberg_hive_rest.properties
       - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties
-      - ./conf/trino/catalog/postgresql.properties:/catalog/postgresql.properties
       - ./custom-conf/trino/security:/etc/trino/security
     restart: unless-stopped
     healthcheck:
@@ -329,7 +294,7 @@ services:
       timeout: 5s
       retries: 5
   trino-cli:
-    image: trivadis/trino-cli:latest
+    image: nexus-docker.juliusbaer.com/docker-proxy/trivadis/trino-cli:latest
     hostname: trino-cli
     container_name: trino-cli
     labels:
@@ -341,7 +306,7 @@ services:
     restart: unless-stopped
   #  ================================== Minio ========================================== #
   minio-1:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: nexus-docker.juliusbaer.com/docker-proxy/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio-1
     hostname: minio-1
     labels:
@@ -382,7 +347,7 @@ services:
       retries: 3
   #  ================================== Minio MC ========================================== #
   minio-mc:
-    image: minio/mc:latest
+    image: nexus-docker.juliusbaer.com/docker-proxy/minio/mc:latest
     container_name: minio-mc
     hostname: minio-mc
     labels:
@@ -411,7 +376,7 @@ services:
     restart: unless-stopped
   #  ================================== markdown-viewer ========================================== #
   markdown-viewer:
-    image: dannyben/madness:1.2.5
+    image: nexus-docker.juliusbaer.com/docker-proxy/dannyben/madness:1.2.5
     container_name: markdown-viewer
     hostname: markdown-viewer
     labels:
@@ -434,7 +399,7 @@ services:
       retries: 3
       start_period: 1m
   markdown-renderer:
-    image: trivadis/jinja2-renderer:0.8.1
+    image: nexus-docker.juliusbaer.com/docker-proxy/trivadis/jinja2-renderer:0.8.1
     container_name: markdown-renderer
     hostname: markdown-renderer
     labels:

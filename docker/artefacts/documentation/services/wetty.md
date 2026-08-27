@@ -13,5 +13,5 @@ platys gen
 
 ## How to use?
 
-Navigate to <http://10.156.72.252:3001>
+Navigate to <http://dataplatform:3001>
 

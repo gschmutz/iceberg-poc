@@ -37,6 +37,8 @@
 
       # enable jmx monitoring with prometheus
       jmx_monitoring_with_prometheus_enable: false
+      use_nexus_for_docker_images: false
+
       copy_cookbook_data_folder: true
       # ========================================================================
       # Platys Services
@@ -2149,7 +2151,7 @@
       #
       # ===== PostgreSQL ========
       #
-      POSTGRESQL_enable: true
+      POSTGRESQL_enable: false
       # either one of: postgis, pgvector, pgvecto-rs, age, postgis_we, pgduckdb or empty if official image should be used
       POSTGRESQL_extension: ''
       POSTGRESQL_alternative_docker_image: ''
@@ -3228,4 +3230,5 @@
           BRAVE_api_key:
           SEARXNG_enable: false
           SEARXNG_url:
-      
+          NEXUS_enable: false
+          NEXUS_endpoint: localhost:28426   

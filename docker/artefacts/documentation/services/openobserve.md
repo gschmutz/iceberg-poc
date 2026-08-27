@@ -13,6 +13,6 @@ platys gen
 
 ### How to use it?
 
-Navigate to <http://10.156.72.252:5080>
+Navigate to <http://dataplatform:5080>
 
 Login with the email configured in `OPENOBSERVE_root_user_email` (default: `root@example.com`) and the password configured in `OPENOBSERVE_root_user_password` (default: `abc123!`).

@@ -1,1 +1,0 @@
-Add init script to run when starting the duckdb service.
