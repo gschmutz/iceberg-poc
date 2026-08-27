@@ -1,10 +1,18 @@
-# Running SCD2 Unit Tests
+# Running SCD2 Integration Tests
 
-This sub-project contains the logic to repair the Hive Metastore. It works for both Hive Metastore 3.x and 4.x. 
+## Prepare the environment
 
-In the 3.x version an `MSCK REPAIR` is called on the Hive Metastore services whereas in the 4.x version the Trino `sync_partition_metadata()` function is used.
+```bash
+cp docker
 
-## Run the comparision
+docker compose up -d
+```
+
+```
+coder port-forward guido-68 --tcp 8080:80
+```
+
+## Run the Integration Tests
 
 Set environment variables for local environment
 
@@ -35,9 +43,11 @@ export DOWNLOAD_INITIAL_DATASET_FROM_S3=false
 export DOWNLOAD_TEST_CASES_FROM_S3=false
 ```
 
-Setup Python virual env
+Setup Python virtual env
 
 ```bash
+cd python
+
 python3 -m venv venv
 source venv/bin/activate
 pip install -r dev_requirements.txt
@@ -47,4 +57,14 @@ Specify the test engine to use, either `TRINO`, `SPARK` or `PYSPARK`
 
 ```bash
 export TEST_ENGINE=TRINO
+```
+
+Run all the tests
+
+````
+cd test
+pytest *.py
+```
+
+```
 ```
