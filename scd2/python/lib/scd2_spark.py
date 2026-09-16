@@ -53,6 +53,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
+        iceberg_catalog: str = "spark_catalog",
     ):
         """
         Args:
@@ -111,6 +112,9 @@ class SparkSCD2Strategy(SCD2Strategy):
             col_dp_ts_filter: Column name used to filter the source table to a single
                 batch/snapshot (e.g. ``"dp_ts"``).  Set to ``None`` to disable
                 filtering and process the entire source table.  Defaults to ``"dp_ts"``.
+            iceberg_catalog: Iceberg catalog name used when calling Spark system
+                procedures (e.g. ``CALL <catalog>.system.rewrite_data_files(…)``).
+                Defaults to ``"spark_catalog"``.
         """
         super().__init__(
             scd2_intermediary_table_name=(
@@ -139,6 +143,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         self.scd2_table_name = scd2_table_name
         self.use_prev_version_lookup = use_prev_version_lookup
         self.use_next_version_lookup = use_next_version_lookup
+        self.iceberg_catalog = iceberg_catalog
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -879,6 +884,21 @@ class SparkSCD2Strategy(SCD2Strategy):
         )
         return self.spark.table(self.scd2_table_fqn())
 
+    def optimize_table(self, file_size_threshold: str = None) -> None:
+        fqn = self._resolve_table_fqn(SCD2Table.SCD2)
+        if file_size_threshold:
+            # rewrite_data_files expects bytes; convert human-readable size (e.g. '256MB', '128mb')
+            _multipliers = {"kb": 1024, "mb": 1024**2, "gb": 1024**3}
+            s = file_size_threshold.strip()
+            suffix = s[-2:].lower()
+            bytes_val = int(float(s[:-2]) * _multipliers[suffix]) if suffix in _multipliers else int(s)
+            options_clause = f", options => map('target-file-size-bytes', '{bytes_val}')"
+        else:
+            options_clause = ""
+        stmt = f"CALL {self.iceberg_catalog}.system.rewrite_data_files(table => '{fqn}'{options_clause})"
+        logger.info(f"Optimizing table {fqn}: {stmt}")
+        self.spark.sql(stmt)
+        logger.info(f"Table {fqn} optimized successfully.")
 
     def get_table_data(
         self,

@@ -929,6 +929,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> DataFrame:
         raise NotImplementedError("This method is not implemented for Trino as we are not in a spark environment.")
 
+    def optimize_table(self, file_size_threshold: Optional[str] = None) -> None:
+        fqn = self._resolve_table_fqn(SCD2Table.SCD2)
+        options = f"(file_size_threshold => '{file_size_threshold}')" if file_size_threshold else ""
+        stmt = f"ALTER TABLE {fqn} EXECUTE optimize{options}"
+        logger.info(f"Optimizing table {fqn}: {stmt}")
+        cursor = self.conn.cursor()
+        cursor.execute(stmt)
+        logger.info(f"Table {fqn} optimized successfully.")
 
     def get_table_data(
         self,

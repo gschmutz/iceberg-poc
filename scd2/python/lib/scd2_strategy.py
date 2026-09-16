@@ -485,6 +485,24 @@ class SCD2Strategy(ABC):
         """
 
     @abstractmethod
+    def optimize_table(
+        self,
+        file_size_threshold: Optional[str] = None,
+    ) -> None:
+        """Run a compaction / file-optimization pass on an Iceberg table.
+
+        Rewrites small data files into fewer, larger ones to improve read
+        performance.  The exact mechanism differs per engine:
+
+        * **Trino** – ``ALTER TABLE … EXECUTE optimize(file_size_threshold => '…')``
+        * **Spark** – ``CALL <catalog>.system.rewrite_data_files(table => '…', options => map('target-file-size-bytes', '…'))``
+
+        Args:
+            file_size_threshold: Target file size for compaction (e.g. ``'256MB'``).
+                When ``None`` the engine default is used.
+        """
+
+    @abstractmethod
     def get_table_data(
         self,
         table: SCD2Table,
