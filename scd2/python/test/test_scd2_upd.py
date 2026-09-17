@@ -232,4 +232,5 @@ def test_step_2(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
+        perform_merge_op=True,        
     )
