@@ -827,13 +827,15 @@ class SparkSCD2Strategy(SCD2Strategy):
 
         self.spark.sql(view_stmt)
 
-        # Read the catalog view content into a DataFrame and cache it.
-        # This breaks the self-referential plan that arises when MERGE's source
-        # view reads from the same table MERGE is writing to, which causes hangs.
+        # Read the catalog view, then localCheckpoint to break plan lineage.
+        # cache()+count() materialises data but does NOT cut the logical plan
+        # back to the SCD2 target table. Spark MERGE sees that self-referential
+        # scan and raises INVALID_NON_DETERMINISTIC_EXPRESSIONS. localCheckpoint()
+        # writes results to the BlockManager and returns a new DataFrame whose
+        # plan has no reference to the original Iceberg table, which lets MERGE
+        # treat the source as a plain, independent relation.
         staging_df = self.spark.table(self.scd2_intermediary_table_fqn())
-        staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
-        staging_df.count()  # materialize cache
-        
+        staging_df = staging_df.localCheckpoint()  # eager=True by default; materialises and breaks lineage
         staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
         logger.info(
             f"SCD2 view {self.scd2_intermediary_table_name} created successfully."
@@ -877,6 +879,7 @@ class SparkSCD2Strategy(SCD2Strategy):
 
     def optimize_table(self, file_size_threshold: str = None) -> None:
         fqn = self._resolve_table_fqn(SCD2Table.SCD2)
+        strategy = 'binpack'
         if file_size_threshold:
             # rewrite_data_files expects bytes; convert human-readable size (e.g. '256MB', '128mb')
             _multipliers = {"kb": 1024, "mb": 1024**2, "gb": 1024**3}
@@ -886,10 +889,12 @@ class SparkSCD2Strategy(SCD2Strategy):
             options_clause = f", options => map('target-file-size-bytes', '{bytes_val}')"
         else:
             options_clause = ""
-        stmt = f"CALL {self.iceberg_catalog}.system.rewrite_data_files(table => '{fqn}'{options_clause})"
+        stmt = f"CALL {self.iceberg_catalog}.system.rewrite_data_files(table => '{fqn}', strategy => '{strategy}'{options_clause})"
         logger.info(f"Optimizing table {fqn}: {stmt}")
-        self.spark.sql(stmt)
+        result = self.spark.sql(stmt)
+
         logger.info(f"Table {fqn} optimized successfully.")
+        result.show(truncate=False)
 
     def get_table_data(
         self,
