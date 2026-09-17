@@ -835,6 +835,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         # plan has no reference to the original Iceberg table, which lets MERGE
         # treat the source as a plain, independent relation.
         staging_df = self.spark.table(self.scd2_intermediary_table_fqn())
+        staging_df.cache()
         staging_df = staging_df.localCheckpoint()  # eager=True by default; materialises and breaks lineage
         staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
         logger.info(
