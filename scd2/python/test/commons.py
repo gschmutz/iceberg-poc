@@ -80,7 +80,9 @@ class TestCommonsBase:
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
+                       use_prev_version_lookup: bool = True,
+                       use_next_version_lookup: bool = True):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -191,6 +193,8 @@ class TestCommonsBase:
         output_file_name: str = None,
         test_description: str = None,
         cols_bks: list = ["id"],
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
     ):
         render_data(test_description, output_file_name=output_file_name)
 
@@ -202,7 +206,9 @@ class TestCommonsBase:
                                 logical_delete_expression=logical_delete_expression,
                                 check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                                 perform_merge_op=perform_merge_op,
-                                perform_record_hash_update=perform_record_hash_update).merge_into_scd2_table(
+                                perform_record_hash_update=perform_record_hash_update,
+                                use_prev_version_lookup=use_prev_version_lookup,
+                                use_next_version_lookup=use_next_version_lookup).merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
                 show_input_to_merge=True,
@@ -261,6 +267,8 @@ class TestCommonsBase:
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
         table_shape: str = "flat",
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -284,7 +292,9 @@ class TestCommonsBase:
                             logical_delete_expression=logical_delete_expression,
                             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                             perform_merge_op=perform_merge_op,
-                            perform_record_hash_update=perform_record_hash_update).merge_into_scd2_table(
+                            perform_record_hash_update=perform_record_hash_update,
+                            use_prev_version_lookup=use_prev_version_lookup,
+                            use_next_version_lookup=use_next_version_lookup).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
@@ -339,6 +349,8 @@ class TestCommonsBase:
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
         table_shape: str = "flat",
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
     ):
         render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
@@ -360,7 +372,9 @@ class TestCommonsBase:
                                        logical_delete_expression=logical_delete_expression,
                                        check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                                        perform_merge_op=perform_merge_op,
-                                       perform_record_hash_update=perform_record_hash_update)
+                                       perform_record_hash_update=perform_record_hash_update,
+                                       use_prev_version_lookup=use_prev_version_lookup,
+                                       use_next_version_lookup=use_next_version_lookup)
         for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
@@ -513,7 +527,8 @@ class TrinoTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -533,6 +548,8 @@ class TrinoTestCommons(TestCommonsBase):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
+            use_prev_version_lookup=use_prev_version_lookup,
+            use_next_version_lookup=use_next_version_lookup,
         )
     
     def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
@@ -684,7 +701,8 @@ class SparkTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -703,6 +721,9 @@ class SparkTestCommons(TestCommonsBase):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
+            iceberg_catalog="hiverest",
+            use_prev_version_lookup=use_prev_version_lookup,
+            use_next_version_lookup=use_next_version_lookup,
         )
 
     def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
@@ -843,7 +864,8 @@ class PySparkTestCommons(SparkTestCommons):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at"):
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -854,6 +876,7 @@ class PySparkTestCommons(SparkTestCommons):
             cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
+            materialize_data_before_merge=True,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
@@ -863,6 +886,9 @@ class PySparkTestCommons(SparkTestCommons):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
+            iceberg_catalog="hiverest",
+            use_prev_version_lookup=use_prev_version_lookup,
+            use_next_version_lookup=use_next_version_lookup,
         )
     
     def get_strategy_name(self):
@@ -962,6 +988,8 @@ def scd2_merge_as_preparation(
     output_file_name: str = None,
     test_description: str = None,
     cols_bks: list = ["id"],
+    use_prev_version_lookup: bool = True,
+    use_next_version_lookup: bool = True,
 ):
     _impl.scd2_merge_as_preparation(
         ctx,
@@ -978,6 +1006,8 @@ def scd2_merge_as_preparation(
         output_file_name=output_file_name,
         test_description=test_description,
         cols_bks=cols_bks,
+        use_prev_version_lookup=use_prev_version_lookup,
+        use_next_version_lookup=use_next_version_lookup,
     )
 
 
@@ -1000,6 +1030,8 @@ def scd2_merge_as_test(
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
     table_shape: str = "flat",
+    use_prev_version_lookup: bool = True,
+    use_next_version_lookup: bool = True,
 ):
     _impl.scd2_merge_as_test(
         ctx,
@@ -1020,6 +1052,8 @@ def scd2_merge_as_test(
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
         table_shape=table_shape,
+        use_prev_version_lookup=use_prev_version_lookup,
+        use_next_version_lookup=use_next_version_lookup,
     )
 
 def scd2_merge_as_test2(
@@ -1039,6 +1073,8 @@ def scd2_merge_as_test2(
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
+    use_prev_version_lookup: bool = True,
+    use_next_version_lookup: bool = True,
 ):
     _impl.scd2_merge_as_test2(
         ctx,
@@ -1057,6 +1093,8 @@ def scd2_merge_as_test2(
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
+        use_prev_version_lookup=use_prev_version_lookup,
+        use_next_version_lookup=use_next_version_lookup,
     )
 
 def scd2_merge_as_test_return_as_df(
