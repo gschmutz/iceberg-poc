@@ -456,7 +456,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_is_latest
             FROM {self.scd2_table_fqn()} AS next
             WHERE src.dp_ts_from < next.dp_ts_from
-            AND next.dp_is_active = TRUE
+            AND (next.dp_is_active = TRUE AND next.dp_ts_to = TIMESTAMP '{MAX_TS}')
         ) next
         ON ({join_src_next})"""
         else:

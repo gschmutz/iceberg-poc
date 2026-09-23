@@ -335,7 +335,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.col("dp_is_latest").alias("prev_dp_is_latest"),
         )
 
-        next_df = scd2_df.filter(F.col("dp_is_active") == True).select(
+        next_df = scd2_df.filter(
+            (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(_MAX_TS))
+        ).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
             F.col(self.col_dp_record_id).alias("next_dp_record_id"),
             F.col(self.col_dp_record_hash).alias("next_dp_record_hash"),

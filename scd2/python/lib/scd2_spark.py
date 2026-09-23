@@ -406,7 +406,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                 dp_is_active,
                 dp_is_latest
             FROM {self.scd2_table_fqn()}
-            WHERE dp_is_active = TRUE
+            WHERE dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '{MAX_TS}'
         ) next
         ON ({join_src_next})
         AND src.dp_ts_from < next.dp_ts_from"""
