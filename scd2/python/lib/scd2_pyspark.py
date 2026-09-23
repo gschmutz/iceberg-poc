@@ -936,7 +936,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
         else:
             staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
-            staging_df.count()  # materialize cache
+            #staging_df.count()  # materialize cache
+            staging_df = staging_df.localCheckpoint()  # eager=True by default; materialises and breaks lineage
 
             staging_df.createOrReplaceTempView(self.scd2_intermediary_table_name)
             logger.info(
