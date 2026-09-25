@@ -941,8 +941,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         (
             staging_df
-            .write.format("iceberg")
-            .saveAsTable(mv_fqn)
+                .repartitionByRange("merge_record_id")
+                .write.format("iceberg")
+                .saveAsTable(mv_fqn)
         )
 
         logger.info(f"Materialized {mv_fqn} via PySpark write.")
@@ -979,7 +980,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
     
         if show_input_to_merge:
-            #staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
+            staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
+
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
