@@ -876,7 +876,7 @@ class PySparkTestCommons(SparkTestCommons):
             cols_val=[col.split()[0] for col in self._cols_with_type(table_shape)],
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
-            materialize_data_before_merge=True,
+            materialize_data_before_merge=False,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
