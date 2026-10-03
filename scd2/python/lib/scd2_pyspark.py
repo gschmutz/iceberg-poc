@@ -13,8 +13,6 @@ from .util import render_table
 
 from .util import logger
 
-_MAX_TS = "TIMESTAMP '9999-12-31 23:59:59'"
-_ONE_SEC = "INTERVAL '1' SECOND"
 
 
 class PySparkSCD2Strategy(SparkSCD2Strategy):
@@ -60,7 +58,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
-        iceberg_catalog: str = "spark_catalog"
+        iceberg_catalog: str = "spark_catalog",
+        ts_granularity: str = "second",
     ):
         super().__init__(
             spark=spark,
@@ -86,7 +85,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-            iceberg_catalog = iceberg_catalog,
+            iceberg_catalog=iceberg_catalog,
+            ts_granularity=ts_granularity,
         )
 
         self.source_table_df = source_table_df        
@@ -189,7 +189,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             dp_ts, dp_del_flag, operation_type, case_name,
             dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest
         """
-        dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
+        dp_ts_str = dp_ts.strftime(self.ts_fmt)
 
         cols_with_type = {field.name: field.dataType for field in self.source_table_df.schema.fields}
 
@@ -344,7 +344,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         next_df = scd2_df.filter(
-            (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(_MAX_TS))
+            (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
         ).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
             F.col(self.col_dp_record_id).alias("next_dp_record_id"),
@@ -367,7 +367,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         )
 
         prev_cond = null_safe_pk_cond("prev") & (
-            (F.col("prev_dp_ts_to") == (F.col("src_dp_ts_from") - F.expr(_ONE_SEC)))
+            (F.col("prev_dp_ts_to") == (F.col("src_dp_ts_from") - F.expr(self.interval_expr)))
             | (
                 (F.col("prev_dp_ts_to") < F.col("src_dp_ts_from"))
                 & (F.col("prev_dp_is_latest") == True)
@@ -420,7 +420,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             .withColumn("next_is_same_as_src", same_as_src("next_dp_record_hash"))
             .withColumn(
                 "prev_with_gap",
-                F.col("prev_dp_ts_to") < (F.col("src_dp_ts_from") - F.expr(_ONE_SEC)),
+                F.col("prev_dp_ts_to") < (F.col("src_dp_ts_from") - F.expr(self.interval_expr)),
             )
         )
 
@@ -439,7 +439,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     "CASE_1",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=_MAX_TS,
+                    ins_dp_ts_to=self.max_ts_expr,
                 ),
             )
             .when(
@@ -462,7 +462,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=_MAX_TS,
+                    upd_dp_ts_to=self.max_ts_expr,
                     upd_dp_is_active="True",
                     upd_dp_is_latest="True",
                 ),
@@ -482,12 +482,12 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="False",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=_MAX_TS,
+                    ins_dp_ts_to=self.max_ts_expr,
                 ),
             )
             .when(
@@ -510,7 +510,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="False",
                     is_ins=True,
@@ -532,7 +532,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="False",
                     is_upd_2=True,
@@ -613,7 +613,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     "CASE_19",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=f"next_dp_ts_from - {_ONE_SEC}",
+                    ins_dp_ts_to=f"next_dp_ts_from - {self.interval_expr}",
                     ins_dp_is_active="False",
                     ins_dp_is_latest="False",
                 ),
@@ -631,7 +631,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="prev_dp_record_id",
                     upd_to="prev_dp_ts_to",
                     upd_dp_ts_from="prev_dp_ts_from",
-                    upd_dp_ts_to=_MAX_TS,
+                    upd_dp_ts_to=self.max_ts_expr,
                     upd_dp_is_active="True",
                     upd_dp_is_latest="True",
                 ),
@@ -654,7 +654,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_dp_is_latest="False",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=_MAX_TS,
+                    ins_dp_ts_to=self.max_ts_expr,
                     ins_dp_is_active="True",
                     ins_dp_is_latest="True",
                 ),
@@ -677,7 +677,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_dp_is_latest="False",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=_MAX_TS,
+                    ins_dp_ts_to=self.max_ts_expr,
                     ins_dp_is_active="True",
                     ins_dp_is_latest="True",
                 ),
@@ -700,7 +700,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_dp_is_latest="False",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=_MAX_TS,
+                    ins_dp_ts_to=self.max_ts_expr,
                     ins_dp_is_active="True",
                     ins_dp_is_latest="True",
                 ),
@@ -732,7 +732,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="prev_dp_record_id",
                     upd_to="prev_dp_ts_to",
                     upd_dp_ts_from="prev_dp_ts_from",
-                    upd_dp_ts_to=f"next_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"next_dp_ts_from - {self.interval_expr}",
                 ),
             )
             .when(
@@ -765,7 +765,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     "CASE_27",
                     is_ins=True,
                     ins_dp_ts_from="src_dp_ts_from",
-                    ins_dp_ts_to=f"next_dp_ts_from - {_ONE_SEC}",
+                    ins_dp_ts_to=f"next_dp_ts_from - {self.interval_expr}",
                     ins_dp_is_active="False",
                     ins_dp_is_latest="False",
                 ),
@@ -782,7 +782,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="True",
                 ),
@@ -799,7 +799,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="True",
                 ),
@@ -816,7 +816,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_key="overlap_dp_record_id",
                     upd_to="overlap_dp_ts_to",
                     upd_dp_ts_from="overlap_dp_ts_from",
-                    upd_dp_ts_to=f"src_dp_ts_from - {_ONE_SEC}",
+                    upd_dp_ts_to=f"src_dp_ts_from - {self.interval_expr}",
                     upd_dp_is_active="False",
                     upd_dp_is_latest="True",
                 ),

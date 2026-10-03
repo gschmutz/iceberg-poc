@@ -82,7 +82,8 @@ class TestCommonsBase:
                        perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
                        use_prev_version_lookup: bool = True,
-                       use_next_version_lookup: bool = True):
+                       use_next_version_lookup: bool = True,
+                       ts_granularity: str = "second"):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -195,6 +196,7 @@ class TestCommonsBase:
         cols_bks: list = ["id"],
         use_prev_version_lookup: bool = True,
         use_next_version_lookup: bool = True,
+        ts_granularity: str = "second",
     ):
         render_data(test_description, output_file_name=output_file_name)
 
@@ -208,7 +210,8 @@ class TestCommonsBase:
                                 perform_merge_op=perform_merge_op,
                                 perform_record_hash_update=perform_record_hash_update,
                                 use_prev_version_lookup=use_prev_version_lookup,
-                                use_next_version_lookup=use_next_version_lookup).merge_into_scd2_table(
+                                use_next_version_lookup=use_next_version_lookup,
+                                ts_granularity=ts_granularity).merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
                 show_input_to_merge=True,
@@ -269,6 +272,7 @@ class TestCommonsBase:
         table_shape: str = "flat",
         use_prev_version_lookup: bool = True,
         use_next_version_lookup: bool = True,
+        ts_granularity: str = "second",
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -294,7 +298,8 @@ class TestCommonsBase:
                             perform_merge_op=perform_merge_op,
                             perform_record_hash_update=perform_record_hash_update,
                             use_prev_version_lookup=use_prev_version_lookup,
-                            use_next_version_lookup=use_next_version_lookup).merge_into_scd2_table(
+                            use_next_version_lookup=use_next_version_lookup,
+                            ts_granularity=ts_granularity).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
@@ -351,6 +356,7 @@ class TestCommonsBase:
         table_shape: str = "flat",
         use_prev_version_lookup: bool = True,
         use_next_version_lookup: bool = True,
+        ts_granularity: str = "second",
     ):
         render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
@@ -374,7 +380,8 @@ class TestCommonsBase:
                                        perform_merge_op=perform_merge_op,
                                        perform_record_hash_update=perform_record_hash_update,
                                        use_prev_version_lookup=use_prev_version_lookup,
-                                       use_next_version_lookup=use_next_version_lookup)
+                                       use_next_version_lookup=use_next_version_lookup,
+                                       ts_granularity=ts_granularity)
         for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
@@ -528,7 +535,8 @@ class TrinoTestCommons(TestCommonsBase):
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
+                       ts_granularity: str = "second"):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -550,8 +558,9 @@ class TrinoTestCommons(TestCommonsBase):
             col_dp_ts_filter=col_dp_ts_filter,
             use_prev_version_lookup=use_prev_version_lookup,
             use_next_version_lookup=use_next_version_lookup,
+            ts_granularity=ts_granularity,
         )
-    
+
     def _create_scd2_table_trino(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
         cols_with_type = self._cols_with_type(table_shape)
         
@@ -702,7 +711,8 @@ class SparkTestCommons(TestCommonsBase):
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
+                       ts_granularity: str = "second"):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -724,6 +734,7 @@ class SparkTestCommons(TestCommonsBase):
             iceberg_catalog="hiverest",
             use_prev_version_lookup=use_prev_version_lookup,
             use_next_version_lookup=use_next_version_lookup,
+            ts_granularity=ts_granularity,
         )
 
     def _create_scd2_table_spark(self, ctx, cols_bks_with_type: list, table_shape: str = "flat") -> None:
@@ -865,7 +876,8 @@ class PySparkTestCommons(SparkTestCommons):
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True):
+                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
+                       ts_granularity: str = "second"):
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -889,6 +901,7 @@ class PySparkTestCommons(SparkTestCommons):
             iceberg_catalog="hiverest",
             use_prev_version_lookup=use_prev_version_lookup,
             use_next_version_lookup=use_next_version_lookup,
+            ts_granularity=ts_granularity,
         )
     
     def get_strategy_name(self):
@@ -990,6 +1003,7 @@ def scd2_merge_as_preparation(
     cols_bks: list = ["id"],
     use_prev_version_lookup: bool = True,
     use_next_version_lookup: bool = True,
+    ts_granularity: str = "second",
 ):
     _impl.scd2_merge_as_preparation(
         ctx,
@@ -1008,6 +1022,7 @@ def scd2_merge_as_preparation(
         cols_bks=cols_bks,
         use_prev_version_lookup=use_prev_version_lookup,
         use_next_version_lookup=use_next_version_lookup,
+        ts_granularity=ts_granularity,
     )
 
 
@@ -1032,6 +1047,7 @@ def scd2_merge_as_test(
     table_shape: str = "flat",
     use_prev_version_lookup: bool = True,
     use_next_version_lookup: bool = True,
+    ts_granularity: str = "second",
 ):
     _impl.scd2_merge_as_test(
         ctx,
@@ -1054,6 +1070,7 @@ def scd2_merge_as_test(
         table_shape=table_shape,
         use_prev_version_lookup=use_prev_version_lookup,
         use_next_version_lookup=use_next_version_lookup,
+        ts_granularity=ts_granularity,
     )
 
 def scd2_merge_as_test2(
@@ -1075,6 +1092,7 @@ def scd2_merge_as_test2(
     cols_bks: list = ["id"],
     use_prev_version_lookup: bool = True,
     use_next_version_lookup: bool = True,
+    ts_granularity: str = "second",
 ):
     _impl.scd2_merge_as_test2(
         ctx,
@@ -1095,6 +1113,7 @@ def scd2_merge_as_test2(
         cols_bks=cols_bks,
         use_prev_version_lookup=use_prev_version_lookup,
         use_next_version_lookup=use_next_version_lookup,
+        ts_granularity=ts_granularity,
     )
 
 def scd2_merge_as_test_return_as_df(

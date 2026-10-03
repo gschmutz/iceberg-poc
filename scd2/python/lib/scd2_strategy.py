@@ -112,6 +112,7 @@ class SCD2Strategy(ABC):
         col_dp_record_id : str = "dp_record_id",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
+        ts_granularity: str = "second",
     ):
         """Initialise the strategy with table names, column definitions, and behavior flags.
 
@@ -157,7 +158,33 @@ class SCD2Strategy(ABC):
                 identifies the load batch (e.g. ``"dp_loaded_at"``).  Each call
                 to :meth:`merge_into_scd2_table` filters the raw table on
                 ``col_dp_ts_filter = dp_ts``.  Defaults to ``"dp_ts"``.
+            ts_granularity: Smallest time unit used to close adjacent SCD2 versions.
+                Controls the ``INTERVAL '1' <unit>`` subtracted from a version-start
+                timestamp to compute the preceding version-end timestamp.
+                Accepted values: ``"second"`` (default), ``"millisecond"``,
+                ``"millisecond"``.
         """
+        _valid_granularities = {"second", "millisecond"}
+        if ts_granularity not in _valid_granularities:
+            raise ValueError(
+                f"ts_granularity must be one of {_valid_granularities}, got {ts_granularity!r}"
+            )
+        _interval_map = {
+            "second":      "INTERVAL '1' SECOND",
+            "millisecond": "INTERVAL '0.001' SECOND",
+        }
+        _ts_fmt_map = {
+            "second":      "%Y-%m-%d %H:%M:%S",
+            "millisecond": "%Y-%m-%d %H:%M:%S.%f",
+        }
+        _max_ts_str_map = {
+            "second":      "9999-12-31 23:59:59",
+            "millisecond": "9999-12-31 23:59:59.000",
+        }
+        self.interval_expr = _interval_map[ts_granularity]
+        self.ts_fmt = _ts_fmt_map[ts_granularity]
+        self.max_ts_str = _max_ts_str_map[ts_granularity]
+        self.max_ts_expr = f"TIMESTAMP '{self.max_ts_str}'"
         self.scd2_intermediary_table_name = scd2_intermediary_table_name
         self.cols_bks = cols_bks
         self.cols_val = cols_val

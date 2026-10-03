@@ -7,7 +7,6 @@ from pyspark.sql.types import DoubleType, FloatType,TimestampNTZType, TimestampT
 from pyspark.sql import DataFrame
 from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
-from .constants import MAX_TS
 
 from .util import logger
 
@@ -54,6 +53,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
         iceberg_catalog: str = "spark_catalog",
+        ts_granularity: str = "second",
     ):
         """
         Args:
@@ -136,6 +136,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
+            ts_granularity=ts_granularity,
         )
         self.spark = spark
         self.database = database
@@ -257,7 +258,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         prefixed_cols_val_str = fv(ap(cols_val, "src"))
         cast_cols_bks_str = fv(cv(cols_bks, cols_with_type=cols_with_type))
         hash_expr = self._format_hash_expr(self.cols_bks, self.cols_val, cols_with_type)
-        dp_ts_str = dp_ts.strftime("%Y-%m-%d %H:%M:%S")
+        dp_ts_str = dp_ts.strftime(self.ts_fmt)
 
         join_curr_prev = self._format_join_condition(cols_bks, "curr", "prev")
         join_src_overlap = self._format_join_condition(cols_bks, "src", "overlap")
@@ -363,7 +364,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             prev.dp_is_active                                                                                                       AS prev_dp_is_active,
             prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
             CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
-            prev.dp_ts_to < src.dp_ts_from - INTERVAL '1' SECOND                                                                    AS prev_with_gap,"""
+            prev.dp_ts_to < src.dp_ts_from - {self.interval_expr}                                                                    AS prev_with_gap,"""
             prev_join = f"""
         LEFT JOIN (
             SELECT
@@ -377,7 +378,7 @@ class SparkSCD2Strategy(SCD2Strategy):
             FROM {self.scd2_table_fqn()}
         ) prev
         ON ({join_src_prev})
-        AND (prev.dp_ts_to = src.dp_ts_from - INTERVAL '1' SECOND
+        AND (prev.dp_ts_to = src.dp_ts_from - {self.interval_expr}
             OR (prev.dp_ts_to < src.dp_ts_from AND prev.dp_is_latest = TRUE))"""
         else:
             prev_select = f"""
@@ -410,7 +411,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                 dp_is_active,
                 dp_is_latest
             FROM {self.scd2_table_fqn()}
-            WHERE dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '{MAX_TS}'
+            WHERE dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '{self.max_ts_str}'
         ) next
         ON ({join_src_next})
         AND src.dp_ts_from < next.dp_ts_from"""
@@ -462,7 +463,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_1', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'')}
+                    THEN {self._format_case_object('CASE_1', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=self.max_ts_expr)}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
@@ -474,13 +475,13 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = FALSE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_10', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', upd_dp_is_active='True', upd_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_10', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=self.max_ts_expr, upd_dp_is_active='True', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src IS NULL
                     AND (overlap_dp_is_active = TRUE OR overlap_dp_is_active = FALSE)
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_11', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'')}
+                    THEN {self._format_case_object('CASE_11', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=self.max_ts_expr)}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src = FALSE
@@ -492,13 +493,13 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active = FALSE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_13', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active='False', ins_dp_is_latest='False')}
+                    THEN {self._format_case_object('CASE_13', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active='False', ins_dp_is_latest='False')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src = TRUE
                     AND overlap_dp_is_active = FALSE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_14', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='False', is_upd_2=True, upd_key_2='next_dp_record_id', upd_to_2='next_dp_ts_to', upd_dp_ts_from_2='src_dp_ts_from', upd_dp_ts_to_2='next_dp_ts_to')}
+                    THEN {self._format_case_object('CASE_14', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='False', is_upd_2=True, upd_key_2='next_dp_record_id', upd_to_2='next_dp_ts_to', upd_dp_ts_from_2='src_dp_ts_from', upd_dp_ts_to_2='next_dp_ts_to')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src = FALSE
@@ -528,35 +529,35 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_19', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active='False', ins_dp_is_latest='False')}                    
+                    THEN {self._format_case_object('CASE_19', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=f'next_dp_ts_from - {self.interval_expr}', ins_dp_is_active='False', ins_dp_is_latest='False')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = FALSE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_20', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', upd_dp_is_active='True', upd_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_20', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to=self.max_ts_expr, upd_dp_is_active='True', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = FALSE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_21', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_21', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=self.max_ts_expr, ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = TRUE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_22', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_22', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=self.max_ts_expr, ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active IS NULL
                     AND prev_with_gap = TRUE
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_23', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='TIMESTAMP \'9999-12-31 23:59:59\'', ins_dp_is_active='True', ins_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_23', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='prev_dp_ts_to', upd_dp_is_active='False', upd_dp_is_latest='False', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=self.max_ts_expr, ins_dp_is_active='True', ins_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src = TRUE
@@ -568,7 +569,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_25', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND')}           
+                    THEN {self._format_case_object('CASE_25', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to=f'next_dp_ts_from - {self.interval_expr}')}           
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src = TRUE
@@ -580,25 +581,25 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to='next_dp_ts_from - INTERVAL \'1\' SECOND', ins_dp_is_active='False', ins_dp_is_latest='False')}           
+                    THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=f'next_dp_ts_from - {self.interval_expr}', ins_dp_is_active='False', ins_dp_is_latest='False')}           
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = TRUE
                     AND dp_del_flag = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_30', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_30', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = FALSE
                     AND dp_del_flag = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_31', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_31', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src IS NULL
                     AND overlap_dp_is_active = TRUE
                     AND dp_del_flag = 'INACTIVE'
-                    THEN {self._format_case_object('CASE_32', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to='src_dp_ts_from - INTERVAL \'1\' SECOND', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
+                    THEN {self._format_case_object('CASE_32', is_upd=True, upd_key='overlap_dp_record_id', upd_to='overlap_dp_ts_to', upd_dp_ts_from='overlap_dp_ts_from', upd_dp_ts_to=f'src_dp_ts_from - {self.interval_expr}', upd_dp_is_active='False', upd_dp_is_latest='True')}                    
                 WHEN prev_is_same_as_src = TRUE
                     AND overlap_is_same_as_src = FALSE
                     AND next_is_same_as_src = FALSE
@@ -740,7 +741,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         cols_bks_str = fv(self.cols_bks)
         cols_val_str = fv(self.cols_val)
         source_cols_val_str = fv(prefixed_cols_val)
-        current_ts_str = current_ts.strftime("%Y-%m-%d %H:%M:%S")
+        current_ts_str = current_ts.strftime(self.ts_fmt)
         cols_bks_merge_str = "\n    ".join(
             f", tgt.{col}  AS merge_{col}" for col in self.cols_bks
         )
@@ -783,7 +784,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         source.dp_is_active,
         source.dp_is_latest,
         TIMESTAMP '{current_ts_str}',
-        TIMESTAMP '{MAX_TS}',
+        TIMESTAMP '{self.max_ts_str}',
         source.{self.col_dp_record_hash}
     )
     """
