@@ -824,11 +824,13 @@ class SparkSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ):
+    ) -> list[float]:
         if self.perform_record_hash_update:
             logger.info("Filling empty record hash values in SCD2 table before merge...")
             self.fill_empty_record_hash_vals_in_scd2_table()
             logger.info("Empty record hash values in SCD2 table filled successfully.")
+
+        t_start = datetime.now()
 
         view_stmt = self.format_view(
             dp_ts=dp_ts,
@@ -860,7 +862,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
+        create_mat_view_minutes = (datetime.now() - t_start).total_seconds() / 60
+
+        merge_minutes = 0.0
         if self.perform_merge_op:
+            t_merge_start = datetime.now()
             merge_stmt = self.format_merge(
                 source_view_name=(self.scd2_intermediary_table_fqn() + "_mv") if self.materialize_data_before_merge else self.scd2_intermediary_table_name,
                 current_ts=current_ts,
@@ -873,6 +879,10 @@ class SparkSCD2Strategy(SCD2Strategy):
             except Exception as e:
                 logger.error(f"Error executing merge statement: {e}")
                 result = None
+            merge_minutes = (datetime.now() - t_merge_start).total_seconds() / 60
+
+        logger.info(f"Elapsed — view/materialization: {create_mat_view_minutes:.4f} min, merge: {merge_minutes:.4f} min")
+        return [create_mat_view_minutes, merge_minutes]
 
     def merge_into_scd2_table_and_return_as_df(
         self,
@@ -880,14 +890,14 @@ class SparkSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> DataFrame:
-        self.merge_into_scd2_table(
+    ) -> tuple[DataFrame, list[float]]:
+        elapsed = self.merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
         )
-        return self.spark.table(self.scd2_table_fqn())
+        return self.spark.table(self.scd2_table_fqn()), elapsed
 
     def optimize_table(self, file_size_threshold: str = None) -> None:
         fqn = self._resolve_table_fqn(SCD2Table.SCD2)

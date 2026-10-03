@@ -889,11 +889,13 @@ class TrinoSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ):
+    ) -> list[float]:
         if self.perform_record_hash_update:
             logger.info("Filling empty record hash values in SCD2 table before merge...")
             self.fill_empty_record_hash_vals_in_scd2_table()
             logger.info("Empty record hash values in SCD2 table filled successfully.")
+
+        t_start = datetime.now()
 
         view_stmt = self.format_view(
             dp_ts=dp_ts,
@@ -913,6 +915,9 @@ class TrinoSCD2Strategy(SCD2Strategy):
             )
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
+        create_mat_view_minutes = (datetime.now() - t_start).total_seconds() / 60
+
+        merge_minutes = 0.0
         if self.perform_merge_op:
             merge_stmt = self.format_merge(
 #                source_view_name=self.scd2_intermediary_table_fqn(),
@@ -922,9 +927,14 @@ class TrinoSCD2Strategy(SCD2Strategy):
 
             logger.info(merge_stmt)
 
+            t_merge_start = datetime.now()
             cursor = self.conn.cursor()
             result = cursor.execute(merge_stmt)
-            logger.info(f"Merge result: {result}")        
+            merge_minutes = (datetime.now() - t_merge_start).total_seconds() / 60
+            logger.info(f"Merge result: {result}")
+
+        logger.info(f"Elapsed — view/materialization: {create_mat_view_minutes:.4f} min, merge: {merge_minutes:.4f} min")
+        return [create_mat_view_minutes, merge_minutes]        
 
     def merge_into_scd2_table_and_return_as_df(
         self,
@@ -932,7 +942,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> DataFrame:
+    ) -> tuple[DataFrame, list[float]]:
         raise NotImplementedError("This method is not implemented for Trino as we are not in a spark environment.")
 
     def optimize_table(self, file_size_threshold: Optional[str] = None) -> None:

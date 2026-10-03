@@ -448,7 +448,7 @@ class SCD2Strategy(ABC):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ):
+    ) -> list[float]:
         """Execute the full SCD2 merge pipeline for one load batch.
 
         Orchestrates the complete view-then-merge workflow:
@@ -474,6 +474,8 @@ class SCD2Strategy(ABC):
                 provided, rendered output is appended to this file.
 
         Returns:
+            ``[view_minutes, merge_minutes]`` — elapsed time in minutes for the
+            view/materialization phase and the MERGE phase respectively.
         """
 
     @abstractmethod
@@ -483,7 +485,7 @@ class SCD2Strategy(ABC):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> DataFrame:
+    ) -> tuple[DataFrame, list[float]]:
         """Execute the full SCD2 merge pipeline for one load batch.
 
         Orchestrates the complete view-then-merge workflow:
@@ -509,6 +511,7 @@ class SCD2Strategy(ABC):
                 provided, rendered output is appended to this file.
 
         Returns:
+            A tuple of (post-merge SCD2 DataFrame, ``[view_minutes, merge_minutes]``).
         """
 
     @abstractmethod

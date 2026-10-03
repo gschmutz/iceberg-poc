@@ -955,11 +955,13 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ):
+    ) -> list[float]:
         if self.perform_record_hash_update:
             logger.info("Filling empty record hash values in SCD2 table before merge...")
             self.fill_empty_record_hash_vals_in_scd2_table()
-            logger.info("Empty record hash values in SCD2 table filled successfully.")        
+            logger.info("Empty record hash values in SCD2 table filled successfully.")
+
+        t_start = datetime.now()
 
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL."""
         staging_df = self._build_staging_df(
@@ -978,14 +980,19 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             logger.info(
                 f"SCD2 staging view '{self.scd2_intermediary_table_name}' registered."
             )
-    
+
         if show_input_to_merge:
             staging_df.cache()  # cache since it is used multiple times (at least for merge and optionally for show_input_to_merge)
 
             df = self.get_table_data(SCD2Table.INTERMEDIARY, order_by_cols=["merge_record_id"])
             render_table(df, output_file_name=output_file_name, title="Input to Merge")
 
+        create_mat_view_minutes = (datetime.now() - t_start).total_seconds() / 60
+
+        merge_minutes = 0.0
         if self.perform_merge_op:
+            t_merge_start = datetime.now()
+
             merge_stmt = self.format_merge(
                 source_view_name=(self.scd2_intermediary_table_fqn() + "_mv") if self.materialize_data_before_merge else self.scd2_intermediary_table_name,
                 current_ts=current_ts,
@@ -997,6 +1004,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             except Exception as e:
                 logger.error(f"Error executing merge statement: {e}")
                 raise e
+            merge_minutes = (datetime.now() - t_merge_start).total_seconds() / 60
+
+        logger.info(f"Elapsed — view/materialization: {create_mat_view_minutes:.4f} min, merge: {merge_minutes:.4f} min")
+        return [create_mat_view_minutes, merge_minutes]
 
     def merge_into_scd2_table_and_return_as_df(
         self,
@@ -1004,15 +1015,15 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         current_ts: Optional[datetime] = None,
         show_input_to_merge: bool = False,
         output_file_name: Optional[str] = None,
-    ) -> DataFrame:
+    ) -> tuple[DataFrame, list[float]]:
         """Override: build staging DataFrame with PySpark, then run MERGE as Spark SQL, returning the post-merge SCD2 table as a DataFrame."""
-        self.merge_into_scd2_table(
+        elapsed = self.merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
             show_input_to_merge=show_input_to_merge,
             output_file_name=output_file_name,
         )
-        return self.spark.table(self.scd2_table_fqn())
+        return self.spark.table(self.scd2_table_fqn()), elapsed
 
     def get_table_data(
         self,
