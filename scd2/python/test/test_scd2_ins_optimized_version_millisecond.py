@@ -25,19 +25,18 @@ from commons import (
     scd2_sel_as_test,
     scd2_table_fqn,
 )
-from constants import MAX_TS
+from constants import MAX_TS_MS as MAX_TS, TS_GRANULARITY_MILLISECOND
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 FILE_NAME = f"reports/{get_strategy_name().lower()}/scd2_test_ins_optimized_version.md"
 
-load_ts_1 = datetime.strptime("2026-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
-current_ts_1 = datetime.strptime("2026-01-02 00:00:00", "%Y-%m-%d %H:%M:%S")
+load_ts_1 = datetime.strptime("2026-01-01 00:00:00.123", "%Y-%m-%d %H:%M:%S.%f")
+current_ts_1 = datetime.strptime("2026-01-02 00:00:00.456", "%Y-%m-%d %H:%M:%S.%f")
 
-load_ts_2 = datetime.strptime("2026-01-05 00:00:00", "%Y-%m-%d %H:%M:%S")
-current_ts_2 = datetime.strptime("2026-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
-
+load_ts_2 = datetime.strptime("2026-01-05 00:00:00.789", "%Y-%m-%d %H:%M:%S.%f")
+current_ts_2 = datetime.strptime("2026-01-06 00:00:00.123", "%Y-%m-%d %H:%M:%S.%f")
 
 def test_step_1(ctx):
     logger.info(
@@ -135,6 +134,7 @@ def test_step_1(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
+        ts_granularity=TS_GRANULARITY_MILLISECOND,        
         perform_edge_case_op=False,
         
     )
@@ -240,6 +240,7 @@ def test_step_2(ctx):
         output_file_name=FILE_NAME,
         test_description=test_description,
         perform_merge_op=True,
+        ts_granularity=TS_GRANULARITY_MILLISECOND,        
         perform_edge_case_op=False,
                 
     )

@@ -8,6 +8,7 @@ from pyspark.sql import DataFrame
 if TYPE_CHECKING:
     import pandas as pd
 
+from .constants import TS_GRANULARITY_SECOND, TS_GRANULARITY_MILLISECOND
 from .util import logger
 
 
@@ -102,6 +103,9 @@ class SCD2Strategy(ABC):
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = False,
+        perform_edge_case_op: bool = True,
+        use_prev_version_lookup: bool = True,
+        use_next_version_lookup: bool = True,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
@@ -112,7 +116,7 @@ class SCD2Strategy(ABC):
         col_dp_record_id : str = "dp_record_id",
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
-        ts_granularity: str = "second",
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         """Initialise the strategy with table names, column definitions, and behavior flags.
 
@@ -161,25 +165,24 @@ class SCD2Strategy(ABC):
             ts_granularity: Smallest time unit used to close adjacent SCD2 versions.
                 Controls the ``INTERVAL '1' <unit>`` subtracted from a version-start
                 timestamp to compute the preceding version-end timestamp.
-                Accepted values: ``"second"`` (default), ``"millisecond"``,
-                ``"millisecond"``.
+                Accepted values: ``TS_GRANULARITY_SECOND`` (default), ``TS_GRANULARITY_MILLISECOND``.
         """
-        _valid_granularities = {"second", "millisecond"}
+        _valid_granularities = {TS_GRANULARITY_SECOND, TS_GRANULARITY_MILLISECOND}
         if ts_granularity not in _valid_granularities:
             raise ValueError(
                 f"ts_granularity must be one of {_valid_granularities}, got {ts_granularity!r}"
             )
         _interval_map = {
-            "second":      "INTERVAL '1' SECOND",
-            "millisecond": "INTERVAL '0.001' SECOND",
+            TS_GRANULARITY_SECOND:      "INTERVAL '1' SECOND",
+            TS_GRANULARITY_MILLISECOND: "INTERVAL '0.001' SECOND",
         }
         _ts_fmt_map = {
-            "second":      "%Y-%m-%d %H:%M:%S",
-            "millisecond": "%Y-%m-%d %H:%M:%S.%f",
+            TS_GRANULARITY_SECOND:      "%Y-%m-%d %H:%M:%S",
+            TS_GRANULARITY_MILLISECOND: "%Y-%m-%d %H:%M:%S.%f",
         }
         _max_ts_str_map = {
-            "second":      "9999-12-31 23:59:59",
-            "millisecond": "9999-12-31 23:59:59.000",
+            TS_GRANULARITY_SECOND:      "9999-12-31 23:59:59",
+            TS_GRANULARITY_MILLISECOND: "9999-12-31 23:59:59.000",
         }
         self.interval_expr = _interval_map[ts_granularity]
         self.ts_fmt = _ts_fmt_map[ts_granularity]
@@ -192,6 +195,7 @@ class SCD2Strategy(ABC):
         self.logical_delete_expression = logical_delete_expression
         self.check_physical_delete_against_source_table = check_physical_delete_against_source_table
         self.materialize_data_before_merge = materialize_data_before_merge
+        self.perform_edge_case_op = perform_edge_case_op
         self.perform_merge_op = perform_merge_op
         self.perform_record_hash_update = perform_record_hash_update
         self.col_dp_valid_from = col_dp_valid_from

@@ -7,6 +7,7 @@ import pandas as pd
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, MapType, StructType, DoubleType, FloatType, TimestampType, TimestampNTZType
+from .constants import TS_GRANULARITY_SECOND
 from .scd2_spark import SparkSCD2Strategy
 from .scd2_strategy import SCD2Table
 from .util import render_table
@@ -45,8 +46,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         use_logical_delete_for_source_table: bool = False,
         logical_delete_expression: Optional[str] = None,
         check_physical_delete_against_source_table: bool = True,
-        use_prev_version_lookup: bool = True,
-        use_next_version_lookup: bool = True,
+        perform_edge_case_op: bool = True,
         materialize_data_before_merge: bool = False,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
@@ -59,7 +59,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
         iceberg_catalog: str = "spark_catalog",
-        ts_granularity: str = "second",
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         super().__init__(
             spark=spark,
@@ -72,8 +72,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             use_logical_delete_for_source_table=use_logical_delete_for_source_table,
             logical_delete_expression=logical_delete_expression,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
-            use_prev_version_lookup=use_prev_version_lookup,
-            use_next_version_lookup=use_next_version_lookup,
+            perform_edge_case_op=perform_edge_case_op,
             materialize_data_before_merge=materialize_data_before_merge,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
@@ -89,7 +88,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             ts_granularity=ts_granularity,
         )
 
-        self.source_table_df = source_table_df        
+        self.source_table_df = source_table_df
+        self.use_prev_version_lookup = perform_edge_case_op
+        self.use_next_version_lookup = perform_edge_case_op
 
     # ── PySpark-only helpers ──────────────────────────────────────────────────
 
@@ -323,7 +324,14 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         # ── sub-DataFrames from scd2 table (all conflicting columns pre-renamed) ─
         scd2_df = self.spark.table(self.scd2_table_fqn())
 
-        overlap_df = scd2_df.select(
+        overlap_base_df = (
+            scd2_df.filter(
+                (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
+            )
+            if not self.perform_edge_case_op
+            else scd2_df
+        )
+        overlap_df = overlap_base_df.select(
             *[F.col(c).alias(f"overlap_{c}") for c in self.cols_bks],
             F.col(self.col_dp_record_hash).alias("overlap_dp_record_hash"),
             F.col(self.col_dp_record_id).alias("overlap_dp_record_id"),

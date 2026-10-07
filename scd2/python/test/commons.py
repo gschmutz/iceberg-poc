@@ -14,7 +14,7 @@ from common_utils import get_credential, get_param, replace_vars_in_string
 
 np.set_printoptions(threshold=np.inf)
 
-from lib.constants import MAX_TS
+from lib.constants import MAX_TS, TS_GRANULARITY_SECOND
 from lib.scd2_pyspark import PySparkSCD2Strategy
 from lib.scd2_spark import SparkSCD2Strategy
 from lib.scd2_strategy import SCD2Strategy, SCD2Table
@@ -81,9 +81,8 @@ class TestCommonsBase:
                        perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True,
-                       use_next_version_lookup: bool = True,
-                       ts_granularity: str = "second"):
+                       perform_edge_case_op: bool = True,
+                       ts_granularity: str = TS_GRANULARITY_SECOND):
         raise NotImplementedError
 
     def _execute_insert(self, ins_stmt: str, ctx):
@@ -194,9 +193,8 @@ class TestCommonsBase:
         output_file_name: str = None,
         test_description: str = None,
         cols_bks: list = ["id"],
-        use_prev_version_lookup: bool = True,
-        use_next_version_lookup: bool = True,
-        ts_granularity: str = "second",
+        perform_edge_case_op: bool = True,
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         render_data(test_description, output_file_name=output_file_name)
 
@@ -209,8 +207,7 @@ class TestCommonsBase:
                                 check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                                 perform_merge_op=perform_merge_op,
                                 perform_record_hash_update=perform_record_hash_update,
-                                use_prev_version_lookup=use_prev_version_lookup,
-                                use_next_version_lookup=use_next_version_lookup,
+                                perform_edge_case_op=perform_edge_case_op,
                                 ts_granularity=ts_granularity).merge_into_scd2_table(
                 dp_ts=dp_ts_list[idx],
                 current_ts=current_ts_list[idx],
@@ -270,9 +267,8 @@ class TestCommonsBase:
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
         table_shape: str = "flat",
-        use_prev_version_lookup: bool = True,
-        use_next_version_lookup: bool = True,
-        ts_granularity: str = "second",
+        perform_edge_case_op: bool = True,
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         self._execute_insert(ins_stmt, ctx)
 
@@ -297,8 +293,7 @@ class TestCommonsBase:
                             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                             perform_merge_op=perform_merge_op,
                             perform_record_hash_update=perform_record_hash_update,
-                            use_prev_version_lookup=use_prev_version_lookup,
-                            use_next_version_lookup=use_next_version_lookup,
+                            perform_edge_case_op=perform_edge_case_op,
                             ts_granularity=ts_granularity).merge_into_scd2_table(
             dp_ts=dp_ts,
             current_ts=current_ts,
@@ -354,9 +349,8 @@ class TestCommonsBase:
         show_input_to_merge: bool = True,
         cols_bks: list = ["id"],
         table_shape: str = "flat",
-        use_prev_version_lookup: bool = True,
-        use_next_version_lookup: bool = True,
-        ts_granularity: str = "second",
+        perform_edge_case_op: bool = True,
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         render_data(f"## Test Step {test_step}", output_file_name=output_file_name)
         render_data(test_description, output_file_name=output_file_name)
@@ -379,8 +373,7 @@ class TestCommonsBase:
                                        check_physical_delete_against_source_table=check_physical_delete_against_source_table,
                                        perform_merge_op=perform_merge_op,
                                        perform_record_hash_update=perform_record_hash_update,
-                                       use_prev_version_lookup=use_prev_version_lookup,
-                                       use_next_version_lookup=use_next_version_lookup,
+                                       perform_edge_case_op=perform_edge_case_op,
                                        ts_granularity=ts_granularity)
         for idx, dp_ts in enumerate(dp_ts_list):
             strategy.merge_into_scd2_table(
@@ -535,8 +528,8 @@ class TrinoTestCommons(TestCommonsBase):
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
-                       ts_granularity: str = "second"):
+                       perform_edge_case_op: bool = True,
+                       ts_granularity: str = TS_GRANULARITY_SECOND):
         return TrinoSCD2Strategy(
             ctx.conn,
             catalog=TRINO_CATALOG,
@@ -556,8 +549,7 @@ class TrinoTestCommons(TestCommonsBase):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-            use_prev_version_lookup=use_prev_version_lookup,
-            use_next_version_lookup=use_next_version_lookup,
+            perform_edge_case_op=perform_edge_case_op,
             ts_granularity=ts_granularity,
         )
 
@@ -711,8 +703,8 @@ class SparkTestCommons(TestCommonsBase):
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
-                       ts_granularity: str = "second"):
+                       perform_edge_case_op: bool = True,
+                       ts_granularity: str = TS_GRANULARITY_SECOND):
         return SparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -732,8 +724,7 @@ class SparkTestCommons(TestCommonsBase):
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
             iceberg_catalog="hiverest",
-            use_prev_version_lookup=use_prev_version_lookup,
-            use_next_version_lookup=use_next_version_lookup,
+            perform_edge_case_op=perform_edge_case_op,
             ts_granularity=ts_granularity,
         )
 
@@ -876,8 +867,8 @@ class PySparkTestCommons(SparkTestCommons):
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
                        col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
-                       use_prev_version_lookup: bool = True, use_next_version_lookup: bool = True,
-                       ts_granularity: str = "second"):
+                       perform_edge_case_op: bool = True,
+                       ts_granularity: str = TS_GRANULARITY_SECOND):
         return PySparkSCD2Strategy(
             ctx.spark,
             database="default",
@@ -899,8 +890,7 @@ class PySparkTestCommons(SparkTestCommons):
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
             iceberg_catalog="hiverest",
-            use_prev_version_lookup=use_prev_version_lookup,
-            use_next_version_lookup=use_next_version_lookup,
+            perform_edge_case_op=perform_edge_case_op,
             ts_granularity=ts_granularity,
         )
     
@@ -1001,9 +991,8 @@ def scd2_merge_as_preparation(
     output_file_name: str = None,
     test_description: str = None,
     cols_bks: list = ["id"],
-    use_prev_version_lookup: bool = True,
-    use_next_version_lookup: bool = True,
-    ts_granularity: str = "second",
+    perform_edge_case_op: bool = True,
+    ts_granularity: str = TS_GRANULARITY_SECOND,
 ):
     _impl.scd2_merge_as_preparation(
         ctx,
@@ -1020,8 +1009,7 @@ def scd2_merge_as_preparation(
         output_file_name=output_file_name,
         test_description=test_description,
         cols_bks=cols_bks,
-        use_prev_version_lookup=use_prev_version_lookup,
-        use_next_version_lookup=use_next_version_lookup,
+        perform_edge_case_op=perform_edge_case_op,
         ts_granularity=ts_granularity,
     )
 
@@ -1045,9 +1033,8 @@ def scd2_merge_as_test(
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
     table_shape: str = "flat",
-    use_prev_version_lookup: bool = True,
-    use_next_version_lookup: bool = True,
-    ts_granularity: str = "second",
+    perform_edge_case_op: bool = True,
+    ts_granularity: str = TS_GRANULARITY_SECOND,
 ):
     _impl.scd2_merge_as_test(
         ctx,
@@ -1068,8 +1055,7 @@ def scd2_merge_as_test(
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
         table_shape=table_shape,
-        use_prev_version_lookup=use_prev_version_lookup,
-        use_next_version_lookup=use_next_version_lookup,
+        perform_edge_case_op=perform_edge_case_op,
         ts_granularity=ts_granularity,
     )
 
@@ -1090,9 +1076,8 @@ def scd2_merge_as_test2(
     display_result: bool = True,
     show_input_to_merge: bool = True,
     cols_bks: list = ["id"],
-    use_prev_version_lookup: bool = True,
-    use_next_version_lookup: bool = True,
-    ts_granularity: str = "second",
+    perform_edge_case_op: bool = True,
+    ts_granularity: str = TS_GRANULARITY_SECOND,
 ):
     _impl.scd2_merge_as_test2(
         ctx,
@@ -1111,8 +1096,7 @@ def scd2_merge_as_test2(
         display_result=display_result,
         show_input_to_merge=show_input_to_merge,
         cols_bks=cols_bks,
-        use_prev_version_lookup=use_prev_version_lookup,
-        use_next_version_lookup=use_next_version_lookup,
+        perform_edge_case_op=perform_edge_case_op,
         ts_granularity=ts_granularity,
     )
 

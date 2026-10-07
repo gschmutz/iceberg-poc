@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 import pandas as pd
+from .constants import TS_GRANULARITY_SECOND
 from .scd2_strategy import SCD2Strategy, SCD2Table
 from .util import render_table
 
@@ -46,8 +47,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         logical_delete_expression: Optional[str] = None,
         materialize_data_before_merge: bool = False,
         check_physical_delete_against_source_table: bool = True,
-        use_prev_version_lookup: bool = True,
-        use_next_version_lookup: bool = True,
+        perform_edge_case_op: bool = True,
         perform_merge_op: bool = True,
         perform_record_hash_update: bool = False,
         col_dp_valid_from: str = "dp_from_ts",
@@ -58,7 +58,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         col_dp_record_id : str = "dp_record_id",         
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
-        ts_granularity: str = "second",
+        ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         """
         Args:
@@ -90,16 +90,12 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 entities are detected by comparing the current batch with the previous
                 batch in the *source* table.  When ``False`` the currently-active rows
                 in the *SCD2 table* are used as the reference for deletes instead.
-            use_prev_version_lookup: When ``True`` (default) the staging query joins the
-                SCD2 table laterally to find the *previous* version of each source record
-                (the one ending right before it, or the latest one before it).  Set to
-                ``False`` to drop that join — all ``prev_*`` columns are then ``NULL``,
-                which disables the cases that close/extend a preceding version.  Only safe
-                when records always arrive in chronological order.
-            use_next_version_lookup: When ``True`` (default) the staging query joins the
-                SCD2 table laterally to find the *next* (later, still active) version of
-                each source record.  Set to ``False`` to drop that join — all ``next_*``
-                columns are then ``NULL``, which disables the back-dated/gap-filling cases.
+            perform_edge_case_op: When ``True`` (default) the staging query joins the
+                SCD2 table laterally to find both the *previous* and *next* versions of
+                each source record, enabling gap-filling and back-dated cases.  Set to
+                ``False`` to skip both joins — all ``prev_*`` and ``next_*`` columns are
+                then ``NULL``, which disables edge-case handling.  Only safe when records
+                always arrive in chronological order and no back-dating is needed.
             perform_merge_op: Set to ``False`` to skip the ``MERGE INTO`` statement
                 (useful for inspecting the staging data without modifying the target).
             perform_record_hash_update: When ``True``, all NULL values in col_dp_record_hash columns will be updated before the SCD2 merge operation is performed.  Defaults to ``False``.
@@ -130,6 +126,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
             logical_delete_expression=logical_delete_expression,
             materialize_data_before_merge=materialize_data_before_merge,
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
+            perform_edge_case_op=perform_edge_case_op,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
             col_dp_valid_from=col_dp_valid_from,
@@ -147,8 +144,8 @@ class TrinoSCD2Strategy(SCD2Strategy):
         self.schema = schema
         self.source_table_name = source_table_name
         self.scd2_table_name = scd2_table_name
-        self.use_prev_version_lookup = use_prev_version_lookup
-        self.use_next_version_lookup = use_next_version_lookup
+        self.use_prev_version_lookup = perform_edge_case_op
+        self.use_next_version_lookup = perform_edge_case_op
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -502,6 +499,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
                 dp_is_latest
             FROM {self.scd2_table_fqn()}
             WHERE src.dp_ts_from BETWEEN dp_ts_from AND dp_ts_to
+            {"AND (dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '" + self.max_ts_str + "')" if not self.perform_edge_case_op else ""}
         ) overlap
         ON {join_src_overlap}{prev_join}{next_join}
     ),
