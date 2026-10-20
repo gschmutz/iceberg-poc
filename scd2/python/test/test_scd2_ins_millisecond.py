@@ -25,7 +25,7 @@ from commons import (
     scd2_sel_as_test,
     scd2_table_fqn,
 )
-from constants import MAX_TS_MS as MAX_TS
+from constants import MAX_TS_MS as MAX_TS, TS_GRANULARITY_MILLISECOND
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ def test_step_1(ctx):
         expected=expected,
         output_file_name=FILE_NAME,
         test_description=test_description,
-        ts_granularity="millisecond",
+        ts_granularity=TS_GRANULARITY_MILLISECOND,
     )
 
 
@@ -235,5 +235,5 @@ def test_step_2(ctx):
         output_file_name=FILE_NAME,
         test_description=test_description,
         perform_merge_op=True,
-        ts_granularity="millisecond",
+        ts_granularity=TS_GRANULARITY_MILLISECOND,
     )

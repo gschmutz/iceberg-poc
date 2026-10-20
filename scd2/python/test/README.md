@@ -79,6 +79,19 @@ The last columns point to the markdown which is being generated in the test and 
 | 5 | test_scd2_fill_gap_partial_same_val_next.py | Partially fills a gap in the timeline with the same value as the version after the gap | [trino](./reports/trino/scd2_test_fill_gap_partial_same_val_next.md) | [spark](./reports/spark/scd2_test_fill_gap_partial_same_val_next.md) | [pyspark](./reports/pyspark/scd2_test_fill_gap_partial_same_val_next.md) |
 | 6 | test_scd2_fill_gap_partial_diff_val_next.py | Partially fills a gap in the timeline with a different value than the version after the gap | [trino](./reports/trino/scd2_test_fill_gap_partial_diff_val_next.md) | [spark](./reports/spark/scd2_test_fill_gap_partial_diff_val_next.md) | [pyspark](./reports/pyspark/scd2_test_fill_gap_partial_diff_val_next.md) |
 
+### Type Support
+
+| # | Python Script | Description | Trino Report | Spark Report | PySpark Report |
+|---|------|------------|---------------------|---------------------|---------------------|
+| 1 | test_scd2_type_array_ins.py | Insert Operation with a column of type ARRAY | [trino](./reports/trino/scd2_test_type_array_ins.md) | [spark](./reports/spark/scd2_test_type_array_ins.md) | [pyspark](./reports/pyspark/scd2_test_type_array_ins.md) |
+| 2 | test_scd2_type_array_upd.py | Update Operation with a column of type ARRAY | [trino](./reports/trino/scd2_test_type_array_upd.md) | [spark](./reports/spark/scd2_test_type_array_upd.md) | [pyspark](./reports/pyspark/scd2_test_type_array_upd.md) |
+| 3 | test_scd2_type_map_ins.py | Insert Operation with a column of type MAP | [trino](./reports/trino/scd2_test_type_map_ins.md) | [spark](./reports/spark/scd2_test_type_map_ins.md) | [pyspark](./reports/pyspark/scd2_test_type_map_ins.md) |
+| 4 | test_scd2_type_map_upd.py | Update Operation with a column of type MAP | [trino](./reports/trino/scd2_test_type_map_upd.md) | [spark](./reports/spark/scd2_test_type_map_upd.md) | [pyspark](./reports/pyspark/scd2_test_type_map_upd.md) |
+| 5 | test_scd2_type_struct_ins.py | Insert Operation with a column of type STRUCT | [trino](./reports/trino/scd2_test_type_struct_ins.md) | [spark](./reports/spark/scd2_test_type_struct_ins.md) | [pyspark](./reports/pyspark/scd2_test_type_struct_ins.md) |
+| 6 | test_scd2_type_struct_upd.py | Update Operation with a column of type STRUCT | [trino](./reports/trino/scd2_test_type_struct_upd.md) | [spark](./reports/spark/scd2_test_type_struct_upd.md) | [pyspark](./reports/pyspark/scd2_test_type_struct_upd.md) |
+| 7 | test_scd2_type_various_ins.py | Insert Operation with various scalar types | [trino](./reports/trino/scd2_test_type_various_ins.md) | [spark](./reports/spark/scd2_test_type_various_ins.md) | [pyspark](./reports/pyspark/scd2_test_type_various_ins.md) |
+| 8 | test_scd2_type_various_upd.py | Update Operation with various scalar types | [trino](./reports/trino/scd2_test_type_various_upd.md) | [spark](./reports/spark/scd2_test_type_various_upd.md) | [pyspark](./reports/pyspark/scd2_test_type_various_upd.md) |
+
 ### Misc
 
 | # | Python Script | Description | Trino Report | Spark Report | PySpark Report |
