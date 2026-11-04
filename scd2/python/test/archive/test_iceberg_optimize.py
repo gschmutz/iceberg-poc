@@ -123,7 +123,7 @@ def test_step_1(ctx):
 
     # Run system under test
     render_data("Executing OPTIMIZE on the Iceberg table.", output_file_name=FILE_NAME)
-    optimize_table(ctx, table_name=source_table_fqn(ctx))
+    optimize_table(ctx, catalog_name="hiverest", table_name=source_table_fqn(ctx))
 
     # Verify and Visualize results
     df = get_table_data(ctx=ctx, table=SCD2Table.SCD2, iceberg_meta_tablename="files", order_by_cols=[])

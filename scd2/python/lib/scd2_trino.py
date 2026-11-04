@@ -943,7 +943,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
     ) -> tuple[DataFrame, list[float]]:
         raise NotImplementedError("This method is not implemented for Trino as we are not in a spark environment.")
 
-    def optimize_table(self, file_size_threshold: Optional[str] = None) -> None:
+    def optimize_table(self, catalog_name: str, file_size_threshold: Optional[str] = None) -> None:
         fqn = self._resolve_table_fqn(SCD2Table.SCD2)
         options = f"(file_size_threshold => '{file_size_threshold}')" if file_size_threshold else ""
         stmt = f"ALTER TABLE {fqn} EXECUTE optimize{options}"

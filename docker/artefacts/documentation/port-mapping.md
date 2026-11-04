@@ -7,9 +7,9 @@ This table reserves the external ports for the various services. Not all service
 Container Port(s) | Internal Port(s)           | Service (alternatives) |
 --------------------|------------------|-----------------------|
 21 | 21 | ftp |
-80 | 80 | markdown-viewer, markdown-viewer-dc1 or firefox |
-81 | 80 | markdown-viewer-dc2 |
-82 | 80 | markdown-viewer-dc3 |
+80 | 80 | markdown-viewer, markdown-viewer-env1 or firefox |
+81 | 80 | markdown-viewer-env2 |
+82 | 80 | markdown-viewer-env3 |
 1222 | 1222 | risingwave | 
 1234 | 1234 | kafka-1 (prometheus exporter) | 
 1235 | 1234 | kafka-2 (prometheus exporter) | 
@@ -64,6 +64,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 2185 | 2185 | zookeeper-5 |
 2186 | 2186 | zookeeper-6 |
 2222 | 22 | sftp |
+2223 | 22 | forgejo (SSH) |
 2376 | 2376 | docker-dind |
 2379 | 2379 | etcd-1 (client req) |
 2380 | 2380 | etcd-1 (peer comm) |
@@ -74,9 +75,10 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 2482 | 2480 | arcadedb (mongodb port) |
 2483 | 27017 | arcadedb |
 3000 | 3000 | grafana |
-3001 | 3000 | wetty (dc1) |
-3002 | 3000 | wetty (dc2 |
+3001 | 3000 | wetty (env1) |
+3002 | 3000 | wetty (env2 |
 3003 | 3003 | opik-backend |
+3004 | 3000 | forgejo (web UI) |
 3005 | 3000 | marquez-web |
 3010 | 3000 | postman |
 3006 | 3000 | retool-api |
@@ -101,7 +103,6 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 4000 | 4000 | graphql-mesh |
 4001 | 4000 | supabase-analytics |
 4002 | 4000 | litellm |
-4003 | 4000 | cubejs |
 4004 | 4004 | log4brains |
 4040 | 4040 | spark-master (ui) |
 4041 | 4041 | spark-master (ui) |
@@ -114,8 +115,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 4053 | 4053 | zeppelin (spark ui) |
 4054 | 4054 | zeppelin (spark ui) |
 4173 | 4173 | data-contract-editor |
-4195 | 4195 | benthos-1 |
-4196 | 4196 | benthos-server |
+4195 | 4195 | redpanda-connect |
 4200 | 4200 | cribl-master |
 4222 | 4222 | nats-1 |
 4242 | 4242 | data-contract-api |
@@ -130,6 +130,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 5001 | 5000 | amundsensearch |
 5002 | 5000 | amundsenmetadata |
 5005 | 5005 | neodash |
+5008 | 5008 | superset-mcp |
 5010 | 5000 | marquez |
 5011 | 5001 | marquez |
 5020 | 5020 | docker-registry |
@@ -235,9 +236,9 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 8000 | 8000 | kong (proxy) |
 8001 | 8001 | kong (admin api) |
 8002 | 8002 | kong (admin gui) |
-8008 | 80 | markdown-viewer, markdown-viewer-dc1 |
-8009 | 80 | markdown-viewer-dc2 |
-8010 | 80 | markdown-viewer-dc3 |
+8008 | 80 | markdown-viewer, markdown-viewer-env1 |
+8009 | 80 | markdown-viewer-env2 |
+8010 | 80 | markdown-viewer-env3 |
 8020 | 8020 | risingwave-console |
 8024 | 8024 | axon-server |
 8047 | 8047 | drill |
@@ -261,7 +262,8 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 8123 | 8123 | proton-server (HTTP batch) |
 8124 | 8124 | axon-server |
 8161 | 8161 | activemq |
-8182 | 8182 | janusgraph |
+8181 | 8181 | polaris |
+8182 | 8182 | polaris |
 8200 | 8200 | vault |
 8222 | 8222 | nats-1 |
 8288 | 8288 | vector-admin |
@@ -289,6 +291,9 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 9002 | 9000 | minio-3 |
 9003 | 9000 | minio-4 |
 9005 | 9000 | rustfs-1 |
+9006 | 9000 | versitygw (S3 API) |
+9007 | 9001 | versitygw (WebUI) |
+9008 | 9009 | mimir |
 9009 | 9009 | questdb |
 9010 | 9010 | minio-1 ui |
 9011 | 9011 | minio-2 ui |
@@ -299,6 +304,8 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 9043 | 9042 | dse-2 |
 9044 | 9042 | dse-3 |
 9047 | 9047 | dremio |
+9050 | 8081 | mitmproxy (web UI) |
+9051 | 8080 | mitmproxy (proxy) |
 9101 | 9001 | mosquitto-1 |
 9102 | 9002 | mosquitto-2 |
 9103 | 9003 | mosquitto-3 |
@@ -318,10 +325,10 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 9164 | 9160 | cassandra-5 |
 9083 | 9083 | hive-metastore |
 9084 | 9084 | hive-metastore (iceberg-rest) |
-9021 | 9021 | control-center (dc1) |
-9022 | 9021 | control-center (dc2) |
-9025 | 9021 | control-center-ng (dc1) |
-9026 | 9021 | control-center-ng (dc2) |
+9021 | 9021 | control-center (env1) |
+9022 | 9021 | control-center (env2) |
+9025 | 9021 | control-center-ng (env1) |
+9026 | 9021 | control-center-ng (env2) |
 9090 | 9090 | prometheus-1 |
 9091 | 9091 | prometheus-pushgateway |
 9092 | 9092 | kafka-1     |
@@ -345,6 +352,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 9492 | 9492 | automq-1     |
 9493 | 9493 | automq-2     |
 9494 | 9494 | automq-3     |
+9598 | 9598 | vector |
 9600 | 9600 | zeebe-1 |
 9601 | 9600 | langwatch-opensearch  |
 9851 | 9851 | tile38 |
@@ -472,7 +480,7 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28087 | 8443 | trino-1 (tls) |
 28088 | 8443 | trino-2 (tls) |
 28089 | 8443 | trino-3 (tls) |
-28888 | 8888 | jupyter |
+38888 | 8888 | jupyter |
 28889 | 8888 | anaconda |
 29042 | 9042 | cassandra-1 |
 29043 | 9042 | cassandra-2 |
@@ -518,11 +526,12 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28101 | 9010 | zoonavigator-api     |
 28102 | 8000 | schema-registry-ui   |
 28103 | 8000 | kafka-connect-ui     |
-28104 | 9000 | cmak (dc1) |
-28105 | 9000 | cmak (dc2) |
+28104 | 9000 | cmak (env1) |
+28105 | 9000 | cmak (env2) |
 28106 | 8080 | kadmin     |
-28107 | 8080 | akhq (dc1)    |
-28108 | 8080 | akhq (dc2)     |
+28107 | 3000 | hive-console-app |
+28108 | 3001 | hive-console-server (GraphQL API) |
+28109 | 3006 | hive-console-usage |
 28110 | 9020 | kafdrop     |
 28111 | 28111 | spark-worker-1 |
 28112 | 28112 | spark-worker-2 |
@@ -553,17 +562,20 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28137 | 9000 | portainer |
 28138 | 8080 | cadvisor |
 28139 | 8080 | airflow (2.x) or airflow-apiserver (3.x) |
-28140 | 8080 | code-server |
+28140 |  |  |
 28141 | 8000 | kafka-topics-ui |
 28142 | 8080 | datahub-gms |
 28143 | 9001 | datahub-frontend-ember |
 28144 | 9002 | datahub-frontend |
 28145 | 9091 | datahub-mae-consumer |
 28146 | 9092 | datahub-mce-consumer |
+28147 | 4000 | hive-gateway |
+28148 | 4000 | hive-router |
 28150 | 8888 | druid-router |
 28150 | 8888 | druid-sandbox |
-28151 | 8088 | superset |
-28152 | 8080 | superset |
+28151 | 5000 | postgraphile |
+28152 |  |  |
+28153 |  |  |
 28154 | 8080 | penthao |
 28155 | 8080 | hawtio |
 28156 | 8080 | swagger-editor |
@@ -572,6 +584,14 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28159 | 8081 | quix-backend |
 28160 | 8081 | quix-frontend |
 28161 | 5000 | redash-server |
+28162 | 3001 | hive-yoga-server-1 |
+28163 | 3001 | hive-yoga-server-2 |
+28164 | 3001 | hive-yoga-server-3 |
+28165 | 3001 | hive-yoga-server-4 |
+28166 | 3001 | hive-yoga-server-5 |
+28167 |  |  |
+28168 |  |  |
+28169 |  |  |
 28170 | 80 | stardog-studio |
 28171 | 3030 | smashing |
 28172 | 3030 | tipboard |
@@ -607,6 +627,11 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28212 | 8098 | pinot-server-1 |
 28213 | 8098 | pinot-server-2 |
 28214 | 8098 | pinot-server-3 |
+28215 | 3000 | prest |
+28216 | 8080 | restate (ingress) |
+28217 | 9070 | restate (admin API) |
+28218 | 9071 | restate (metrics) |
+28219 |  |  |
 28220 | 8000 | lakefs |
 28221 | 5000 | lakefs-webhook |
 28222 | 9000 | whisper |
@@ -704,8 +729,8 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28317 | 25 | maildev |
 28318 | 8025 | mailpit |
 28319 | 25 | mailpit |
-28320 | 25 | akhq (dc1) |
-28321 | 25 | akhq (dc1) |
+28320 | 25 | akhq (env1) |
+28321 | 25 | akhq (env1) |
 28322 | 80 | asyncapi-studio |
 28323 | 80 | taiga-front |
 28324 | 80 | taiga-gateway |
@@ -729,11 +754,11 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28342 | 9091 | milvus (metric) |
 28343 | 3000 | attu |
 28344 | 3001 | anything-llm |
-28345 | 80 | streamlit-1 |
-28346 | 80 | streamlit-2 |
-28347 | 80 | streamlit-3 |
-28348 | 80 | streamlit-4 |
-28349 | 80 | streamlit-5 |
+28345 | 8080 | akhq (env1)    |
+28346 | 8080 | akhq (env2)     |
+28347 | 7080 | coder |
+28348 | 8443 | code-server |
+28349 | 3000 | dockhand |
 28350 | 3001 | vector-admin |
 28351 | 8000 | single-store |
 28352 | 9000 | single-store |
@@ -847,12 +872,12 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28460 | 8181 | seaweedfs-1 |
 28461 | 5050 | allure |
 28462 | 5252 | allure-ui |
-28463 | 3000 | nimtable-web |
-28464 | 8182 | nimtable |
+28463 | 8088 | superset  |
+28464 | 4000 | cubejs |
 28465 | 8080 | ehrbase |
 28466 | 9000 | openehr-tool |
-28467 | 8081 | polaris |
-28468 | 8082 | polaris |
+28467 | 8182 | janusgraph |
+28468 | 8080 | kafka-datagen |
 28469 | 8090 | gravitino |
 28470 | 9001 | gravitino-iceberg-rest |
 28471 | 8000 | gravitino-mcp-server |
@@ -878,14 +903,33 @@ Container Port(s) | Internal Port(s)           | Service (alternatives) |
 28491 | 8080 | cockroachdb-3 |
 28492 | 8000 | risingwave-mcp |
 28493 | 9097 | mcp-trino |
+28494 | 8080 | polaris-ui |
+28495 | 3002 | cosmo-router |
+28496 | 8000 | dbt-workbench (backend API) |
+28497 | 3000 | dbt-workbench (frontend UI) |
+28498 |  |  |
+28499 | 8888 | klag |
+28511 | 3000 | nimtable-web |
+28512 | 8182 | nimtable |
+28513 |      | |
+28514 |      | |
+28515 |      | |
+28516 |      | |
+28630 | 80 | streamlit-1 |
+28631 | 80 | streamlit-2 |
+28632 | 80 | streamlit-3 |
+28633 | 80 | streamlit-4 |
+28634 | 80 | streamlit-5 |
 
-## Ports > 28500
+## Ports > 28700
 
 Container Port(s) | Internal Port(s)           | Service (alternatives) |
 --------------------|------------------|-----------------------|
-28500 - 28510 | 28500 - 28510 | streamsets-1 (additional ports) |
-28510 - 28520 | 28510 - 28520 | nifi-1 (additional ports |
-28520 - 28530 | 28520 - 28530 | nifi2-1 (additional ports |
-28530 - 28600 | any | reserved for applications |
+28700 - 28710 | 28700 - 28710 | streamsets-1 (additional ports) |
+28710 - 28720 | 28710 - 28720 | nifi-1 (additional ports |
+28720 - 28730 | 28720 - 28730 | nifi2-1 (additional ports |
+28730 - 28740 | 28730 - 28740 | vector (additional ports |
+28740 - 28750 | 28740 - 28750 | redpanda-connect (additional ports |
+28800 - 28900 | any | reserved for applications |
 
 An overview of the URL for the various web-based UIs can be found [here](./environment/README).

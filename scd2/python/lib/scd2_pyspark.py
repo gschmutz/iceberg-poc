@@ -58,7 +58,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
         col_dp_ts_filter: str = "dp_ts",
-        iceberg_catalog: str = "spark_catalog",
         ts_granularity: str = TS_GRANULARITY_SECOND,
     ):
         super().__init__(
@@ -84,7 +83,6 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-            iceberg_catalog=iceberg_catalog,
             ts_granularity=ts_granularity,
         )
 

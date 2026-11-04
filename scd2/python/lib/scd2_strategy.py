@@ -521,6 +521,7 @@ class SCD2Strategy(ABC):
     @abstractmethod
     def optimize_table(
         self,
+        catalog_name: str,
         file_size_threshold: Optional[str] = None,
     ) -> None:
         """Run a compaction / file-optimization pass on an Iceberg table.

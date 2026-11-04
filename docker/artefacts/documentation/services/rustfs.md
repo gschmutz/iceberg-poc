@@ -13,5 +13,11 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.252:9014>.
+Navigate to <http://localhost:9014>.
 
+
+### Bucket event notifications
+
+RustFS can send bucket events to a webhook, an MQTT broker and/or Kafka. Enable them with `RUSTFS_notify_webhook_enabled`, `RUSTFS_notify_mqtt_enabled` and/or `RUSTFS_notify_kafka_enabled` (see [configuration](../configuration) for the endpoint, topic and credential settings). `RUSTFS_NOTIFY_ENABLE` is set automatically. The targets are named `primary`, so the ARN to use in the bucket notification configuration is `arn:rustfs:sqs:us-east-1:primary:webhook`, `arn:rustfs:sqs:us-east-1:primary:mqtt` or `arn:rustfs:sqs:us-east-1:primary:kafka`.
+
+Events are only sent for buckets which have a notification configuration referring to the target ARN.

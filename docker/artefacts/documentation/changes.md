@@ -11,23 +11,65 @@ See [Upgrade to a new platform stack version](https://github.com/TrivadisPF/plat
  * Apache MiNiFi C++
  * SeaweedFS
  * Nexus
- 
+ * Coder
+ * Polaris Console (UI)
+ * Spark Connect
+ * Wundergraph Cosmo Platform
+ * mitmproxy
+ * Forgejo
+ * dbt Workbench
+ * dockhand
+ * kafka-backup
+ * kafka-datagen
+ * mimir
+ * vector
+ * pREST
+ * restate
+ * karapace (as an additional schema-registry flavour)
+ * redpanda-connect
+ * browserless
+ * zammad
+ * postgraphile
+ * versitygw (Versity S3 Gateway)
+ * hive-console
+ * hive-gateway
+ * hive-router
+ * hive-yoga-server
+ * apollo-rover-cli
+ * entropy-data-cli
+
 ### Version upgrades
  
  * Update `nifi-toolkit v2` to `2.10.0`
  * Update `n8n` to `2.28.4`
  * Update `kestra` to `v1.3`
- * Update `datahub` to `v1.7.0`
+ * Update `datahub` to `v1.8.0`
  * Update `ollama` to `0.32.12`
  * Update `kyuubi` to `1.12.0-all`
+ * Update `hasura` to `v2.50.3-ce`
+ * Update `trino` to `483`
+ * Update `hive-metastore` to `4.2.1`
+ * Update `polaris` to `1.8.0`
+ * Update `confluent` to `8.3.2`
+ * Update `grafana` to `13.0.10-ubuntu`
+ * Update `prometheus` to `v3.13.4`
+ * Update `prometheus-alertmanager` to `v0.34.1`
+ * Update `nifi2` to `2.12.0`
+ * Update `clickhouse` to `26.10-alpine`
+ * Update `risingwave` to `v3.1.0`
 
 ### Enhancements
 
  * Add ui mode for defining a platform using a Web-UI
  * Add support for Spark 4.x
+ * Improve support for Podman
+ * Add support for working with Nexus and a HTTP Proxy for accessing internet
+ * New global settings `volume_map_data_transfer_folder` and `data_transfer_local_folder` to control mapping and location of the `data-transfer` folder
+ * `python`: optional supervisord support (`PYTHON_supervisord_enabled`) to run multiple python scripts in one container
 
 ### Breaking Changes
 
+ * rename `data_centers` to `environments` and `data_center_to_use` to `environment_to_use`
  * rename `CONFLUENT_SCHEMA_REGISTRY_xxxx` to `SCHEMA_REGISTRY_confluent_xxxx`
  * rename `APICURIO_SCHEMA_REGISTRY_xxxx` to `SCHEMA_REGISTRY_apicurio_xxxx`
  * rename `DATAIKU_DSS_xxxx` to `DATAIKU_xxxx`
@@ -42,6 +84,10 @@ See [Upgrade to a new platform stack version](https://github.com/TrivadisPF/plat
  * rename `KAFKA_REPLICATOR_xxxx` to `CONFLUENT_REPLICATOR_xxxx`
  * changed default for search service in DataHub to OpenSearch
  * changed docker image for Apache Spark to `apache/spark`
+ * Jupyter external port changed to `38888` (used to be `28888`)
+ * replace `MARKDOWN_VIEWER_use_port_80` by `MARKDOWN_VIEWER_external_port` to have more control over the port used for the markdown viewer (needed for Podman if ports below `1024` are not permitted)
+ * remove `BENTHOS` service, it has been replaced by `REDPANDA_CONNECT` (Redpanda Connect is the continuation of Benthos)
+ * rename `SHADOW_TRAFFIC_xxxx` to `SHADOWTRAFFIC_xxxx`
 
 ## What's new in 1.20.0
 
@@ -114,7 +160,7 @@ See [Upgrade to a new platform stack version](https://github.com/TrivadisPF/plat
 
  * add default values for environment variables `PUBLIC_IP=127.0.0.1` and `DOCKER_HOST_IP=localhost`
  * change docker image for the iceberg rest service from `tabulario/iceberg-rest` to `apache/iceberg-rest-fixture`
- * add aistor as an editon of Minio
+ * add aistor as an edition of Minio
  
 ### Breaking Changes
  

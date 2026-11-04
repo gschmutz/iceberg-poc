@@ -224,7 +224,7 @@ def test_step_3_optimize_no_threshold(ctx):
         "-------------------------------- Test Step 3 --------------------------------"
     )
 
-    _impl._make_strategy(ctx).optimize_table()
+    _impl._make_strategy(ctx).optimize_table(catalog_name="hiverest")
 
     _assert_data_unchanged(
         ctx,
@@ -243,7 +243,7 @@ def test_step_4_optimize_with_threshold(ctx):
         "-------------------------------- Test Step 4 --------------------------------"
     )
 
-    _impl._make_strategy(ctx).optimize_table(file_size_threshold="256MB")
+    _impl._make_strategy(ctx).optimize_table(catalog_name="hiverest", file_size_threshold="256MB")
 
     _assert_data_unchanged(
         ctx,

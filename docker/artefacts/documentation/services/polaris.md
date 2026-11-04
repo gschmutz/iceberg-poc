@@ -13,4 +13,6 @@ platys gen
 
 ## How to use it?
 
-Navigate to <http://10.156.72.252:28467>.
+Navigate to <http://localhost:28467>.
+
+Login with user `admin` and password `abc123!`.

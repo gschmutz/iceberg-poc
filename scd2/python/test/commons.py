@@ -37,7 +37,7 @@ TRINO_SCHEMA = get_param("TRINO_SCHEMA", "default")
 TRINO_USE_SSL = get_param("TRINO_USE_SSL", "true").lower() in ("true", "1", "t")
 
 # Connect to MinIO or AWS S3
-S3_ENDPOINT_URL = get_param("S3_ENDPOINT_URL", "http://localhost:9000")
+S3_ENDPOINT_URL = get_param("S3_ENDPOINT_URL", "http://localhost:9005")
 
 S3_WAREHOUSE_BUCKET = get_param("S3_WAREHOUSE_BUCKET", "warehouse-bucket")
 S3_WAREHOUSE_BUCKET = replace_vars_in_string(
@@ -444,8 +444,8 @@ class TestCommonsBase:
             expected_df = pd.DataFrame(expected, columns=actual_df.columns)
             self.assert_df(actual_df, expected_df, output_file_name=output_file_name)
 
-    def optimize_table(self, ctx, table_name: str) -> None:
-        self._make_strategy(ctx).optimize_table(table_name)
+    def optimize_table(self, ctx, catalog_name: str, table_name: str) -> None:
+        self._make_strategy(ctx).optimize_table(catalog_name, table_name)
 
     def analyze_table(self, ctx, table_name: str) -> None:
         self._make_strategy(ctx).analyze_table(table_name)
@@ -723,7 +723,6 @@ class SparkTestCommons(TestCommonsBase):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-            iceberg_catalog="hiverest",
             perform_edge_case_op=perform_edge_case_op,
             ts_granularity=ts_granularity,
         )
@@ -889,7 +888,6 @@ class PySparkTestCommons(SparkTestCommons):
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
             col_dp_ts_filter=col_dp_ts_filter,
-            iceberg_catalog="hiverest",
             perform_edge_case_op=perform_edge_case_op,
             ts_granularity=ts_granularity,
         )
@@ -1163,8 +1161,8 @@ def scd2_sel_as_test(
     )
 
 
-def optimize_table(ctx, table_name: str) -> None:
-    return _impl.optimize_table(ctx, table_name)
+def optimize_table(ctx, catalog_name: str, table_name: str) -> None:
+    return _impl.optimize_table(ctx, catalog_name, table_name)
 
 
 def analyze_table(ctx, table_name: str) -> None:

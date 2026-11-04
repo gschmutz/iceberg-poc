@@ -11,6 +11,10 @@ from pyspark.sql import SparkSession
 
 from common_utils import get_credential, get_param
 
+# py4j logs from __del__ at interpreter shutdown, after pytest has closed its
+# log stream, causing a harmless "Logging error ... closed file" traceback.
+logging.getLogger("py4j").setLevel(logging.WARNING)
+
 TRINO_USER = get_credential("TRINO_USER", "trino")
 TRINO_PASSWORD = get_credential("TRINO_PASSWORD", "")
 TRINO_HOST = get_param("TRINO_HOST", "localhost")
@@ -63,8 +67,9 @@ def spark():
             "spark.sql.catalog.hiverest.s3.secret-access-key", "abc123abc123"
         )  # adjust as needed
         .config(
-            "spark.sql.catalog.hiverest.s3.endpoint", "http://dataplatform:9000"
-        )  # adjust as needed
+            "spark.sql.catalog.hiverest.s3.endpoint", "http://dataplatform:9005"
+        )  # RustFS S3 API (host port 9005)
+        .config("spark.sql.catalog.hiverest.client.region", "us-east-1")
         .config("spark.sql.catalog.hiverest.s3.path-style-access", "true")
         .config(
             "spark.sql.catalog.hiverest.io-impl", "org.apache.iceberg.aws.s3.S3FileIO"
@@ -108,7 +113,7 @@ def trino_conn():
 def s3_client():
     client = boto3.client(
         "s3",
-        endpoint_url="http://localhost:9000",
+        endpoint_url="http://localhost:9005",
         aws_access_key_id="admin",
         aws_secret_access_key="abc123abc123",
         region_name="us-east-1",
