@@ -306,7 +306,7 @@ services:
     restart: unless-stopped
   #  ================================== Minio ========================================== #
   minio-1:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: pgsty/silo
     container_name: minio-1
     hostname: minio-1
     labels:
@@ -333,11 +333,6 @@ services:
       MINIO_PROMETHEUS_URL: http://prometheus-1:9090
     volumes:
       - ./data-transfer:/data-transfer
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        mkdir -p /root/.minio && echo "$$MINIO_LICENSE" > /root/.minio/minio.license && exec /usr/bin/docker-entrypoint.sh "$$@"
     command: minio server /data --console-address ":9010"
     restart: unless-stopped
     healthcheck:
@@ -347,7 +342,7 @@ services:
       retries: 3
   #  ================================== Minio MC ========================================== #
   minio-mc:
-    image: quay.io/minio/mc:latest
+    image: quay.io/minio/aistor/mc:latest
     container_name: minio-mc
     hostname: minio-mc
     labels:
