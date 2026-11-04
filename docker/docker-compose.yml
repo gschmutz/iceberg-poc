@@ -9,7 +9,7 @@ networks:
 services:
   #  ================================== Apache Spark ========================================== #
   spark-master:
-    image: apache/spark:3.5.3
+    image: docker.io/apache/spark:3.5.3
     container_name: spark-master
     hostname: spark-master
     labels:
@@ -29,7 +29,7 @@ services:
       SPARK_MASTER_WEBUI_PORT: 28304
       SPARK_PUBLIC_DNS: ${PUBLIC_IP:-127.0.0.1}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
-      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://minio-1:9000
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://rustfs-1:9000
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_path_style_access: 'true'
@@ -45,39 +45,32 @@ services:
       SPARK_DEFAULTS_CONF_spark_sql_catalogImplementation: hive
       SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog_type: hive
       SPARK_DEFAULTS_CONF_spark_hadoop_hive_metastore_uris: thrift://hive-metastore:9083
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
+#      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
       SPARK_DEFAULTS_CONF_spark_sql_extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg: org.apache.iceberg.spark.SparkCatalog
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg_uri: thrift://hive-metastore:9083
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg_warehouse: s3a://admin-bucket/iceberg/warehouse
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_type: rest
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest: org.apache.iceberg.spark.SparkCatalog
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_uri: http://hive-metastore:9084/iceberg
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_token: not_used
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_warehouse: s3a://admin-bucket/iceberg/warehouse
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_io___impl: org.apache.iceberg.aws.s3.S3FileIO
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_endpoint: http://minio-1:9000
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_path___style___access: true
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_access___key___id: ${PLATYS_AWS_ACCESS_KEY:-admin}
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_secret___access___key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
       SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
       SPARK_DEFAULTS_CONF_spark_jars_repositories:
       SPARK_DEFAULTS_CONF_spark_jars_packages: io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2
       SPARK_DEFAULTS_CONF_spark_jars_excludes:
       # specifies the JARs to be downloaded to the jars folder by maven-download-sh script
-      SPARK_INSTALL_JAVA_PACKAGES: ',com.amazonaws:aws-java-sdk-bundle:1.12.262,org.apache.hadoop:hadoop-aws:3.3.4,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.11.0,org.apache.iceberg:iceberg-aws-bundle:1.11.0,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
+      SPARK_INSTALL_JAVA_PACKAGES: ',com.amazonaws:aws-java-sdk-bundle:1.12.262,software.amazon.awssdk:s3-transfer-manager:2.35.4,software.amazon.awssdk.crt:aws-crt:0.39.4,org.apache.hadoop:hadoop-aws:3.3.4,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.11.0,org.apache.iceberg:iceberg-aws-bundle:1.11.0,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
       SPARK_INSTALL_PYTHON_PACKAGES: ' delta-spark==3.3.2'
       SPARK_DEFAULTS_CONF_spark_jars: /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-1.11.0.jar
       MAVEN_DOWNLOAD_REPO: central
+      MAVEN_DOWNLOAD_SSL_VERIFY: 'false'
+      SPARK_DEFAULTS_CONF_spark_jars_ivySettings:
+      SPARK_DEFAULTS_CONF_spark_jars_ivy: /opt/ivy-cache
     volumes:
-      - ./data-transfer:/data-transfer
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
       # the 3 conf files are mapped to conf.default folder, they are copied with env variable interpolation into conf upon start of container
-      - ./conf/spark/hive-site.xml:/opt/spark/conf.default/hive-site.xml
-      - ./conf/spark/spark-defaults.conf:/opt/spark/conf.default/spark-defaults.conf
-      - ./init/spark:/docker-entrypoint-initdb.d
-      - ./scripts/docker/maven-download.sh:/maven-download.sh
-      - ./scripts/spark/pyspark:/opt/spark/bin/pyspark
-      - ./container-volume/spark/logs/:/var/log/spark/logs
+      - ./conf/spark/hive-site.xml:/opt/spark/conf.default/hive-site.xml:z
+      - ./conf/spark/spark-defaults.conf:/opt/spark/conf.default/spark-defaults.conf:z
+      - ./init/spark:/docker-entrypoint-initdb.d:z
+      - ./scripts/docker/maven-download.sh:/maven-download.sh:z
+      - ./scripts/spark/pyspark:/opt/spark/bin/pyspark:z
+      - ./container-volume/spark/logs/:/var/log/spark/logs:z
 #      - ./scripts/docker/maven-download.sh:/usr/src/app/maven-download.sh
     entrypoint: [/docker-entrypoint-initdb.d/spark-init.sh]
     command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master]
@@ -89,7 +82,7 @@ services:
       retries: 20
       start_period: 20s
   spark-worker-1:
-    image: apache/spark:3.5.3
+    image: docker.io/apache/spark:3.5.3
     container_name: spark-worker-1
     hostname: spark-worker-1
     user: root
@@ -107,7 +100,7 @@ services:
       SPARK_WORKER_OPTS: -Dspark.worker.cleanup.enabled=true
       SPARK_PUBLIC_DNS: ${PUBLIC_IP:-127.0.0.1}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_impl: org.apache.hadoop.fs.s3a.S3AFileSystem
-      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://minio-1:9000
+      SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_endpoint: http://rustfs-1:9000
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
       SPARK_DEFAULTS_CONF_spark_hadoop_fs_s3a_path_style_access: 'true'
@@ -123,37 +116,30 @@ services:
       SPARK_DEFAULTS_CONF_spark_sql_catalogImplementation: hive
       SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog_type: hive
       SPARK_DEFAULTS_CONF_spark_hadoop_hive_metastore_uris: thrift://hive-metastore:9083
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
+#      SPARK_DEFAULTS_CONF_spark_sql_catalog_spark__catalog: org.apache.iceberg.spark.SparkCatalog
       SPARK_DEFAULTS_CONF_spark_sql_extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg: org.apache.iceberg.spark.SparkCatalog
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg_uri: thrift://hive-metastore:9083
       SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg_warehouse: s3a://admin-bucket/iceberg/warehouse
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_type: rest
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest: org.apache.iceberg.spark.SparkCatalog
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_uri: http://hive-metastore:9084/iceberg
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_token: not_used
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_warehouse: s3a://admin-bucket/iceberg/warehouse
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_io___impl: org.apache.iceberg.aws.s3.S3FileIO
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_endpoint: http://minio-1:9000
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_path___style___access: true
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_access___key___id: ${PLATYS_AWS_ACCESS_KEY:-admin}
-      SPARK_DEFAULTS_CONF_spark_sql_catalog_hive__iceberg__rest_s3_secret___access___key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
       SPARK_DEFAULTS_CONF_spark_sql_legacy_allowNonEmptyLocationInCTAS: 'true'
       SPARK_DEFAULTS_CONF_spark_jars_repositories:
       SPARK_DEFAULTS_CONF_spark_jars_packages: io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2
       SPARK_DEFAULTS_CONF_spark_jars_excludes:
       # specifies the JARs to be downloaded to the jars folder by maven-download-sh script
-      SPARK_INSTALL_JAVA_PACKAGES: ',com.amazonaws:aws-java-sdk-bundle:1.12.262,org.apache.hadoop:hadoop-aws:3.3.4,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.11.0,org.apache.iceberg:iceberg-aws-bundle:1.11.0,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
+      SPARK_INSTALL_JAVA_PACKAGES: ',com.amazonaws:aws-java-sdk-bundle:1.12.262,software.amazon.awssdk:s3-transfer-manager:2.35.4,software.amazon.awssdk.crt:aws-crt:0.39.4,org.apache.hadoop:hadoop-aws:3.3.4,io.delta:delta-spark_2.12:3.3.2,io.delta:delta-storage:3.3.2,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.11.0,org.apache.iceberg:iceberg-aws-bundle:1.11.0,org.apache.hudi:hudi-spark3.4-bundle_2.12:0.15.0'
       SPARK_INSTALL_PYTHON_PACKAGES: ' delta-spark==3.3.2'
       SPARK_DEFAULTS_CONF_spark_jars: /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-1.11.0.jar
       MAVEN_DOWNLOAD_REPO: central
+      MAVEN_DOWNLOAD_SSL_VERIFY: 'false'
+      SPARK_DEFAULTS_CONF_spark_jars_ivySettings:
+      SPARK_DEFAULTS_CONF_spark_jars_ivy: /opt/ivy-cache
     volumes:
-      - ./data-transfer:/data-transfer
-      - ./conf/spark/hive-site.xml:/opt/spark/conf.default/hive-site.xml
-      - ./conf/spark/spark-defaults.conf:/opt/spark/conf.default/spark-defaults.conf
-      - ./init/spark:/docker-entrypoint-initdb.d
-      - ./scripts/docker/maven-download.sh:/maven-download.sh
-      - ./container-volume/spark/logs/:/var/log/spark/logs
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
+      - ./conf/spark/hive-site.xml:/opt/spark/conf.default/hive-site.xml:z
+      - ./conf/spark/spark-defaults.conf:/opt/spark/conf.default/spark-defaults.conf:z
+      - ./init/spark:/docker-entrypoint-initdb.d:z
+      - ./scripts/docker/maven-download.sh:/maven-download.sh:z
+      - ./container-volume/spark/logs/:/var/log/spark/logs:z
     entrypoint: [/docker-entrypoint-initdb.d/spark-init.sh]
     command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, spark://spark-master:7077]
     restart: unless-stopped
@@ -165,14 +151,12 @@ services:
       start_period: 120s
   #  ================================== Apache Hive Metastore ========================================== #
   hive-metastore:
-    image: trivadis/apache-hive:4.2.0-postgresql-standalone-metastore-s3
+    image: docker.io/trivadis/apache-hive:4.2.1-postgresql-standalone-metastore-s3
     container_name: hive-metastore
     hostname: hive-metastore
     labels:
       com.platys.name: hive-metastore
       com.platys.description: Hive Metastore
-      com.platys.restapi.title: Hive Metastore Iceberg REST API
-      com.platys.restapi.url: http://dataplatform:9084/iceberg/v1/namespaces
     depends_on:
       hive-metastore-db:
         condition: service_healthy
@@ -180,7 +164,7 @@ services:
       - 9083:9083
       - 9084:9084
     environment:
-      HIVE_VER: 4.2.0
+      HIVE_VER: 4.2.1
       JAVA_TOOL_OPTIONS: -Dhive.log.level=INFO
       # configure iceberg catalog service (if HMS >= 4.1.0)
       HIVE_SITE_CONF_metastore_catalog_servlet_port: 9084
@@ -188,7 +172,7 @@ services:
       HIVE_SITE_CONF_metastore_warehouse_tenant_colocation: false
       CORE_CONF_fs_defaultFS: file:///tmp
       HIVE_SITE_CONF_fs_defaultFS: file:///tmp
-      HIVE_SITE_CONF_fs_s3a_endpoint: http://minio-1:9000
+      HIVE_SITE_CONF_fs_s3a_endpoint: http://rustfs-1:9000
       HIVE_SITE_CONF_fs_s3a_access_key: ${PLATYS_AWS_ACCESS_KEY:-admin}
       HIVE_SITE_CONF_fs_s3a_secret_key: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
       HIVE_SITE_CONF_fs_s3a_path_style_access: 'true'
@@ -209,7 +193,7 @@ services:
       SERVICE_NAME: standalone-metastore
       SERVICE_OPTS: -Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://hive-metastore-db/metastore_db -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
     volumes:
-      - ./data-transfer:/data-transfer
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     restart: unless-stopped
     healthcheck:
       test: [CMD, nc, -z, hive-metastore, '9083']
@@ -217,7 +201,7 @@ services:
       timeout: 10s
       retries: 10
   hive-metastore-db:
-    image: postgres
+    image: docker.io/postgres
     container_name: hive-metastore-db
     hostname: hive-metastore-db
     labels:
@@ -231,20 +215,20 @@ services:
       POSTGRES_USER: hive
       POSTGRES_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
     volumes:
-      - ./data-transfer:/data-transfer
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     restart: unless-stopped
     healthcheck:
       test: [CMD, psql, -U, hive, metastore_db]
   #  ================================== Trino ========================================== #
   trino-1:
-    image: trinodb/trino:481
+    image: docker.io/trinodb/trino:483
     hostname: trino-1
     container_name: trino-1
     labels:
       com.platys.name: trino
       com.platys.description: SQL Virtualization Engine
       com.platys.webui.title: Trino UI
-      com.platys.webui.url: http://dataplatform:28082/ui/preview
+      com.platys.webui.url: http://dataplatform:28082/ui
       com.platys.password.envvars: PLATYS_GSHEET_CREDENTIALS_KEY
     ports:
       - 28082:8080
@@ -257,7 +241,7 @@ services:
       QUERY_MAX_MEMORY_PER_NODE: 8GB
       HMS_ICEBERG_REST_CATALOG_URI: http://hive-metastore:9084/iceberg
       HMS_ICEBERG_REST_CATALOG_WAREHOUSE: s3a://admin-bucket/iceberg/warehouse
-      S3_ENDPOINT: http://minio-1:9000
+      S3_ENDPOINT: http://rustfs-1:9000
       S3_REGION: us-east-1
       S3_AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
       S3_AWS_SECRET_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
@@ -277,16 +261,15 @@ services:
       HIVE_METASTORE_DB_PASSWORD: ${PLATYS_HMS_POSTGRESQL_PASSWORD:-abc123!}
       EVENT_LISTENER_CONFIG_FILES: ''
     volumes:
-      - ./data-transfer:/data-transfer
-      - ./conf/trino/single/config.properties:/etc/trino/config.properties
-      - ./conf/trino/single/node.properties:/etc/trino/node.properties
-      - ./conf/trino/single/log-debug.properties:/etc/trino/log.properties
-      - ./conf/trino/catalog/hive.properties:/catalog/minio.properties
-      - ./conf/trino/catalog/hive.properties:/catalog/hive.properties
-      - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties
-      - ./conf/trino/catalog/iceberg-hive-rest.properties:/catalog/iceberg_hive_rest.properties
-      - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties
-      - ./custom-conf/trino/security:/etc/trino/security
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
+      - ./conf/trino/single/config.properties:/etc/trino/config.properties:z
+      - ./conf/trino/single/node.properties:/etc/trino/node.properties:z
+      - ./conf/trino/single/log-debug.properties:/etc/trino/log.properties:z
+      - ./conf/trino/catalog/hive.properties:/catalog/minio.properties:z
+      - ./conf/trino/catalog/hive.properties:/catalog/hive.properties:z
+      - ./conf/trino/catalog/iceberg-hive.properties:/catalog/iceberg_hive.properties:z
+      - ./conf/trino/catalog/hive_metastore_db.properties:/catalog/hive_metastore_db.properties:z
+      - ./custom-conf/trino/security:/etc/trino/security:z
     restart: unless-stopped
     healthcheck:
       test: [CMD-SHELL, trino --version]
@@ -294,84 +277,87 @@ services:
       timeout: 5s
       retries: 5
   trino-cli:
-    image: trivadis/trino-cli:latest
+    image: docker.io/trivadis/trino-cli:latest
     hostname: trino-cli
     container_name: trino-cli
     labels:
       com.platys.name: trino-cli
       com.platys.description: Trino CLI
     volumes:
-      - ./data-transfer:/data-transfer
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     tty: true
     restart: unless-stopped
-  #  ================================== Minio ========================================== #
-  minio-1:
-    image: pgsty/silo
-    container_name: minio-1
-    hostname: minio-1
+  #  ================================== RustFS (S3 Storage) ========================================== #
+  rustfs-1:
+    image: docker.io/rustfs/rustfs:latest
+    container_name: rustfs-1
+    hostname: rustfs-1
+    security_opt:
+      - no-new-privileges:true
     labels:
-      com.platys.name: minio
+      com.platys.name: rustfs
       com.platys.description: Software-defined Object Storage
-      com.platys.webui.title: MinIO UI
-      com.platys.webui.url: http://dataplatform:9010
-      com.platys.password.envvars: 'PLATYS_AWS_SECRET_ACCESS_KEY, '
+      com.platys.webui.title: RustFS Console
+      com.platys.webui.url: http://dataplatform:9014
+      com.platys.password.envvars: PLATYS_AWS_SECRET_ACCESS_KEY
     ports:
-      # S3 API Port
-      - 9000:9000
-      # UI Port
-      - 9010:9010
+      - 9005:9000   # S3 API port
+      - 9014:9010   # Console port    
     environment:
-      MINIO_ROOT_USER: ${PLATYS_AWS_ACCESS_KEY:-admin}
-      MINIO_ROOT_PASSWORD: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
-      # remove region due to problems with RisingWave
-      #MINIO_REGION_NAME: us-east-1
-      #MINIO_REGION: us-east-1
-      MINIO_DOMAIN: minio
-      MINIO_SERVER_URL: http://${PUBLIC_IP:-127.0.0.1}:9000
-      MINIO_COMPRESSION_ENABLE: off
-      MINIO_PROMETHEUS_AUTH_TYPE: public
-      MINIO_PROMETHEUS_URL: http://prometheus-1:9090
+      - RUSTFS_VOLUMES=/data/rustfs{0..3} # Define 4 storage volumes
+      - RUSTFS_ADDRESS=0.0.0.0:9000
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9010
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*
+      - RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS=*
+      - RUSTFS_ACCESS_KEY=${PLATYS_AWS_ACCESS_KEY:-admin}
+      - RUSTFS_SECRET_KEY=${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
+      - RUSTFS_OBS_LOGGER_LEVEL=info
+      # Keep strict disk topology checks enabled by default.
+      # For local testing only, set `RUSTFS_UNSAFE_BYPASS_DISK_CHECK=true` explicitly.      
+      - RUSTFS_UNSAFE_BYPASS_DISK_CHECK=true
+#      - RUSTFS_TLS_PATH=/opt/tls
     volumes:
-      - ./data-transfer:/data-transfer
-    command: minio server /data --console-address ":9010"
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     restart: unless-stopped
     healthcheck:
-      test: [CMD, curl, -f, http://minio-1:9000/minio/health/live]
-      interval: 15s
-      timeout: 20s
+      test: [CMD, sh, -c, curl --noproxy '*' -f http://127.0.0.1:9000/health && curl -f http://127.0.0.1:9010/rustfs/console/health]
+      interval: 30s
+      timeout: 10s
       retries: 3
-  #  ================================== Minio MC ========================================== #
-  minio-mc:
+      start_period: 40s
+  #  ================================== RustFS MC ========================================== #
+  rustfs-mc:
     image: quay.io/minio/aistor/mc:latest
-    container_name: minio-mc
-    hostname: minio-mc
+    container_name: rustfs-mc
+    hostname: rustfs-mc
     labels:
-      com.platys.name: minio
-      com.platys.description: MinIO Console
+      com.platys.name: rustfs
+      com.platys.description: RustFS CLI
     environment:
       # these two env variables are also needed for the s3-credentials.properties file gen to work! 
       AWS_ACCESS_KEY: ${PLATYS_AWS_ACCESS_KEY:-admin}
       AWS_SECRET_ACCESS_KEY: ${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}
-      MC_HOST_minio-1: http://${PLATYS_AWS_ACCESS_KEY:-admin}:${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}@minio-1:9000
+      MC_HOST_rustfs-1: http://${PLATYS_AWS_ACCESS_KEY:-admin}:${PLATYS_AWS_SECRET_ACCESS_KEY:-abc123abc123}@rustfs-1:9000
     volumes:
-      - ./data-transfer:/data-transfer
-      - ./scripts/docker/wait-for-it.sh:/usr/src/app/wait-for-it.sh
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
+      - ./scripts/docker/wait-for-it.sh:/usr/src/app/wait-for-it.sh:z
     entrypoint:
       - /bin/sh
       - -c
       - |
-        /usr/src/app/wait-for-it.sh -t 180 minio-1:9000
-        mc mb --ignore-existing minio-1/admin-bucket
+        /usr/src/app/wait-for-it.sh -t 180 rustfs-1:9000
+        mc mb --ignore-existing rustfs-1/admin-bucket
               for bucket in $$(tr ',' '\n' <<< "warehouse-bucket,data-bucket")
         do
-          mc mb --ignore-existing minio-1/$$bucket
+          mc mb --ignore-existing rustfs-1/$$bucket
         done
         #
         while [ 1 -eq 1 ];do sleep 60;done
     restart: unless-stopped
   #  ================================== markdown-viewer ========================================== #
   markdown-viewer:
-    image: dannyben/madness:1.2.5
+    image: docker.io/dannyben/madness:1.2.5
     container_name: markdown-viewer
     hostname: markdown-viewer
     labels:
@@ -383,18 +369,18 @@ services:
       - 80:3000
     volumes:
       - ./artefacts:/docs
-      - ./conf/markdown-viewer/markdown-madness.yml:/docs/.madness.yml
-      - ./data-transfer:/data-transfer
+      - ./conf/markdown-viewer/markdown-madness.yml:/docs/.madness.yml:z
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     command: server
     restart: unless-stopped
     healthcheck:
-      test: [CMD-SHELL, curl -f http://markdown-viewer:3000 || exit 1]
+      test: [CMD-SHELL, curl --noproxy '*' -f http://localhost:3000 || exit 1]
       interval: 1m30s
       timeout: 10s
       retries: 3
       start_period: 1m
   markdown-renderer:
-    image: trivadis/jinja2-renderer:0.8.1
+    image: docker.io/trivadis/jinja2-renderer:0.8.1
     container_name: markdown-renderer
     hostname: markdown-renderer
     labels:
@@ -412,11 +398,11 @@ services:
       PLATYS_DATACENTER:
       SERVICE_LIST_VERSION: 2
     volumes:
-      - ./artefacts/templates:/templates
-      - ./artefacts/templates:/scripts
-      - .:/variables
-      - ./artefacts:/output
-      - ./data-transfer:/data-transfer
+      - ./artefacts/templates:/templates:z
+      - ./artefacts/templates:/scripts:z
+      - .:/variables:z
+      - ./artefacts:/output:z
+      - ${PLATYS_DATA_TRANSFER_LOCAL_FOLDER:-./data-transfer}:/data-transfer:z
     init: true
 volumes:
   data-transfer-vol:

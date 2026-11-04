@@ -166,13 +166,41 @@ do
     wait_for_it ${i}
 done
 
-if [ ${SPARK_INSTALL_JAVA_PACKAGES} ]
-then
+# Trust pypi.org to avoid SSL Error in pip install
+pip config set global.trusted-host "pypi.org files.pythonhosted.org pypi.python.org"
+
+# Generate the Ivy settings file when a Nexus repository is configured.
+# NEXUS_HOST / NEXUS_URL are injected by the generated docker-compose.yml
+# (from the ns.nexusHost / ns.nexusUrl Platys variables).
+if [ -n "${NEXUS_URL}" ]; then
+  echo "Generating /opt/spark/conf/ivy-settings.xml for Nexus (${NEXUS_URL})"
+  mkdir -p /opt/spark/conf
+  cat > /opt/spark/conf/ivy-settings.xml <<EOF
+<ivysettings>
+  <settings defaultResolver="nexus"/>
+  <credentials host="${NEXUS_HOST}" realm="Sonatype Nexus Repository Manager"
+               username="${MAVEN_DOWNLOAD_REPO_NEXUS_USER:-admin}" passwd="${MAVEN_DOWNLOAD_REPO_NEXUS_PASSWORD}"/>
+  <resolvers>
+    <ibiblio name="nexus"
+             m2compatible="true"
+             root="${NEXUS_URL}/repository/maven-public/"/>
+  </resolvers>
+  <modules>
+    <module organisation="*" name="*" resolver="nexus"/>
+  </modules>
+</ivysettings>
+EOF
+fi
+
+if [ -n "${SPARK_INSTALL_JAVA_PACKAGES}" ]
+then 
+  echo "Installing Maven Packages: ${SPARK_INSTALL_JAVA_PACKAGES}"
+
   # using python for the download, as spark docker images don't come with curl installed (with apache/spark this is no longer true, but we use python as it supports Nexus)
   /maven-download.sh ${MAVEN_DOWNLOAD_REPO} ${SPARK_INSTALL_JAVA_PACKAGES} /opt/spark/jars python
 fi
 
-if [ "${SPARK_INSTALL_PYTHON_PACKAGES}" ]
+if [ -n "${SPARK_INSTALL_PYTHON_PACKAGES}" ]
 then
   echo "Installing Python packages: ${SPARK_INSTALL_PYTHON_PACKAGES}"
   pip install ${SPARK_INSTALL_PYTHON_PACKAGES}

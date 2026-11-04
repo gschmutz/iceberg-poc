@@ -31,7 +31,7 @@
       data_center_to_use: 0
       
       # either 'minio' or 'rustfs' or `seaweedfs`
-      s3_service_to_use: minio
+      s3_service_to_use: rustfs
       # a list of table formats to use, separated by comma, for example 'delta,iceberg,hudi'
       table_formats_to_use: 'iceberg'
 
@@ -2539,7 +2539,7 @@
       #
       #=====  MinIO Object Storage ========
       #
-      MINIO_enable: true
+      MINIO_enable: false
       MINIO_volume_map_data: false
       MINIO_datacenters: 1
       # "single" or "cluster"
@@ -2633,6 +2633,34 @@
       #=====  Minio KES ========
       #
       MINIO_KES_enable: false
+      #
+      #=====  RustFS ========
+      #
+      RUSTFS_enable: true
+      RUSTFS_volume_map_data: false
+      RUSTFS_volume_map_logs: false
+      RUSTFS_access_key: admin
+      RUSTFS_secret_key: abc123abc123
+      RUSTFS_admin_bucket_name: admin-bucket
+      # add additional buckets, comma separated, admin-bucket will be created by default
+      RUSTFS_buckets: 'warehouse-bucket,data-bucket'
+      RUSTFS_console_enabled: true
+      RUSTFS_mc_enabled: true
+      RUSTFS_upload_data_transfer_to_bucket_enabled: false
+      RUSTFS_upload_data_transfer_bucket_name: 'data-transfer-bucket'
+      RUSTFS_upload_data_transfer_subfolders: ''
+      # bucket event notifications (target name is 'primary')
+      RUSTFS_notify_webhook_enabled: false
+      RUSTFS_notify_webhook_endpoint: ''
+      RUSTFS_notify_webhook_auth_token: ''
+      RUSTFS_notify_kafka_enabled: false
+      RUSTFS_notify_kafka_topic: rustfs-notify-log
+      RUSTFS_notify_mqtt_enabled: false
+      RUSTFS_notify_mqtt_broker_endpoint: 'tcp://mosquitto-1:1883'
+      RUSTFS_notify_mqtt_topic: rustfs-notify-log
+      RUSTFS_notify_mqtt_qos: 0
+      RUSTFS_notify_mqtt_username: ''
+      RUSTFS_notify_mqtt_password: ''      
       #
       #=====  Iceberg REST Catalog ========
       #
