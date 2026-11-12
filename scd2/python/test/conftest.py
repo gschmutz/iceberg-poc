@@ -51,6 +51,9 @@ def spark():
         .config(
             "spark.sql.iceberg.cache-enabled", "false"
         )  # disable caching to ensure we always read the latest data after merges
+        .config(
+            "spark.sql.iceberg.vectorization.enabled", "false"
+        )  # Trino writes Parquet with DELTA_LENGTH_BYTE_ARRAY, which Iceberg's vectorized reader can't read
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.sql.catalog.hiverest", "org.apache.iceberg.spark.SparkCatalog")
         .config("spark.sql.catalog.hiverest.type", "rest")

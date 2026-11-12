@@ -227,7 +227,7 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             render_table(
                 df,
@@ -240,7 +240,7 @@ class TestCommonsBase:
             actual_df = self.get_table_data(
                 ctx,
                 table=SCD2Table.SCD2,
-                order_by_cols=cols_bks + ["dp_ts_from"],
+                order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
                 exclude_cols=["dp_record_id"],
             )
             expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -276,7 +276,7 @@ class TestCommonsBase:
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
         )
         df_raw = self.get_table_data(
             ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
@@ -303,13 +303,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_record_id"],
-                sort_cols=cols_bks + ["dp_ts_from"],
+                sort_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             )
             render_table(
                 df_colored,
@@ -323,7 +323,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=cols_bks + ["dp_ts_from"],
+            order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             exclude_cols=["dp_record_id"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -356,7 +356,7 @@ class TestCommonsBase:
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
         )
         df_raw = self.get_table_data(
             ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
@@ -385,13 +385,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_record_id"],
-                sort_cols=cols_bks + ["dp_ts_from"],
+                sort_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             )
             render_table(
                 df_colored,
@@ -405,7 +405,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=cols_bks + ["dp_ts_from"],
+            order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             exclude_cols=["dp_record_id"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
