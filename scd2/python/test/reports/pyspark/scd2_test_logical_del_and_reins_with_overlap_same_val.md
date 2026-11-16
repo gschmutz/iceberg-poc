@@ -1,10 +1,10 @@
-# Testing Reactivating a logically deleted record
+# Testing Reactivating a logically deleted record with an overlap and the same value
 
-This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record with an overlap in the raw table.
+This test validates a REACTIVATE operation of a single entity. The reactivate is created by re-inserting the record in the raw table with an overlap of the deleted version and with the same value.
 
 
  * **Strategy:** `pyspark`
- * **Last Run:** `2026-06-10 07:22:41`
+ * **Last Run:** `2026-11-16 17:40:05`
 ## Test Step 1
 Insert 3 records into raw table and perform initial SCD2 merge.
 
@@ -12,7 +12,7 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_from_ts          | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
@@ -23,18 +23,18 @@ Insert 3 records into raw table and perform initial SCD2 merge.
 **Input to Merge**
 
 
-|   merge_record_id | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
-|-------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|----------------|----------------|
-|               nan | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|               nan | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
-|               nan | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+|   merge_record_id | merge_dp_ts_to   | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type     | case_name   | dp_from_ts          | dp_to_ts            | dp_replace_ts   | dp_is_active   | dp_is_latest   |
+|-------------------|------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|--------------------|-------------|---------------------|---------------------|-----------------|----------------|----------------|
+|               nan | NaT              | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 00B9A7122065F01BE7FD23C6FB962AEE6DE3B84D0BA50409DC26FC5A150FBDC8 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | NaT             | True           | True           |
+|               nan | NaT              | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | D28A23C8422275E006FCF3D86AA51CF4E058FB495B8E48560FC9BF7BCC019B40 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | NaT             | True           | True           |
+|               nan | NaT              | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | INSERT_NEW_VERSION | CASE_1      | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | NaT             | True           | True           |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_record_id                                                            | id                                   | first_name                               | last_name                                 | city                                      | email                                                       | dp_ts_from                                             | dp_ts_to                                               | dp_is_active                            | dp_is_latest                            | dp_load_ts                                             | dp_replace_ts                                          |
+| dp_record_id                                                            | id                                   | first_name                               | last_name                                 | city                                      | email                                                       | dp_from_ts                                             | dp_to_ts                                               | dp_is_active                            | dp_is_latest                            | dp_load_ts                                             | dp_replace_ts                                          |
 |-------------------------------------------------------------------------|--------------------------------------|------------------------------------------|-------------------------------------------|-------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------|--------------------------------------------------------|--------------------------------------------------------|
 | <span style='color: green;'>5b5bac2f-9573-14ea-23df-ca781b0e2fbb</span> | <span style='color: green;'>1</span> | <span style='color: green;'>Alice</span> | <span style='color: green;'>Meyer</span>  | <span style='color: green;'>Zurich</span> | <span style='color: green;'>alice.meyer@example.com</span>  | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
 | <span style='color: green;'>e683c742-63f3-6271-64ed-b9a8b4c5cb32</span> | <span style='color: green;'>2</span> | <span style='color: green;'>Bob</span>   | <span style='color: green;'>Keller</span> | <span style='color: green;'>Bern</span>   | <span style='color: green;'>bob.keller@example.com</span>   | <span style='color: green;'>2026-01-01 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> | <span style='color: green;'>True</span> | <span style='color: green;'>True</span> | <span style='color: green;'>2026-01-02 00:00:00</span> | <span style='color: green;'>9999-12-31 23:59:59</span> |
@@ -49,7 +49,7 @@ At 2026-01-10 00:00:00, logically delete record with `id=3` from raw table and p
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_from_ts          | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
@@ -63,16 +63,16 @@ At 2026-01-10 00:00:00, logically delete record with `id=3` from raw table and p
 **Input to Merge**
 
 
-| merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
-|--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| af503a22-602c-adb7-cf8d-ca124df6fcf8 | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-01 00:00:00 | 2026-01-09 23:59:59 | False          | True           |
+| merge_record_id                      | merge_dp_ts_to      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_from_ts          | dp_to_ts            | dp_replace_ts   | dp_is_active   | dp_is_latest   |
+|--------------------------------------|---------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|-----------------|----------------|----------------|
+| af503a22-602c-adb7-cf8d-ca124df6fcf8 | 9999-12-31 23:59:59 | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | INACTIVE      | UPDATE_VERSION   | CASE_30     | 2026-01-01 00:00:00 | 2026-01-09 23:59:59 | NaT             | False          | True           |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to                                                | dp_is_active                              | dp_is_latest   | dp_load_ts          | dp_replace_ts                                           |
+| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_from_ts          | dp_to_ts                                                | dp_is_active                              | dp_is_latest   | dp_load_ts          | dp_replace_ts                                           |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------------------------------------------|-------------------------------------------|----------------|---------------------|---------------------------------------------------------|
 | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True                                      | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
 | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True                                      | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
@@ -87,7 +87,7 @@ Reactivate record with `id=3` by inserting it again with an overlap to the delet
 **Raw Table `raw_person`**
 
 
-|   id | first_name   | last_name   | city   | email                    | status   | dp_ts_from          | dp_loaded_at        |
+|   id | first_name   | last_name   | city   | email                    | status   | dp_from_ts          | dp_loaded_at        |
 |------|--------------|-------------|--------|--------------------------|----------|---------------------|---------------------|
 |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | ACTIVE   | 2026-01-01 00:00:00 | 2026-01-01 00:00:00 |
@@ -104,16 +104,16 @@ Reactivate record with `id=3` by inserting it again with an overlap to the delet
 **Input to Merge**
 
 
-| merge_record_id                      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_ts_from          | dp_ts_to            | dp_is_active   | dp_is_latest   |
-|--------------------------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|----------------|----------------|
-| af503a22-602c-adb7-cf8d-ca124df6fcf8 | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | UPDATE_VERSION   | CASE_10     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | True           | True           |
+| merge_record_id                      | merge_dp_ts_to      | dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_record_hash                                                   | dp_del_flag   | operation_type   | case_name   | dp_from_ts          | dp_to_ts            | dp_replace_ts   | dp_is_active   | dp_is_latest   |
+|--------------------------------------|---------------------|--------------------------------------|------|--------------|-------------|--------|--------------------------|------------------------------------------------------------------|---------------|------------------|-------------|---------------------|---------------------|-----------------|----------------|----------------|
+| af503a22-602c-adb7-cf8d-ca124df6fcf8 | 2026-01-09 23:59:59 | af503a22-602c-adb7-cf8d-ca124df6fcf8 |    3 | Clara        | Schmid      | Basel  | clara.schmid@example.com | 77C069EE2AA3730894A6E3319ADC455C203B6CC4D35B0B912C2FAADF3C687676 | ACTIVE        | UPDATE_VERSION   | CASE_10     | 2026-01-01 00:00:00 | 9999-12-31 23:59:59 | NaT             | True           | True           |
 
 
 
 **Dimensional Table `dim_person`**
 
 
-| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_ts_from          | dp_ts_to                                                | dp_is_active                             | dp_is_latest   | dp_load_ts          | dp_replace_ts                                           |
+| dp_record_id                         |   id | first_name   | last_name   | city   | email                    | dp_from_ts          | dp_to_ts                                                | dp_is_active                             | dp_is_latest   | dp_load_ts          | dp_replace_ts                                           |
 |--------------------------------------|------|--------------|-------------|--------|--------------------------|---------------------|---------------------------------------------------------|------------------------------------------|----------------|---------------------|---------------------------------------------------------|
 | 5b5bac2f-9573-14ea-23df-ca781b0e2fbb |    1 | Alice        | Meyer       | Zurich | alice.meyer@example.com  | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True                                     | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
 | e683c742-63f3-6271-64ed-b9a8b4c5cb32 |    2 | Bob          | Keller      | Bern   | bob.keller@example.com   | 2026-01-01 00:00:00 | 9999-12-31 23:59:59                                     | True                                     | True           | 2026-01-02 00:00:00 | 9999-12-31 23:59:59                                     |
