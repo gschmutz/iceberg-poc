@@ -48,6 +48,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
         col_dp_replaced_at: str = "dp_replaced_at",
+        col_dp_is_active: str = "dp_is_active",
+        col_dp_is_latest: str = "dp_is_latest",
         col_dp_record_hash: str = "dp_record_hash",
         col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
@@ -99,6 +101,8 @@ class SparkSCD2Strategy(SCD2Strategy):
                 inserted.  Defaults to ``"dp_created_at"``.
             col_dp_replaced_at: Column name recording when the SCD2 row was last
                 updated or superseded.  Defaults to ``"dp_replaced_at"``.
+            col_dp_is_active: Column name in the SCD2 table flagging a version as active (not deleted).  Defaults to ``"dp_is_active"``.
+            col_dp_is_latest: Column name in the SCD2 table flagging the most recent version of an entity (even if deleted).  Defaults to ``"dp_is_latest"``.
             col_dp_record_hash: Name of the column in the SCD2 table that stores the record hash (e.g. ``"dp_record_hash"``).  Defaults to ``"dp_record_hash"``.
             col_dp_record_id: Name of the column in the SCD2 table that stores the unique ID of each record (e.g. ``"dp_record_id"``).  Defaults to ``"dp_record_id"``.
             col_dp_ts: Column name in the source table that holds the record's own
@@ -125,6 +129,8 @@ class SparkSCD2Strategy(SCD2Strategy):
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
             col_dp_replaced_at=col_dp_replaced_at,
+            col_dp_is_active=col_dp_is_active,
+            col_dp_is_latest=col_dp_is_latest,
             col_dp_record_hash=col_dp_record_hash,
             col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
@@ -352,28 +358,30 @@ class SparkSCD2Strategy(SCD2Strategy):
         # ── previous-version lookup (optional) ──────────────────────────────
         if self.use_prev_version_lookup:
             prev_select = f"""
-            prev.dp_ts_from                                                                                                         AS prev_dp_ts_from,
-            prev.dp_ts_to                                                                                                           AS prev_dp_ts_to,
+            prev.{self.col_dp_valid_from}                                                                                                         AS prev_dp_ts_from,
+            prev.{self.col_dp_valid_to}                                                                                                           AS prev_dp_ts_to,
             prev.{self.col_dp_record_id}                                                                                                             AS prev_{self.col_dp_record_id},
-            prev.dp_is_active                                                                                                       AS prev_dp_is_active,
-            prev.dp_is_latest                                                                                                       AS prev_dp_is_latest,
+            prev.{self.col_dp_is_active}                                                                                                       AS prev_dp_is_active,
+            prev.{self.col_dp_is_latest}                                                                                                       AS prev_dp_is_latest,
             CASE WHEN prev.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = prev.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS prev_is_same_as_src,
-            prev.dp_ts_to < src.dp_ts_from - {self.interval_expr}                                                                    AS prev_with_gap,"""
+            prev.{self.col_dp_valid_to} < src.{self.col_dp_ts} - {self.interval_expr}                                                                    AS prev_with_gap,"""
             prev_join = f"""
         LEFT JOIN (
             SELECT
                 {self.col_dp_record_id},
                 {cols_bks_str},
                 {self.col_dp_record_hash},
-                dp_ts_from,
-                dp_ts_to,
-                dp_is_active,
-                dp_is_latest
+                {self.col_dp_valid_from},
+                {self.col_dp_valid_to},
+                {self.col_dp_created_at},
+                {self.col_dp_replaced_at},
+                {self.col_dp_is_active},
+                {self.col_dp_is_latest}
             FROM {self.scd2_table_fqn()}
         ) prev
         ON ({join_src_prev})
-        AND (prev.dp_ts_to = src.dp_ts_from - {self.interval_expr}
-            OR (prev.dp_ts_to < src.dp_ts_from AND prev.dp_is_latest = TRUE))"""
+        AND (prev.{self.col_dp_valid_to} = src.{self.col_dp_ts} - {self.interval_expr}
+            OR (prev.{self.col_dp_valid_to} < src.{self.col_dp_ts} AND prev.{self.col_dp_is_latest} = TRUE))"""
         else:
             prev_select = f"""
             CAST(NULL AS TIMESTAMP)                                                                                                 AS prev_dp_ts_from,
@@ -388,11 +396,11 @@ class SparkSCD2Strategy(SCD2Strategy):
         # ── next-version lookup (optional) ──────────────────────────────────
         if self.use_next_version_lookup:
             next_select = f"""
-            next.dp_ts_from                                                                                                         AS next_dp_ts_from,
-            next.dp_ts_to                                                                                                           AS next_dp_ts_to,
+            next.{self.col_dp_valid_from}                                                                                                         AS next_dp_ts_from,
+            next.{self.col_dp_valid_to}                                                                                                           AS next_dp_ts_to,
             next.{self.col_dp_record_id}                                                                                                             AS next_{self.col_dp_record_id},
-            next.dp_is_active                                                                                                       AS next_dp_is_active,
-            next.dp_is_latest                                                                                                       AS next_dp_is_latest,
+            next.{self.col_dp_is_active}                                                                                                       AS next_dp_is_active,
+            next.{self.col_dp_is_latest}                                                                                                       AS next_dp_is_latest,
             CASE WHEN next.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = next.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END           AS next_is_same_as_src"""
             next_join = f"""
         LEFT JOIN (
@@ -400,15 +408,17 @@ class SparkSCD2Strategy(SCD2Strategy):
                 {self.col_dp_record_id},
                 {cols_bks_str},
                 {self.col_dp_record_hash},
-                dp_ts_from,
-                dp_ts_to,
-                dp_is_active,
-                dp_is_latest
+                {self.col_dp_valid_from},
+                {self.col_dp_valid_to},
+                {self.col_dp_created_at},
+                {self.col_dp_replaced_at},
+                {self.col_dp_is_active},
+                {self.col_dp_is_latest}
             FROM {self.scd2_table_fqn()}
-            WHERE dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '{self.max_ts_str}'
+            WHERE {self.col_dp_is_active} = TRUE AND {self.col_dp_valid_to} = TIMESTAMP '{self.max_ts_str}'
         ) next
         ON ({join_src_next})
-        AND src.dp_ts_from < next.dp_ts_from"""
+        AND src.{self.col_dp_ts} < next.{self.col_dp_valid_from}"""
         else:
             next_select = f"""
             CAST(NULL AS TIMESTAMP)                                                                                                 AS next_dp_ts_from,
@@ -429,28 +439,31 @@ class SparkSCD2Strategy(SCD2Strategy):
             src.{self.col_dp_ts}      AS src_dp_ts_from,
             src.{self.col_dp_record_hash}     AS src_{self.col_dp_record_hash},
             src.dp_del_flag,
-            overlap.dp_ts_from                                                                                                      AS overlap_dp_ts_from,
-            overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
+            overlap.{self.col_dp_valid_from}                                                                                                      AS overlap_dp_ts_from,
+            overlap.{self.col_dp_valid_to}                                                                                                        AS overlap_dp_ts_to,
             overlap.{self.col_dp_record_id}                                                                                                          AS overlap_{self.col_dp_record_id},
             CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_ts_from = src.{self.col_dp_ts}                                                                               AS overlap_same_start,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
-            overlap.dp_is_latest                                                                                                    AS overlap_dp_is_latest,{prev_select}{next_select}
+            overlap.{self.col_dp_valid_from} = src.{self.col_dp_ts}                                                                               AS overlap_same_start,
+            overlap.{self.col_dp_is_active}                                                                                                    AS overlap_dp_is_active,
+            overlap.{self.col_dp_is_latest}                                                                                                    AS overlap_dp_is_latest,
+            overlap.{self.col_dp_replaced_at}                                                                                                  AS overlap_dp_replaced_at,{prev_select}{next_select}
         FROM src_records AS src
         LEFT JOIN (
             SELECT
                 {cols_bks_str},
                 {self.col_dp_record_hash},
                 {self.col_dp_record_id},
-                dp_ts_to,
-                dp_ts_from,
-                dp_is_active,
-                dp_is_latest
+                {self.col_dp_valid_to},
+                {self.col_dp_valid_from},
+                {self.col_dp_created_at},
+                {self.col_dp_replaced_at},
+                {self.col_dp_is_active},
+                {self.col_dp_is_latest}
             FROM {self.scd2_table_fqn()}
-            {"WHERE (dp_is_active = TRUE AND dp_ts_to = TIMESTAMP '" + self.max_ts_str + "')" if not self.perform_edge_case_op else ""}
+            {"WHERE (" + self.col_dp_is_active + " = TRUE AND " + self.col_dp_valid_to + " = TIMESTAMP '" + self.max_ts_str + "')" if not self.perform_edge_case_op else ""}
         ) overlap
         ON {join_src_overlap}
-        AND src.dp_ts_from BETWEEN overlap.dp_ts_from AND overlap.dp_ts_to{prev_join}{next_join}
+        AND src.{self.col_dp_ts} BETWEEN overlap.{self.col_dp_valid_from} AND overlap.{self.col_dp_valid_to}{prev_join}{next_join}
     ),
     records_to_process AS (
         SELECT *,
@@ -592,7 +605,7 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src IS NULL
                     AND (overlap_dp_is_active = true or overlap_dp_is_active = false)
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_29', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active='overlap_dp_is_active', upd_dp_is_latest='overlap_dp_is_latest', upd_dp_ts_replace_from='overlap_dp_ts_replace_from', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
+                    THEN {self._format_case_object('CASE_29', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active='overlap_dp_is_active', upd_dp_is_latest='overlap_dp_is_latest', upd_dp_ts_replace_from='overlap_dp_replaced_at', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
@@ -632,10 +645,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             dp_del_flag,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
-            situation.upd_dp_ts_from            AS dp_ts_from,
-            situation.upd_dp_ts_to              AS dp_ts_to,
-            situation.upd_dp_is_active          AS dp_is_active,
-            situation.upd_dp_is_latest          AS dp_is_latest
+            situation.upd_dp_ts_from            AS {self.col_dp_valid_from},
+            situation.upd_dp_ts_to              AS {self.col_dp_valid_to},
+            situation.upd_dp_ts_replace_from    AS {self.col_dp_replaced_at},
+            situation.upd_dp_is_active          AS {self.col_dp_is_active},
+            situation.upd_dp_is_latest          AS {self.col_dp_is_latest}
         FROM records_to_process
         WHERE situation.is_upd = TRUE
 
@@ -652,10 +666,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             dp_del_flag,
             'UPDATE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
-            situation.upd_dp_ts_from_2          AS dp_ts_from,
-            situation.upd_dp_ts_to_2            AS dp_ts_to,
-            situation.upd_dp_is_active_2        AS dp_is_active,
-            situation.upd_dp_is_latest_2        AS dp_is_latest
+            situation.upd_dp_ts_from_2          AS {self.col_dp_valid_from},
+            situation.upd_dp_ts_to_2            AS {self.col_dp_valid_to},
+            situation.upd_dp_ts_replace_from_2  AS {self.col_dp_replaced_at},
+            situation.upd_dp_is_active_2        AS {self.col_dp_is_active},
+            situation.upd_dp_is_latest_2        AS {self.col_dp_is_latest}
         FROM records_to_process
         WHERE situation.is_upd_2 = TRUE
 
@@ -672,10 +687,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             dp_del_flag,
             'INSERT_NEW_VERSION'                AS operation_type,
             situation.name                      AS case_name,            
-            situation.ins_dp_ts_from            AS dp_ts_from,
-            situation.ins_dp_ts_to              AS dp_ts_to,
-            situation.ins_dp_is_active          AS dp_is_active,
-            situation.ins_dp_is_latest          AS dp_is_latest
+            situation.ins_dp_ts_from            AS {self.col_dp_valid_from},
+            situation.ins_dp_ts_to              AS {self.col_dp_valid_to},
+            NULL                                AS {self.col_dp_replaced_at},
+            situation.ins_dp_is_active          AS {self.col_dp_is_active},
+            situation.ins_dp_is_latest          AS {self.col_dp_is_latest}
         FROM records_to_process
         WHERE situation.is_ins = TRUE
         
@@ -692,10 +708,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             dp_del_flag,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,            
-            NULL                                AS dp_ts_from,
-            NULL                                AS dp_ts_to,
-            NULL                                AS dp_is_active,
-            NULL                                AS dp_is_latest
+            NULL                                AS {self.col_dp_valid_from},
+            NULL                                AS {self.col_dp_valid_to},
+            NULL                                AS {self.col_dp_replaced_at},
+            NULL                                AS {self.col_dp_is_active},
+            NULL                                AS {self.col_dp_is_latest}
         FROM records_to_process
         WHERE situation.is_del = TRUE
 
@@ -711,10 +728,11 @@ class SparkSCD2Strategy(SCD2Strategy):
             dp_del_flag,
             'DELETE_VERSION'                    AS operation_type,
             situation.name                      AS case_name,
-            NULL                                AS dp_ts_from,
-            NULL                                AS dp_ts_to,
-            NULL                                AS dp_is_active,
-            NULL                                AS dp_is_latest
+            NULL                                AS {self.col_dp_valid_from},
+            NULL                                AS {self.col_dp_valid_to},
+            NULL                                AS {self.col_dp_replaced_at},
+            NULL                                AS {self.col_dp_is_active},
+            NULL                                AS {self.col_dp_is_latest}
         FROM records_to_process
         WHERE situation.is_del_2 = TRUE        
     )
@@ -767,9 +785,9 @@ class SparkSCD2Strategy(SCD2Strategy):
     THEN UPDATE SET
         {self.col_dp_valid_from} = source.{self.col_dp_valid_from},
         {self.col_dp_valid_to} = source.{self.col_dp_valid_to},
-        dp_is_active = COALESCE(source.dp_is_active, target.dp_is_active),
-        dp_is_latest = COALESCE(source.dp_is_latest, target.dp_is_latest),
-        {self.col_dp_replaced_at} = TIMESTAMP '{current_ts_str}'
+        {self.col_dp_is_active} = COALESCE(source.{self.col_dp_is_active}, target.{self.col_dp_is_active}),
+        {self.col_dp_is_latest} = COALESCE(source.{self.col_dp_is_latest}, target.{self.col_dp_is_latest}),
+        {self.col_dp_replaced_at} = COALESCE(source.{self.col_dp_replaced_at}, TIMESTAMP '{current_ts_str}')
     WHEN MATCHED
         AND source.operation_type = 'DELETE_VERSION'
     THEN DELETE
@@ -781,8 +799,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         {cols_val_str},
         {self.col_dp_valid_from},
         {self.col_dp_valid_to},
-        dp_is_active,
-        dp_is_latest,
+        {self.col_dp_is_active},
+        {self.col_dp_is_latest},
         {self.col_dp_created_at},
         {self.col_dp_replaced_at},
         {self.col_dp_record_hash}
@@ -792,8 +810,8 @@ class SparkSCD2Strategy(SCD2Strategy):
         {source_cols_val_str},
         source.{self.col_dp_valid_from},
         source.{self.col_dp_valid_to},
-        source.dp_is_active,
-        source.dp_is_latest,
+        source.{self.col_dp_is_active},
+        source.{self.col_dp_is_latest},
         TIMESTAMP '{current_ts_str}',
         TIMESTAMP '{self.max_ts_str}',
         source.{self.col_dp_record_hash}
