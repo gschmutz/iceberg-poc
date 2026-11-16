@@ -78,7 +78,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -98,7 +98,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -121,7 +121,7 @@ def test_step_1(ctx):
     # Run SELECT test
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
-                dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
+                dp_from_ts, dp_to_ts, dp_is_active, dp_is_latest,
                 dp_load_ts, dp_replace_ts,
                 dp_record_hash 
         FROM {scd2_table_fqn(ctx)}

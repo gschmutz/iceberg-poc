@@ -67,7 +67,7 @@ def test_step_1(ctx):
     if IS_SPARK:
         insert_sql_1 = f"""
             INSERT INTO {source_table_fqn(ctx)}
-            SELECT 1 AS id, map('first_name', 'Alice', 'last_name', 'Meyer', 'city', 'Zurich', 'email', 'alice.meyer@example.com') AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_1}' AS dp_ts_from, TIMESTAMP '{load_ts_1}' AS dp_loaded_at
+            SELECT 1 AS id, map('first_name', 'Alice', 'last_name', 'Meyer', 'city', 'Zurich', 'email', 'alice.meyer@example.com') AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_1}' AS dp_from_ts, TIMESTAMP '{load_ts_1}' AS dp_loaded_at
             UNION ALL
             SELECT 2,        map('first_name', 'Bob',   'last_name', 'Keller', 'city', 'Bern',   'email', 'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'
             UNION ALL
@@ -86,7 +86,7 @@ def test_step_1(ctx):
                 id,
                 user_info,
                 status,
-                dp_ts_from,
+                dp_from_ts,
                 dp_loaded_at
             )
         """
@@ -153,7 +153,7 @@ def test_step_2(ctx):
     if IS_SPARK:
         insert_sql_2 = f"""
             INSERT INTO {source_table_fqn(ctx)}
-            SELECT 1  AS id, map('first_name', 'Alice', 'last_name', 'Meyer',  'city', 'Zurich', 'email', 'alice.meyer@example.com') AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_2}' AS dp_ts_from, TIMESTAMP '{load_ts_2}' AS dp_loaded_at
+            SELECT 1  AS id, map('first_name', 'Alice', 'last_name', 'Meyer',  'city', 'Zurich', 'email', 'alice.meyer@example.com') AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_2}' AS dp_from_ts, TIMESTAMP '{load_ts_2}' AS dp_loaded_at
             UNION ALL
             SELECT 2,         map('first_name', 'Bob',   'last_name', 'Keller', 'city', 'Bern',   'email', 'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'
             UNION ALL
@@ -171,7 +171,7 @@ def test_step_2(ctx):
                     (2,  MAP(ARRAY['first_name', 'last_name', 'city', 'email'], ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com']),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (3,  MAP(ARRAY['first_name', 'last_name', 'city', 'email'], ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@example.com']), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (10, MAP(ARRAY['first_name', 'last_name', 'city', 'email'], ARRAY['Kevin', 'Loosli', 'Bern',   'kevin.loosli@example.com']), 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
-            ) AS t (id, user_info, status, dp_ts_from, dp_loaded_at)
+            ) AS t (id, user_info, status, dp_from_ts, dp_loaded_at)
         """
 
     expected = [

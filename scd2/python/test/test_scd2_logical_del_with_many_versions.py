@@ -76,7 +76,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -104,7 +104,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -189,7 +189,7 @@ def test_step_2(ctx):
         "-------------------------------- Test Step 2 --------------------------------"
     )
 
-    test_description = f"At {load_ts_3}, delete entity with `id=3` from raw table (logical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_ts_to` = {load_ts_3} - 1 second and `dp_is_active` = False."
+    test_description = f"At {load_ts_3}, delete entity with `id=3` from raw table (logical delete) and perform SCD2 merge. The active version of the entity with `id=3` should be marked as DELETED with `dp_to_ts` = {load_ts_3} - 1 second and `dp_is_active` = False."
 
     # --- Insert statement (batch 2) ---
     insert_sql_2 = f"""
@@ -207,7 +207,7 @@ def test_step_2(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """

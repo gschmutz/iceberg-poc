@@ -47,7 +47,7 @@ def test_step_1(ctx):
 
     render_init("Testing that a new version added for an entity has non-overlapping timestamps", FILE_NAME)
     render_data(
-        "This test validates that adding a new version for an entity results in non-overlapping timestamps for dp_ts_from and dp_ts_to.",
+        "This test validates that adding a new version for an entity results in non-overlapping timestamps for dp_from_ts and dp_to_ts.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)
@@ -72,7 +72,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -158,7 +158,7 @@ def test_step_2(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -239,7 +239,7 @@ def test_step_2(ctx):
         SELECT 1 
         FROM {scd2_table_fqn(ctx)}
         WHERE id = 3 AND dp_is_active != TRUE
-        AND dp_ts_to = (SELECT dp_ts_from - INTERVAL '1' SECOND FROM {scd2_table_fqn(ctx)} WHERE id = 3 AND dp_is_active = TRUE)
+        AND dp_to_ts = (SELECT dp_from_ts - INTERVAL '1' SECOND FROM {scd2_table_fqn(ctx)} WHERE id = 3 AND dp_is_active = TRUE)
         """
     
     expected_step2 = [(1)]

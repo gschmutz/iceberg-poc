@@ -76,7 +76,7 @@ def test_step_1(ctx):
             id,
             user_info,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -156,7 +156,7 @@ def test_step_2(ctx):
             id,
             user_info,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """

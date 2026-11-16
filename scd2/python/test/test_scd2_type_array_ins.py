@@ -67,7 +67,7 @@ def test_step_1(ctx):
     if IS_SPARK:
         insert_sql_1 = f"""
             INSERT INTO {source_table_fqn(ctx)}
-            SELECT 1  AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_1}' AS dp_ts_from, TIMESTAMP '{load_ts_1}' AS dp_loaded_at
+            SELECT 1  AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_1}' AS dp_from_ts, TIMESTAMP '{load_ts_1}' AS dp_loaded_at
             UNION ALL
             SELECT 2,        ARRAY('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'
             UNION ALL
@@ -82,7 +82,7 @@ def test_step_1(ctx):
                     (1, ARRAY['Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com'],  'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
                     (2, ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}'),
                     (3, ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'], 'ACTIVE', TIMESTAMP '{load_ts_1}', TIMESTAMP '{load_ts_1}')
-            ) AS t (id, user_info, status, dp_ts_from, dp_loaded_at)
+            ) AS t (id, user_info, status, dp_from_ts, dp_loaded_at)
         """
 
     expected = [
@@ -147,7 +147,7 @@ def test_step_2(ctx):
     if IS_SPARK:
         insert_sql_2 = f"""
             INSERT INTO {source_table_fqn(ctx)}
-            SELECT 1  AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_2}' AS dp_ts_from, TIMESTAMP '{load_ts_2}' AS dp_loaded_at
+            SELECT 1  AS id, ARRAY('Alice', 'Meyer', 'Zurich', 'alice.meyer@example.com')  AS user_info, 'ACTIVE' AS status, TIMESTAMP '{load_ts_2}' AS dp_from_ts, TIMESTAMP '{load_ts_2}' AS dp_loaded_at
             UNION ALL
             SELECT 2,        ARRAY('Bob',   'Keller', 'Bern',   'bob.keller@example.com'),   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'
             UNION ALL
@@ -165,7 +165,7 @@ def test_step_2(ctx):
                     (2,  ARRAY['Bob',   'Keller', 'Bern',   'bob.keller@example.com'],   'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (3,  ARRAY['Clara', 'Schmid', 'Basel',  'clara.schmid@example.com'], 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}'),
                     (10, ARRAY['Kevin', 'Loosli', 'Bern',   'kevin.loosli@example.com'], 'ACTIVE', TIMESTAMP '{load_ts_2}', TIMESTAMP '{load_ts_2}')
-            ) AS t (id, user_info, status, dp_ts_from, dp_loaded_at)
+            ) AS t (id, user_info, status, dp_from_ts, dp_loaded_at)
         """
 
     expected = [

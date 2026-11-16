@@ -85,7 +85,7 @@ def test_step_1(ctx):
                 col_timestamp,
                 col_timestamp_tz,
                 active,
-                dp_ts_from,
+                dp_from_ts,
                 dp_loaded_at
             )
         """
@@ -115,7 +115,7 @@ def test_step_1(ctx):
                 col_timestamp,
                 col_timestamp_tz,
                 active,
-                dp_ts_from,
+                dp_from_ts,
                 dp_loaded_at
             )
         """
@@ -243,7 +243,7 @@ def test_step_2(ctx):
                 col_timestamp,
                 col_timestamp_tz,
                 active,
-                dp_ts_from,
+                dp_from_ts,
                 dp_loaded_at
             )
         """
@@ -273,7 +273,7 @@ def test_step_2(ctx):
                 col_timestamp,
                 col_timestamp_tz,
                 active,
-                dp_ts_from,
+                dp_from_ts,
                 dp_loaded_at
             )
         """

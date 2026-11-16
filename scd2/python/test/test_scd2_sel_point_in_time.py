@@ -54,9 +54,9 @@ def test_step_1(ctx):
     create_raw_table(ctx)
     create_scd2_table_for_test(ctx)
 
-    render_init("Testing Point-in-Time SELECT using dp_ts_from / dp_ts_to", FILE_NAME)
+    render_init("Testing Point-in-Time SELECT using dp_ts_from / dp_to_ts", FILE_NAME)
     render_data(
-        f"This test validates a point-in-time SELECT operation that returns the version of each entity valid at timestamp {load_ts_2 - timedelta(days=2)} by filtering on dp_ts_from <= ts < dp_ts_to.",
+        f"This test validates a point-in-time SELECT operation that returns the version of each entity valid at timestamp {load_ts_2 - timedelta(days=2)} by filtering on dp_from_ts <= ts < dp_to_ts.",
         output_file_name=FILE_NAME,
     )
     render_data("\n", output_file_name=FILE_NAME)
@@ -78,7 +78,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -97,7 +97,7 @@ def test_step_1(ctx):
             city,
             email,
             status,
-            dp_ts_from,
+            dp_from_ts,
             dp_loaded_at
         )
     """
@@ -114,11 +114,11 @@ def test_step_1(ctx):
 
     sel_stmt = f"""
         SELECT id, first_name, last_name, city, email,
-                dp_ts_from, dp_ts_to, dp_is_active, dp_is_latest,
+                dp_from_ts, dp_to_ts, dp_is_active, dp_is_latest,
                 dp_load_ts, dp_replace_ts,
                 dp_record_hash  
         FROM {scd2_table_fqn(ctx)}
-        WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_ts_from AND dp_ts_to
+        WHERE TIMESTAMP '{load_ts_2}' - INTERVAL '2' DAY BETWEEN dp_from_ts AND dp_to_ts
         ORDER BY id
         """
 
