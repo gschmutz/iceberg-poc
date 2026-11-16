@@ -80,7 +80,7 @@ class TestCommonsBase:
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_from_ts", col_dp_ts_filter: str = "dp_loaded_at",
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
                        perform_edge_case_op: bool = True,
                        ts_granularity: str = TS_GRANULARITY_SECOND):
         raise NotImplementedError
@@ -152,7 +152,7 @@ class TestCommonsBase:
     def assert_df(
         self, actual_df: pd.DataFrame, expected_df: pd.DataFrame, output_file_name: str
     ):
-        for col in ["dp_to_ts", "dp_from_ts", "dp_load_ts", "dp_replace_ts"]:
+        for col in ["dp_ts_to", "dp_ts_from", "dp_load_ts", "dp_replace_ts"]:
             if col in actual_df.columns and col in expected_df.columns:
                 actual_df[col] = actual_df[col].apply(
                     TestCommonsBase.normalize_ts_for_assert
@@ -227,7 +227,7 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             render_table(
                 df,
@@ -240,7 +240,7 @@ class TestCommonsBase:
             actual_df = self.get_table_data(
                 ctx,
                 table=SCD2Table.SCD2,
-                order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"],
+                order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
                 exclude_cols=["dp_record_id"],
             )
             expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -276,7 +276,7 @@ class TestCommonsBase:
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
         )
         df_raw = self.get_table_data(
             ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
@@ -303,13 +303,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_record_id"],
-                sort_cols=cols_bks + ["dp_from_ts", "dp_to_ts"],
+                sort_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             )
             render_table(
                 df_colored,
@@ -323,7 +323,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"],
+            order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             exclude_cols=["dp_record_id"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -356,7 +356,7 @@ class TestCommonsBase:
         render_data(test_description, output_file_name=output_file_name)
 
         df_dim_before = self.get_table_data(
-            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"]
+            ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
         )
         df_raw = self.get_table_data(
             ctx, SCD2Table.RAW, order_by_cols=["dp_loaded_at"] + cols_bks
@@ -385,13 +385,13 @@ class TestCommonsBase:
 
         if display_result:
             df = self.get_table_data(
-                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"]
+                ctx, SCD2Table.SCD2, order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"]
             )
             df_colored = diff_with_color(
                 df_dim_before,
                 df,
                 index_cols=["dp_record_id"],
-                sort_cols=cols_bks + ["dp_from_ts", "dp_to_ts"],
+                sort_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             )
             render_table(
                 df_colored,
@@ -405,7 +405,7 @@ class TestCommonsBase:
         actual_df = self.get_table_data(
             ctx,
             SCD2Table.SCD2,
-            order_by_cols=cols_bks + ["dp_from_ts", "dp_to_ts"],
+            order_by_cols=cols_bks + ["dp_ts_from", "dp_ts_to"],
             exclude_cols=["dp_record_id"],
         )
         expected_df = pd.DataFrame(expected, columns=actual_df.columns)
@@ -527,7 +527,7 @@ class TrinoTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_from_ts", col_dp_ts_filter: str = "dp_loaded_at",
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
                        perform_edge_case_op: bool = True,
                        ts_granularity: str = TS_GRANULARITY_SECOND):
         return TrinoSCD2Strategy(
@@ -543,8 +543,8 @@ class TrinoTestCommons(TestCommonsBase):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_valid_from="dp_from_ts",
-            col_dp_valid_to="dp_to_ts",
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
@@ -570,8 +570,8 @@ class TrinoTestCommons(TestCommonsBase):
                 dp_record_id VARCHAR,
                 {pk_str},
                 {cols_str},
-                dp_from_ts TIMESTAMP,
-                dp_to_ts TIMESTAMP,
+                dp_ts_from TIMESTAMP,
+                dp_ts_to TIMESTAMP,
                 dp_is_active BOOLEAN,
                 dp_is_latest BOOLEAN,
                 dp_load_ts TIMESTAMP,
@@ -579,7 +579,7 @@ class TrinoTestCommons(TestCommonsBase):
                 dp_record_hash VARCHAR
             )
             WITH (
-                partitioning = ARRAY['dp_from_ts'],
+                partitioning = ARRAY['dp_ts_from'],
                 sorted_by = ARRAY[],
                 location = 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/{TRINO_SCHEMA}/{SCD2_TABLE_NAME}'
             )
@@ -607,7 +607,7 @@ class TrinoTestCommons(TestCommonsBase):
             {", ".join(cols_bks_with_type)},
             {", ".join(cols_with_type)},
             status VARCHAR,
-            dp_from_ts TIMESTAMP,
+            dp_ts_from TIMESTAMP,
             dp_loaded_at TIMESTAMP
         )
         WITH (
@@ -702,7 +702,7 @@ class SparkTestCommons(TestCommonsBase):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True,
                        perform_merge_op: bool = True, perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_from_ts", col_dp_ts_filter: str = "dp_loaded_at",
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
                        perform_edge_case_op: bool = True,
                        ts_granularity: str = TS_GRANULARITY_SECOND):
         return SparkSCD2Strategy(
@@ -717,8 +717,8 @@ class SparkTestCommons(TestCommonsBase):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_valid_from="dp_from_ts",
-            col_dp_valid_to="dp_to_ts",
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
@@ -744,8 +744,8 @@ class SparkTestCommons(TestCommonsBase):
                 dp_record_id STRING,
                 {pk_str},
                 {cols_str},
-                dp_from_ts TIMESTAMP,
-                dp_to_ts TIMESTAMP,
+                dp_ts_from TIMESTAMP,
+                dp_ts_to TIMESTAMP,
                 dp_is_active BOOLEAN,
                 dp_is_latest BOOLEAN,
                 dp_load_ts TIMESTAMP,
@@ -753,7 +753,7 @@ class SparkTestCommons(TestCommonsBase):
                 dp_record_hash STRING
             )
             USING ICEBERG
-            PARTITIONED BY (dp_from_ts)
+            PARTITIONED BY (dp_ts_from)
             LOCATION 's3a://{S3_WAREHOUSE_BUCKET}/{S3_WAREHOUSE_PREFIX}/default/{SCD2_TABLE_NAME}'
         """)
         logger.info(f"Dimension table {fqn} created successfully.")
@@ -773,7 +773,7 @@ class SparkTestCommons(TestCommonsBase):
             {", ".join(cols_bks_with_type)},
             {", ".join(cols_with_type)},
             status STRING,
-            dp_from_ts TIMESTAMP,
+            dp_ts_from TIMESTAMP,
             dp_loaded_at TIMESTAMP
         )
         USING ICEBERG
@@ -865,7 +865,7 @@ class PySparkTestCommons(SparkTestCommons):
                        use_logical_delete_for_source_table: bool = False, logical_delete_expression: Optional[str] = None,
                        check_physical_delete_against_source_table: bool = True, perform_merge_op: bool = True,
                        perform_record_hash_update: bool = False,
-                       col_dp_ts: str = "dp_from_ts", col_dp_ts_filter: str = "dp_loaded_at",
+                       col_dp_ts: str = "dp_ts_from", col_dp_ts_filter: str = "dp_loaded_at",
                        perform_edge_case_op: bool = True,
                        ts_granularity: str = TS_GRANULARITY_SECOND):
         return PySparkSCD2Strategy(
@@ -882,8 +882,8 @@ class PySparkTestCommons(SparkTestCommons):
             check_physical_delete_against_source_table=check_physical_delete_against_source_table,
             perform_merge_op=perform_merge_op,
             perform_record_hash_update=perform_record_hash_update,
-            col_dp_valid_from="dp_from_ts",
-            col_dp_valid_to="dp_to_ts",
+            col_dp_valid_from="dp_ts_from",
+            col_dp_valid_to="dp_ts_to",
             col_dp_created_at="dp_load_ts",
             col_dp_replaced_at="dp_replace_ts",
             col_dp_ts=col_dp_ts,
