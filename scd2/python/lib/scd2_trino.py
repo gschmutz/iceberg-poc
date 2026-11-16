@@ -243,6 +243,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         upd_dp_ts_to: Optional[str] = None,
         upd_dp_is_active: Optional[str] = None,
         upd_dp_is_latest: Optional[str] = None,
+        upd_dp_ts_replace_from: Optional[str] = None,
         is_upd_2: bool = False,
         upd_key_2: Optional[str] = None,
         upd_to_2: Optional[str] = None,
@@ -250,6 +251,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         upd_dp_ts_to_2: Optional[str] = None,
         upd_dp_is_active_2: Optional[str] = None,
         upd_dp_is_latest_2: Optional[str] = None,
+        upd_dp_ts_replace_from_2: Optional[str] = None,
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
@@ -262,7 +264,7 @@ class TrinoSCD2Strategy(SCD2Strategy):
         del_key_2: Optional[str] = None,
         del_to_2: Optional[str] = None,
     ) -> str:
-        return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_to}' if upd_to else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_to_2}' if upd_to_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {f'{del_to}' if del_to else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}, {f'{del_to_2}' if del_to_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_to TIMESTAMP, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_to_2 TIMESTAMP, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, del_to TIMESTAMP, is_del_2 BOOLEAN, del_key_2 VARCHAR, del_to_2 TIMESTAMP))"
+        return f"CAST (ROW ('{name}', {str(is_upd).upper()}, {f'{upd_key}' if upd_key else 'NULL'}, {f'{upd_to}' if upd_to else 'NULL'}, {f'{upd_dp_ts_from}' if upd_dp_ts_from else 'NULL'}, {f'{upd_dp_ts_to}' if upd_dp_ts_to else 'NULL'}, {f'{upd_dp_is_active}' if upd_dp_is_active is not None else 'NULL'}, {f'{upd_dp_is_latest}' if upd_dp_is_latest is not None else 'NULL'}, {f'{upd_dp_ts_replace_from}' if upd_dp_ts_replace_from else 'NULL'}, {str(is_upd_2).upper()}, {f'{upd_key_2}' if upd_key_2 else 'NULL'}, {f'{upd_to_2}' if upd_to_2 else 'NULL'}, {f'{upd_dp_ts_from_2}' if upd_dp_ts_from_2 else 'NULL'}, {f'{upd_dp_ts_to_2}' if upd_dp_ts_to_2 else 'NULL'}, {f'{upd_dp_is_active_2}' if upd_dp_is_active_2 is not None else 'NULL'}, {f'{upd_dp_is_latest_2}' if upd_dp_is_latest_2 is not None else 'NULL'}, {f'{upd_dp_ts_replace_from_2}' if upd_dp_ts_replace_from_2 else 'NULL'}, {str(is_ins).upper()}, {f'{ins_dp_ts_from}' if ins_dp_ts_from else 'NULL'}, {f'{ins_dp_ts_to}' if ins_dp_ts_to else 'NULL'}, {f'{ins_dp_is_active}' if ins_dp_is_active is not None else 'NULL'}, {f'{ins_dp_is_latest}' if ins_dp_is_latest is not None else 'NULL'}, {str(is_del).upper()}, {f'{del_key}' if del_key else 'NULL'}, {f'{del_to}' if del_to else 'NULL'}, {str(is_del_2).upper()}, {f'{del_key_2}' if del_key_2 else 'NULL'}, {f'{del_to_2}' if del_to_2 else 'NULL'}) AS ROW(name VARCHAR, is_upd BOOLEAN, upd_key VARCHAR, upd_to TIMESTAMP, upd_dp_ts_from TIMESTAMP, upd_dp_ts_to TIMESTAMP, upd_dp_is_active BOOLEAN, upd_dp_is_latest BOOLEAN, upd_dp_ts_replace_from TIMESTAMP, is_upd_2 BOOLEAN, upd_key_2 VARCHAR, upd_to_2 TIMESTAMP, upd_dp_ts_from_2 TIMESTAMP, upd_dp_ts_to_2 TIMESTAMP, upd_dp_is_active_2 BOOLEAN, upd_dp_is_latest_2 BOOLEAN, upd_dp_ts_replace_from_2 TIMESTAMP, is_ins BOOLEAN, ins_dp_ts_from TIMESTAMP, ins_dp_ts_to TIMESTAMP, ins_dp_is_active BOOLEAN, ins_dp_is_latest BOOLEAN, is_del BOOLEAN, del_key VARCHAR, del_to TIMESTAMP, is_del_2 BOOLEAN, del_key_2 VARCHAR, del_to_2 TIMESTAMP))"
 
     def _cols_with_type(self, table_name: str) -> dict:
         sql = f"""
@@ -486,7 +488,10 @@ class TrinoSCD2Strategy(SCD2Strategy):
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
             overlap.{self.col_dp_record_id}                                                                                         AS overlap_{self.col_dp_record_id},
             CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,{prev_select}{next_select}
+            overlap.dp_ts_from = src.{self.col_dp_ts}                                                                               AS overlap_same_start,
+            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
+            overlap.dp_is_latest                                                                                                    AS overlap_dp_is_latest,
+            overlap.dp_ts_replace                                                                                              AS overlap_dp_ts_replace_from,{prev_select}{next_select}
         FROM src_records AS src
         LEFT JOIN LATERAL (
             SELECT
@@ -623,13 +628,27 @@ class TrinoSCD2Strategy(SCD2Strategy):
                     AND next_is_same_as_src = TRUE
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
-                    THEN {self._format_case_object('CASE_26', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='next_dp_ts_to', upd_dp_is_active='next_dp_is_active', upd_dp_is_latest='next_dp_is_latest', is_del=True, del_key='next_dp_record_id',  del_to='next_dp_ts_to')}           
+                    THEN {self._format_case_object('CASE_26', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='next_dp_ts_to', upd_dp_is_active='next_dp_is_active', upd_dp_is_latest='next_dp_is_latest', is_del=True, del_key='next_dp_record_id', del_to='next_dp_ts_to')}           
                 WHEN prev_is_same_as_src = FALSE
                     AND overlap_is_same_as_src IS NULL
                     AND next_is_same_as_src = FALSE
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
                     THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=f'next_dp_ts_from - {self.interval_expr}', ins_dp_is_active='False', ins_dp_is_latest='False')}           
+                WHEN (prev_is_same_as_src is null or prev_is_same_as_src = false)
+                    AND (overlap_is_same_as_src = true or overlap_is_same_as_src = false)
+                    AND overlap_same_start = TRUE
+                    AND next_is_same_as_src IS NULL
+                    AND (overlap_dp_is_active = true or overlap_dp_is_active = false)
+                    AND dp_del_flag = 'ACTIVE'
+                    THEN {self._format_case_object('CASE_28', is_ins=True, ins_dp_ts_from='overlap_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active='overlap_dp_is_active', ins_dp_is_latest='overlap_dp_is_latest', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
+                WHEN prev_is_same_as_src = true
+                    AND (overlap_is_same_as_src = true or overlap_is_same_as_src = false)
+                    AND overlap_same_start = TRUE
+                    AND next_is_same_as_src IS NULL
+                    AND (overlap_dp_is_active = true or overlap_dp_is_active = false)
+                    AND dp_del_flag = 'ACTIVE'
+                    THEN {self._format_case_object('CASE_29', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active='overlap_dp_is_active', upd_dp_is_latest='overlap_dp_is_latest', upd_dp_ts_replace_from='overlap_dp_ts_replace_from', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL
