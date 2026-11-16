@@ -112,6 +112,8 @@ class SCD2Strategy(ABC):
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
         col_dp_replaced_at: str = "dp_replaced_at",
+        col_dp_is_active: str = "dp_is_active",
+        col_dp_is_latest: str = "dp_is_latest",
         col_dp_record_hash: str = "dp_record_hash",
         col_dp_record_id : str = "dp_record_id",
         col_dp_ts: str = "dp_ts_version",
@@ -152,6 +154,8 @@ class SCD2Strategy(ABC):
             col_dp_valid_to: Name of the timestamp column in the SCD2 table that identifies the version end (e.g. ``"dp_to_ts"``).  Defaults to ``"dp_to_ts"``.
             col_dp_created_at: Name of the timestamp column in the SCD2 table that identifies when a version was created (e.g. ``"dp_created_at"``).  Defaults to ``"dp_created_at"``.
             col_dp_replaced_at: Name of the timestamp column in the SCD2 table that identifies when a version was superseded (e.g. ``"dp_replaced_at"``).  Defaults to ``"dp_replaced_at"``.
+            col_dp_is_active: Name of the boolean column in the SCD2 table that flags a version as active, i.e. not deleted (e.g. ``"dp_is_active"``).  Defaults to ``"dp_is_active"``.
+            col_dp_is_latest: Name of the boolean column in the SCD2 table that flags the most recent version of an entity, even if deleted (e.g. ``"dp_is_latest"``).  Defaults to ``"dp_is_latest"``.
             col_dp_record_hash: Name of the column in the SCD2 table that stores the record hash (e.g. ``"dp_record_hash"``).  Defaults to ``"dp_record_hash"``.
             col_dp_record_id: Name of the column in the SCD2 table that stores the unique ID of each record (e.g. ``"dp_record_id"``).  Defaults to ``"dp_record_id"``.
             col_dp_ts: Name of the timestamp column in the SCD2 table that
@@ -202,6 +206,8 @@ class SCD2Strategy(ABC):
         self.col_dp_valid_to = col_dp_valid_to
         self.col_dp_created_at = col_dp_created_at
         self.col_dp_replaced_at = col_dp_replaced_at
+        self.col_dp_is_active = col_dp_is_active
+        self.col_dp_is_latest = col_dp_is_latest
         self.col_dp_record_hash = col_dp_record_hash
         self.col_dp_record_id = col_dp_record_id
         self.col_dp_ts = col_dp_ts if col_dp_ts else col_dp_ts_filter
