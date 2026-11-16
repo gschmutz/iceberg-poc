@@ -54,6 +54,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         col_dp_valid_to: str = "dp_to_ts",
         col_dp_created_at: str = "dp_created_at",
         col_dp_replaced_at: str = "dp_replaced_at",
+        col_dp_is_active: str = "dp_is_active",
+        col_dp_is_latest: str = "dp_is_latest",
         col_dp_record_hash: str = "dp_record_hash",
         col_dp_record_id : str = "dp_record_id",        
         col_dp_ts: str = "dp_ts_version",
@@ -79,6 +81,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             col_dp_valid_to=col_dp_valid_to,
             col_dp_created_at=col_dp_created_at,
             col_dp_replaced_at=col_dp_replaced_at,
+            col_dp_is_active=col_dp_is_active,
+            col_dp_is_latest=col_dp_is_latest,
             col_dp_record_hash=col_dp_record_hash,
             col_dp_record_id=col_dp_record_id,
             col_dp_ts=col_dp_ts,
@@ -328,7 +332,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
 
         overlap_base_df = (
             scd2_df.filter(
-                (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
+                (F.col(self.col_dp_is_active) == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
             )
             if not self.perform_edge_case_op
             else scd2_df
@@ -339,8 +343,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.col(self.col_dp_record_id).alias("overlap_dp_record_id"),
             F.col(self.col_dp_valid_from).alias("overlap_dp_ts_from"),
             F.col(self.col_dp_valid_to).alias("overlap_dp_ts_to"),
-            F.col("dp_is_active").alias("overlap_dp_is_active"),
-            F.col("dp_is_latest").alias("overlap_dp_is_latest"),
+            F.col(self.col_dp_created_at).alias("overlap_dp_created_at"),
+            F.col(self.col_dp_replaced_at).alias("overlap_dp_replaced_at"),
+            F.col(self.col_dp_is_active).alias("overlap_dp_is_active"),
+            F.col(self.col_dp_is_latest).alias("overlap_dp_is_latest"),
         )
 
         prev_df = scd2_df.select(
@@ -349,20 +355,24 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             F.col(self.col_dp_record_hash).alias("prev_dp_record_hash"),
             F.col(self.col_dp_valid_from).alias("prev_dp_ts_from"),
             F.col(self.col_dp_valid_to).alias("prev_dp_ts_to"),
-            F.col("dp_is_active").alias("prev_dp_is_active"),
-            F.col("dp_is_latest").alias("prev_dp_is_latest"),
+            F.col(self.col_dp_created_at).alias("prev_dp_created_at"),
+            F.col(self.col_dp_replaced_at).alias("prev_dp_replaced_at"),
+            F.col(self.col_dp_is_active).alias("prev_dp_is_active"),
+            F.col(self.col_dp_is_latest).alias("prev_dp_is_latest"),
         )
 
         next_df = scd2_df.filter(
-            (F.col("dp_is_active") == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
+            (F.col(self.col_dp_is_active) == True) & (F.col(self.col_dp_valid_to) == F.expr(self.max_ts_expr))
         ).select(
             *[F.col(c).alias(f"next_{c}") for c in self.cols_bks],
             F.col(self.col_dp_record_id).alias("next_dp_record_id"),
             F.col(self.col_dp_record_hash).alias("next_dp_record_hash"),
             F.col(self.col_dp_valid_from).alias("next_dp_ts_from"),
             F.col(self.col_dp_valid_to).alias("next_dp_ts_to"),
-            F.col("dp_is_active").alias("next_dp_is_active"),
-            F.col("dp_is_latest").alias("next_dp_is_latest"),
+            F.col(self.col_dp_created_at).alias("next_dp_created_at"),
+            F.col(self.col_dp_replaced_at).alias("next_dp_replaced_at"),
+            F.col(self.col_dp_is_active).alias("next_dp_is_active"),
+            F.col(self.col_dp_is_latest).alias("next_dp_is_latest"),
         )
 
         # ── join conditions ───────────────────────────────────────────────────
@@ -398,6 +408,8 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                 F.lit(None).cast("string").alias(f"{prefix}_dp_record_hash"),
                 F.lit(None).cast("timestamp").alias(f"{prefix}_dp_ts_from"),
                 F.lit(None).cast("timestamp").alias(f"{prefix}_dp_ts_to"),
+                F.lit(None).cast("timestamp").alias(f"{prefix}_dp_created_at"),
+                F.lit(None).cast("timestamp").alias(f"{prefix}_dp_replaced_at"),
                 F.lit(None).cast("boolean").alias(f"{prefix}_dp_is_active"),
                 F.lit(None).cast("boolean").alias(f"{prefix}_dp_is_latest"),
             ]
@@ -819,7 +831,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     upd_dp_ts_to="overlap_dp_ts_to",
                     upd_dp_is_active="overlap_dp_is_active",
                     upd_dp_is_latest="overlap_dp_is_latest",
-                    upd_dp_ts_replace_from="overlap_dp_ts_replace_from",
+                    upd_dp_ts_replace_from="overlap_dp_replaced_at",
                     is_del=True,
                     del_key="overlap_dp_record_id",
                     del_to="overlap_dp_ts_to",
@@ -925,8 +937,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             *_common("UPDATE_VERSION"),
             F.col("situation.upd_dp_ts_from").alias(self.col_dp_valid_from),
             F.col("situation.upd_dp_ts_to").alias(self.col_dp_valid_to),
-            F.col("situation.upd_dp_is_active").alias("dp_is_active"),
-            F.col("situation.upd_dp_is_latest").alias("dp_is_latest"),
+            F.col("situation.upd_dp_ts_replace_from").alias(self.col_dp_replaced_at),
+            F.col("situation.upd_dp_is_active").alias(self.col_dp_is_active),
+            F.col("situation.upd_dp_is_latest").alias(self.col_dp_is_latest),
         )
 
         updates_2_df = records_df.filter(F.col("situation.is_upd_2") == True).select(
@@ -936,8 +949,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             *_common("UPDATE_VERSION"),
             F.col("situation.upd_dp_ts_from_2").alias(self.col_dp_valid_from),
             F.col("situation.upd_dp_ts_to_2").alias(self.col_dp_valid_to),
-            F.col("situation.upd_dp_is_active_2").alias("dp_is_active"),
-            F.col("situation.upd_dp_is_latest_2").alias("dp_is_latest"),
+            F.col("situation.upd_dp_ts_replace_from_2").alias(self.col_dp_replaced_at),
+            F.col("situation.upd_dp_is_active_2").alias(self.col_dp_is_active),
+            F.col("situation.upd_dp_is_latest_2").alias(self.col_dp_is_latest),
         )
 
         inserts_df = records_df.filter(F.col("situation.is_ins") == True).select(
@@ -950,8 +964,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             *_common("INSERT_NEW_VERSION"),
             F.col("situation.ins_dp_ts_from").alias(self.col_dp_valid_from),
             F.col("situation.ins_dp_ts_to").alias(self.col_dp_valid_to),
-            F.col("situation.ins_dp_is_active").alias("dp_is_active"),
-            F.col("situation.ins_dp_is_latest").alias("dp_is_latest"),
+            null_ts.alias(self.col_dp_replaced_at),
+            F.col("situation.ins_dp_is_active").alias(self.col_dp_is_active),
+            F.col("situation.ins_dp_is_latest").alias(self.col_dp_is_latest),
         )
 
         deletes_df = records_df.filter(F.col("situation.is_del") == True).select(
@@ -961,8 +976,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             *_common("DELETE_VERSION"),
             null_ts.alias(self.col_dp_valid_from),
             null_ts.alias(self.col_dp_valid_to),
-            null_bool.alias("dp_is_active"),
-            null_bool.alias("dp_is_latest"),
+            null_ts.alias(self.col_dp_replaced_at),
+            null_bool.alias(self.col_dp_is_active),
+            null_bool.alias(self.col_dp_is_latest),
         )
 
         deletes_2_df = records_df.filter(F.col("situation.is_del_2") == True).select(
@@ -972,8 +988,9 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             *_common("DELETE_VERSION"),
             null_ts.alias(self.col_dp_valid_from),
             null_ts.alias(self.col_dp_valid_to),
-            null_bool.alias("dp_is_active"),
-            null_bool.alias("dp_is_latest"),
+            null_ts.alias(self.col_dp_replaced_at),
+            null_bool.alias(self.col_dp_is_active),
+            null_bool.alias(self.col_dp_is_latest),
         )
 
         return (
