@@ -208,7 +208,7 @@ def _assert_data_unchanged(ctx, test_step: int, description: str):
     actual_df = get_table_data(
         ctx,
         SCD2Table.SCD2,
-        order_by_cols=["id", "dp_ts_from"],
+        order_by_cols=["id", "dp_from_ts"],
         exclude_cols=["dp_record_id"],
     )
     render_data(f"## Test Step {test_step}", output_file_name=FILE_NAME)
