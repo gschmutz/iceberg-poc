@@ -206,6 +206,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         upd_dp_ts_to: Optional[str] = None,
         upd_dp_is_active: Optional[str] = None,
         upd_dp_is_latest: Optional[str] = None,
+        upd_dp_ts_replace_from: Optional[str] = None,
         is_upd_2: bool = False,
         upd_key_2: Optional[str] = None,
         upd_to_2: Optional[str] = None,
@@ -213,6 +214,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         upd_dp_ts_to_2: Optional[str] = None,
         upd_dp_is_active_2: Optional[str] = None,
         upd_dp_is_latest_2: Optional[str] = None,
+        upd_dp_ts_replace_from_2: Optional[str] = None,
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
@@ -225,7 +227,7 @@ class SparkSCD2Strategy(SCD2Strategy):
         del_key_2: Optional[str] = None,
         del_to_2: Optional[str] = None,
     ) -> str:
-        return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_to}" if upd_to else 'NULL'} AS upd_to, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_to_2}" if upd_to_2 else 'NULL'} AS upd_to_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {f"{del_to}" if del_to else 'NULL'} AS del_to, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2, {f"{del_to_2}" if del_to_2 else 'NULL'} AS del_to_2)"""
+        return f"""struct('{name}' AS name, {str(is_upd).lower()} AS is_upd, {f"{upd_key}" if upd_key else 'NULL'} AS upd_key, {f"{upd_to}" if upd_to else 'NULL'} AS upd_to, {f"{upd_dp_ts_from}" if upd_dp_ts_from else 'NULL'} AS upd_dp_ts_from, {f"{upd_dp_ts_to}" if upd_dp_ts_to else 'NULL'} AS upd_dp_ts_to, {f"{str(upd_dp_is_active).lower()}" if upd_dp_is_active is not None else 'NULL'} AS upd_dp_is_active, {f"{str(upd_dp_is_latest).lower()}" if upd_dp_is_latest is not None else 'NULL'} AS upd_dp_is_latest, {f"{upd_dp_ts_replace_from}" if upd_dp_ts_replace_from else 'NULL'} AS upd_dp_ts_replace_from, {str(is_upd_2).lower()} AS is_upd_2, {f"{upd_key_2}" if upd_key_2 else 'NULL'} AS upd_key_2, {f"{upd_to_2}" if upd_to_2 else 'NULL'} AS upd_to_2, {f"{upd_dp_ts_from_2}" if upd_dp_ts_from_2 else 'NULL'} AS upd_dp_ts_from_2, {f"{upd_dp_ts_to_2}" if upd_dp_ts_to_2 else 'NULL'} AS upd_dp_ts_to_2, {f"{str(upd_dp_is_active_2).lower()}" if upd_dp_is_active_2 is not None else 'NULL'} AS upd_dp_is_active_2, {f"{str(upd_dp_is_latest_2).lower()}" if upd_dp_is_latest_2 is not None else 'NULL'} AS upd_dp_is_latest_2, {f"{upd_dp_ts_replace_from_2}" if upd_dp_ts_replace_from_2 else 'NULL'} AS upd_dp_ts_replace_from_2, {str(is_ins).lower()} AS is_ins, {f"{ins_dp_ts_from}" if ins_dp_ts_from else 'NULL'} AS ins_dp_ts_from, {f"{ins_dp_ts_to}" if ins_dp_ts_to else 'NULL'} AS ins_dp_ts_to, {f"{str(ins_dp_is_active).lower()}" if ins_dp_is_active is not None else 'NULL'} AS ins_dp_is_active, {f"{str(ins_dp_is_latest).lower()}" if ins_dp_is_latest is not None else 'NULL'} AS ins_dp_is_latest, {str(is_del).lower()} AS is_del, {f"{del_key}" if del_key else 'NULL'} AS del_key, {f"{del_to}" if del_to else 'NULL'} AS del_to, {str(is_del_2).lower()} AS is_del_2, {f"{del_key_2}" if del_key_2 else 'NULL'} AS del_key_2, {f"{del_to_2}" if del_to_2 else 'NULL'} AS del_to_2)"""
 
     def _cols_with_type(self, table_name: str) -> dict:
         """Return a dict with column names and their data types for the given table."""
@@ -431,7 +433,9 @@ class SparkSCD2Strategy(SCD2Strategy):
             overlap.dp_ts_to                                                                                                        AS overlap_dp_ts_to,
             overlap.{self.col_dp_record_id}                                                                                                          AS overlap_{self.col_dp_record_id},
             CASE WHEN overlap.{self.col_dp_record_hash} IS NULL THEN NULL WHEN src.{self.col_dp_record_hash} = overlap.{self.col_dp_record_hash} THEN TRUE ELSE FALSE END     AS overlap_is_same_as_src,
-            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,{prev_select}{next_select}
+            overlap.dp_ts_from = src.{self.col_dp_ts}                                                                               AS overlap_same_start,
+            overlap.dp_is_active                                                                                                    AS overlap_dp_is_active,
+            overlap.dp_is_latest                                                                                                    AS overlap_dp_is_latest,{prev_select}{next_select}
         FROM src_records AS src
         LEFT JOIN (
             SELECT
@@ -575,6 +579,20 @@ class SparkSCD2Strategy(SCD2Strategy):
                     AND overlap_dp_is_active IS NULL
                     AND dp_del_flag = 'ACTIVE'
                     THEN {self._format_case_object('CASE_27', is_ins=True, ins_dp_ts_from='src_dp_ts_from', ins_dp_ts_to=f'next_dp_ts_from - {self.interval_expr}', ins_dp_is_active='False', ins_dp_is_latest='False')}           
+                WHEN (prev_is_same_as_src is null or prev_is_same_as_src = false)
+                    AND (overlap_is_same_as_src = true or overlap_is_same_as_src = false)
+                    AND overlap_same_start = TRUE
+                    AND next_is_same_as_src IS NULL
+                    AND (overlap_dp_is_active = true or overlap_dp_is_active = false)
+                    AND dp_del_flag = 'ACTIVE'
+                    THEN {self._format_case_object('CASE_28', is_ins=True, ins_dp_ts_from='overlap_dp_ts_from', ins_dp_ts_to='overlap_dp_ts_to', ins_dp_is_active='overlap_dp_is_active', ins_dp_is_latest='overlap_dp_is_latest', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
+                WHEN prev_is_same_as_src = true
+                    AND (overlap_is_same_as_src = true or overlap_is_same_as_src = false)
+                    AND overlap_same_start = TRUE
+                    AND next_is_same_as_src IS NULL
+                    AND (overlap_dp_is_active = true or overlap_dp_is_active = false)
+                    AND dp_del_flag = 'ACTIVE'
+                    THEN {self._format_case_object('CASE_29', is_upd=True, upd_key='prev_dp_record_id', upd_to='prev_dp_ts_to', upd_dp_ts_from='prev_dp_ts_from', upd_dp_ts_to='overlap_dp_ts_to', upd_dp_is_active='overlap_dp_is_active', upd_dp_is_latest='overlap_dp_is_latest', upd_dp_ts_replace_from='overlap_dp_ts_replace_from', is_del=True, del_key='overlap_dp_record_id', del_to='overlap_dp_ts_to')}
                 WHEN prev_is_same_as_src IS NULL
                     AND overlap_is_same_as_src = TRUE
                     AND next_is_same_as_src IS NULL

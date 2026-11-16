@@ -102,6 +102,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         upd_dp_ts_to: Optional[str] = None,
         upd_dp_is_active: Optional[str] = None,
         upd_dp_is_latest: Optional[str] = None,
+        upd_dp_ts_replace_from: Optional[str] = None,
         is_upd_2: bool = False,
         upd_key_2: Optional[str] = None,
         upd_to_2: Optional[str] = None,
@@ -109,6 +110,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
         upd_dp_ts_to_2: Optional[str] = None,
         upd_dp_is_active_2: Optional[str] = None,
         upd_dp_is_latest_2: Optional[str] = None,
+        upd_dp_ts_replace_from_2: Optional[str] = None,
         is_ins: bool = False,
         ins_dp_ts_from: Optional[str] = None,
         ins_dp_ts_to: Optional[str] = None,
@@ -155,6 +157,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             ts_or_null(upd_dp_ts_to).alias("upd_dp_ts_to"),
             bool_or_null(upd_dp_is_active).alias("upd_dp_is_active"),
             bool_or_null(upd_dp_is_latest).alias("upd_dp_is_latest"),
+            ts_or_null(upd_dp_ts_replace_from).alias("upd_dp_ts_replace_from"),
             F.lit(is_upd_2).alias("is_upd_2"),
             key_or_null(upd_key_2).alias("upd_key_2"),
             ts_or_null(upd_to_2).alias("upd_to_2"),
@@ -162,6 +165,7 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             ts_or_null(upd_dp_ts_to_2).alias("upd_dp_ts_to_2"),
             bool_or_null(upd_dp_is_active_2).alias("upd_dp_is_active_2"),
             bool_or_null(upd_dp_is_latest_2).alias("upd_dp_is_latest_2"),
+            ts_or_null(upd_dp_ts_replace_from_2).alias("upd_dp_ts_replace_from_2"),
             F.lit(is_ins).alias("is_ins"),
             ts_or_null(ins_dp_ts_from).alias("ins_dp_ts_from"),
             ts_or_null(ins_dp_ts_to).alias("ins_dp_ts_to"),
@@ -424,6 +428,10 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
             )
             .withColumn("prev_is_same_as_src", same_as_src("prev_dp_record_hash"))
             .withColumn("next_is_same_as_src", same_as_src("next_dp_record_hash"))
+            .withColumn(
+                "overlap_same_start",
+                F.col("overlap_dp_ts_from") == F.col("src_dp_ts_from"),
+            )
             .withColumn(
                 "prev_with_gap",
                 F.col("prev_dp_ts_to") < (F.col("src_dp_ts_from") - F.expr(self.interval_expr)),
@@ -774,6 +782,47 @@ class PySparkSCD2Strategy(SparkSCD2Strategy):
                     ins_dp_ts_to=f"next_dp_ts_from - {self.interval_expr}",
                     ins_dp_is_active="False",
                     ins_dp_is_latest="False",
+                ),
+            )
+            .when(
+                (c("prev_is_same_as_src").isNull() | (c("prev_is_same_as_src") == False))
+                & ((c("overlap_is_same_as_src") == True) | (c("overlap_is_same_as_src") == False))
+                & (c("overlap_same_start") == True)
+                & c("next_is_same_as_src").isNull()
+                & ((c("overlap_dp_is_active") == True) | (c("overlap_dp_is_active") == False))
+                & (c("dp_del_flag") == "ACTIVE"),
+                s(
+                    "CASE_28",
+                    is_ins=True,
+                    ins_dp_ts_from="overlap_dp_ts_from",
+                    ins_dp_ts_to="overlap_dp_ts_to",
+                    ins_dp_is_active="overlap_dp_is_active",
+                    ins_dp_is_latest="overlap_dp_is_latest",
+                    is_del=True,
+                    del_key="overlap_dp_record_id",
+                    del_to="overlap_dp_ts_to",
+                ),
+            )
+            .when(
+                (c("prev_is_same_as_src") == True)
+                & ((c("overlap_is_same_as_src") == True) | (c("overlap_is_same_as_src") == False))
+                & (c("overlap_same_start") == True)
+                & c("next_is_same_as_src").isNull()
+                & ((c("overlap_dp_is_active") == True) | (c("overlap_dp_is_active") == False))
+                & (c("dp_del_flag") == "ACTIVE"),
+                s(
+                    "CASE_29",
+                    is_upd=True,
+                    upd_key="prev_dp_record_id",
+                    upd_to="prev_dp_ts_to",
+                    upd_dp_ts_from="prev_dp_ts_from",
+                    upd_dp_ts_to="overlap_dp_ts_to",
+                    upd_dp_is_active="overlap_dp_is_active",
+                    upd_dp_is_latest="overlap_dp_is_latest",
+                    upd_dp_ts_replace_from="overlap_dp_ts_replace_from",
+                    is_del=True,
+                    del_key="overlap_dp_record_id",
+                    del_to="overlap_dp_ts_to",
                 ),
             )
             .when(
